@@ -78,7 +78,14 @@ export function createHUD(app, bodyList) {
   mobileRocketBtn.type = 'button';
   mobileRocketBtn.setAttribute('aria-label', 'Launch PJMC SPACE EXPLORER');
   mobileRocketBtn.innerHTML = '<span class="mobile-rocket-orbit" aria-hidden="true"></span><span class="mobile-rocket-icon" aria-hidden="true">🚀</span><span class="mobile-rocket-flame" aria-hidden="true"></span><span class="mobile-rocket-label">SPACE EXPLORER</span><span class="mobile-rocket-subtitle">TAP TO LAUNCH</span>';
-  mobileRocketBtn.addEventListener('click', () => app.onSpacecraftToggle?.());
+  // The HUD shell uses pointer-events:none, so explicitly opt this floating
+  // launch control back into hit-testing. Handle taps through the normal click
+  // activation path and prevent any accidental page-level default behavior.
+  mobileRocketBtn.style.pointerEvents = 'auto';
+  mobileRocketBtn.addEventListener('click', (event) => {
+    event.preventDefault();
+    app.onSpacecraftToggle?.();
+  });
 
   controls.append(scaleGroup, orbitsBtn, labelsBtn, freeBtn, resetBtn, languageBtn, spacecraftBtn);
   top.append(brand, searchWrap, controls);

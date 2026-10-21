@@ -848,13 +848,13 @@ body.spacecraft-active.spacecraft-ui-minimized #app canvas { height: 100dvh; }
   .flight-instrument { padding: 7px; }
   .flight-instrument strong { font-size: 11px; }
   .flight-key-legend { display: none; }
-  .spacecraft-touch-controls { position: fixed; z-index: 26; left: 12px; bottom: 12px; display: flex; align-items: flex-end; gap: 10px; pointer-events: auto; }
-  .flight-dpad { grid-template-columns: repeat(3, 45px); grid-template-rows: repeat(3, 43px); gap: 4px; }
-  .flight-key { border-radius: 7px; font-size: 15px; background: rgba(4, 21, 36, 0.88); }
-  .flight-vertical-controls { gap: 4px; }
+  .spacecraft-touch-controls { position: fixed; z-index: 36; left: max(12px, env(safe-area-inset-left)); bottom: calc(14px + env(safe-area-inset-bottom)); display: flex; align-items: flex-end; gap: 12px; pointer-events: auto; padding: 9px; border: 1px solid rgba(85, 195, 255, .25); border-radius: 20px; background: linear-gradient(145deg, rgba(3, 17, 31, .72), rgba(5, 29, 47, .48)); box-shadow: 0 8px 26px rgba(0,0,0,.22), inset 0 0 18px rgba(61, 174, 235, .06); backdrop-filter: blur(8px); }
+  .flight-dpad { grid-template-columns: repeat(3, 47px); grid-template-rows: repeat(3, 45px); gap: 5px; }
+  .flight-key { border-radius: 11px; font-size: 16px; background: linear-gradient(145deg, rgba(9, 45, 68, .96), rgba(3, 16, 29, .96)); border-color: rgba(98, 211, 255, .58); box-shadow: 0 4px 12px rgba(0,0,0,.24), inset 0 0 13px rgba(55, 175, 232, .12); }
+  .flight-vertical-controls { gap: 7px; padding-left: 2px; }
   .flight-key-small { min-width: 58px; min-height: 39px; font-size: 8px; }
-  .flight-lever-track { height: 112px; width: 34px; }
-  .flight-lever-handle { width: 27px; height: 31px; }
+  .flight-lever-track { height: 126px; width: 38px; border-width: 2px; border-radius: 20px; box-shadow: inset 0 0 14px rgba(48,165,231,.24), 0 0 10px rgba(48,165,231,.08); }
+  .flight-lever-handle { width: 31px; height: 36px; border-radius: 10px; box-shadow: 0 3px 12px rgba(0,0,0,.55), 0 0 10px rgba(76,202,255,.18); }
   .flight-exit-btn { display: block; }
 }
 
@@ -868,10 +868,10 @@ body.spacecraft-active.spacecraft-ui-minimized #app canvas { height: 100dvh; }
   .flight-restore-btn { min-height: 32px; padding: 7px 9px; font-size: 8px; }
   .flight-panel-title { font-size: 9px; }
   .flight-status { font-size: 8px; }
-  .flight-dpad { grid-template-columns: repeat(3, 39px); grid-template-rows: repeat(3, 38px); gap: 3px; }
-  .spacecraft-touch-controls { left: 8px; bottom: 8px; gap: 6px; }
-  .flight-key-small { min-width: 48px; min-height: 35px; font-size: 7px; }
-  .flight-lever-track { height: 96px; width: 30px; }
+  .flight-dpad { grid-template-columns: repeat(3, 40px); grid-template-rows: repeat(3, 39px); gap: 3px; }
+  .spacecraft-touch-controls { left: max(5px, env(safe-area-inset-left)); bottom: calc(5px + env(safe-area-inset-bottom)); gap: 6px; padding: 6px; border-radius: 15px; }
+  .flight-key-small { min-width: 48px; min-height: 36px; font-size: 7px; }
+  .flight-lever-track { height: 108px; width: 32px; }
   .flight-lever-handle { width: 25px; height: 28px; }
 }
 
@@ -931,7 +931,9 @@ body.spacecraft-active.spacecraft-ui-minimized #app canvas { height: 100dvh; }
 .mobile-spacecraft-launch {
   display: none;
   position: fixed;
-  z-index: 24;
+  z-index: 40;
+  pointer-events: auto; /* .hud disables pointer events globally; rocket must opt back in */
+  isolation: isolate;
   right: max(16px, env(safe-area-inset-right));
   bottom: calc(82px + env(safe-area-inset-bottom));
   width: 106px;
@@ -950,6 +952,8 @@ body.spacecraft-active.spacecraft-ui-minimized #app canvas { height: 100dvh; }
   cursor: pointer;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
   animation: mobile-rocket-float 2.8s ease-in-out infinite;
 }
 .mobile-spacecraft-launch::before {
