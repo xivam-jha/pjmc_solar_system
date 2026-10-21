@@ -152,18 +152,14 @@ export class Spacecraft {
     // PJMC title decals on both sides of the fuselage.
     const labelTexture = makeLabelTexture('PJMC SPACE EXPLORER');
     const labelMaterial = new THREE.MeshBasicMaterial({ map: labelTexture, transparent: true, side: THREE.DoubleSide, depthWrite: false, toneMapped: false });
-    const labelL = new THREE.Mesh(new THREE.PlaneGeometry(2.5, 0.39), labelMaterial);
-    labelL.position.set(0.43, 0.04, 0.34);
+    const labelL = new THREE.Mesh(new THREE.PlaneGeometry(1.85, 0.27), labelMaterial);
+    labelL.position.set(0.475, 0.02, 0.18);
     labelL.rotation.y = Math.PI / 2;
     this.exterior.add(labelL);
-    const labelR = new THREE.Mesh(new THREE.PlaneGeometry(2.5, 0.39), labelMaterial.clone());
-    labelR.position.set(-0.43, 0.04, 0.34);
+    const labelR = new THREE.Mesh(new THREE.PlaneGeometry(1.85, 0.27), labelMaterial.clone());
+    labelR.position.set(-0.475, 0.02, 0.18);
     labelR.rotation.y = -Math.PI / 2;
     this.exterior.add(labelR);
-    const topBadge = new THREE.Mesh(new THREE.PlaneGeometry(2.05, 0.3), labelMaterial.clone());
-    topBadge.position.set(0, 0.48, 0.45);
-    topBadge.rotation.x = -Math.PI / 2;
-    this.exterior.add(topBadge);
 
     // Astronaut sitting behind the dashboard. The procedural suit stays crisp and light-weight.
     this.pilot = new THREE.Group();

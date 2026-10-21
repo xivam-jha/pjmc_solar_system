@@ -83,9 +83,45 @@ export function createSpacecraftHUD({ targets, onCameraToggle, onExit, onAutopil
     dpad.append(button);
   }
   const vertical = element('div', 'flight-vertical-controls');
+  // Aircraft-style pitch/altitude lever: push up to climb, pull down to descend.
+  const leverWrap = element('div', 'flight-lever-wrap');
+  leverWrap.append(element('span', 'flight-lever-caption', 'CLIMB / DESCEND'));
+  const leverTrack = element('div', 'flight-lever-track');
+  leverTrack.setAttribute('role', 'group');
+  leverTrack.setAttribute('aria-label', 'Altitude lever: move up to climb and down to descend');
+  const lever = element('button', 'flight-lever-handle', '↕');
+  lever.type = 'button';
+  lever.setAttribute('aria-label', 'Altitude lever');
+  lever.style.top = '50%';
+  leverTrack.append(lever);
+  leverWrap.append(leverTrack);
+  let leverPointer = null;
+  function setLeverFromY(clientY) {
+    const rect = leverTrack.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (clientY - rect.top) / rect.height));
+    lever.style.top = `${ratio * 100}%`;
+    onControl('up', ratio < 0.40);
+    onControl('down', ratio > 0.60);
+  }
+  function releaseLever() {
+    leverPointer = null;
+    onControl('up', false);
+    onControl('down', false);
+    lever.style.top = '50%';
+  }
+  lever.addEventListener('pointerdown', (event) => {
+    event.preventDefault(); leverPointer = event.pointerId;
+    try { lever.setPointerCapture(event.pointerId); } catch {}
+    setLeverFromY(event.clientY);
+  });
+  lever.addEventListener('pointermove', (event) => {
+    if (leverPointer === event.pointerId) { event.preventDefault(); setLeverFromY(event.clientY); }
+  });
+  lever.addEventListener('pointerup', releaseLever);
+  lever.addEventListener('pointercancel', releaseLever);
+  lever.addEventListener('lostpointercapture', releaseLever);
+
   for (const item of [
-    { id: 'up', label: 'ALT +' },
-    { id: 'down', label: 'ALT −' },
     { id: 'boost', label: 'BOOST' },
   ]) {
     const button = element('button', 'flight-key flight-key-small', item.label);
@@ -106,6 +142,7 @@ export function createSpacecraftHUD({ targets, onCameraToggle, onExit, onAutopil
     button.addEventListener('lostpointercapture', release);
     vertical.append(button);
   }
+  vertical.prepend(leverWrap);
   touchControls.append(dpad, vertical);
   const exitButton = makeButton('EXIT FLIGHT', 'flight-exit-btn', onExit);
   const restoreControlsButton = makeButton('SHOW CONTROLS', 'flight-restore-btn', () => setControlsHidden(false));
@@ -120,7 +157,8 @@ export function createSpacecraftHUD({ targets, onCameraToggle, onExit, onAutopil
 
   function applyVisibility() {
     root.hidden = !flightVisible || controlsMinimized;
-    touchControls.hidden = !flightVisible || controlsMinimized;
+    // Hide only the large information panel; keep flight controls available.
+    touchControls.hidden = !flightVisible;
     restoreControlsButton.hidden = !flightVisible || !controlsMinimized;
     document.body.classList.toggle('spacecraft-ui-minimized', flightVisible && controlsMinimized);
   }
