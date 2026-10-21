@@ -19,6 +19,7 @@ import { createTextureSet } from './textures/proceduralTextures.js';
 import { Sun } from './objects/Sun.js';
 import { Planet } from './objects/Planet.js';
 import { createStarfield } from './objects/Starfield.js';
+import { BackgroundTextRing } from './objects/BackgroundTextRing.js';
 import { AsteroidBelt } from './objects/AsteroidBelt.js';
 import { createHUD } from './ui/hud.js';
 import { InfoPanel } from './ui/infoPanel.js';
@@ -63,10 +64,22 @@ const scaleAPI = {
 // Camera overview positions for each scale mode.
 const DEFAULT_CAM_VIZ = new THREE.Vector3(0, 115, 255);
 const DEFAULT_CAM_TRUE = new THREE.Vector3(0, 1050, 2400);
-const defaultCameraPos = (mix, out) => out.copy(DEFAULT_CAM_VIZ).lerp(DEFAULT_CAM_TRUE, mix);
-
-// Representative system radius, used to rescale a free camera when toggling.
+// Representative system radius, used to scale the background inscription and
+// to frame the complete system in the overview camera.
 const systemRadius = (mix) => lerp(vizOrbitOfAU(30.05), 30.05 * AU_UNIT, mix);
+
+const defaultCameraPos = (mix, out) => {
+  const direction = DEFAULT_CAM_VIZ.clone().lerp(DEFAULT_CAM_TRUE, mix).normalize();
+  const verticalHalfFov = THREE.MathUtils.degToRad(50) / 2;
+  const aspect = Math.max(window.innerWidth / Math.max(window.innerHeight, 1), 0.1);
+  const horizontalHalfFov = Math.atan(Math.tan(verticalHalfFov) * aspect);
+  const limitingHalfFov = Math.min(verticalHalfFov, horizontalHalfFov);
+  // The inscription reaches about 1.43x the outer orbit; reserve extra room
+  // so the entire solar system and the full text circle fit in the overview.
+  const visualExtent = systemRadius(mix) * 1.46;
+  const distance = (visualExtent / Math.sin(limitingHalfFov)) * 1.08;
+  return out.copy(direction).multiplyScalar(distance);
+};
 
 /* ------------------------------------------------------------------ */
 /* Tween helper                                                        */
@@ -212,6 +225,11 @@ async function init() {
 
   setStatus('IGNITING STARFIELD…');
   scene.add(createStarfield(textures));
+
+  // One complete 360-degree PJMC Sukhpur inscription, outside the outer orbit.
+  const backgroundTextRing = new BackgroundTextRing('PJMC Sukhpur');
+  backgroundTextRing.group.scale.setScalar(systemRadius(scaleState.mix));
+  scene.add(backgroundTextRing.group);
 
   /* ---------- simulation clock ---------- */
   const epochMs = Date.now();
@@ -464,6 +482,7 @@ async function init() {
     belt.update(days, scaleAPI.orbitRadiusOfAU);
 
     followUpdate();
+    backgroundTextRing.group.scale.setScalar(systemRadius(scaleState.mix));
     controls.update();
     labels.update(camera, focusSystemId());
 
