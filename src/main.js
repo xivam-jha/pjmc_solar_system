@@ -19,6 +19,7 @@ import { createTextureSet } from './textures/proceduralTextures.js';
 import { Sun } from './objects/Sun.js';
 import { Planet } from './objects/Planet.js';
 import { createStarfield } from './objects/Starfield.js';
+import { BackgroundTextRing } from './objects/BackgroundTextRing.js';
 import { AsteroidBelt } from './objects/AsteroidBelt.js';
 import { BackgroundTextRing } from './objects/BackgroundTextRing.js';
 import { createHUD } from './ui/hud.js';
@@ -62,6 +63,7 @@ const scaleAPI = {
   },
 };
 
+<<<<<<< HEAD
 // The overview is fitted around Pluto too (39.5 AU semi-major axis), not
 // just Neptune. The brand ring is scaled from the same system radius so its
 // complete circumference stays in frame when switching scale modes.
@@ -77,6 +79,27 @@ const defaultCameraPos = (mix, out) => {
   // the full circular ring visible on portrait/mobile screens as well.
   const distance = (ringRadiusOf(mix) * 1.25) / Math.tan(limitingHalfFov);
   return out.set(0, distance * 0.42, distance);
+};
+=======
+// Camera overview positions for each scale mode.
+const DEFAULT_CAM_VIZ = new THREE.Vector3(0, 115, 255);
+const DEFAULT_CAM_TRUE = new THREE.Vector3(0, 1050, 2400);
+// Representative system radius, used to scale the background inscription and
+// to frame the complete system in the overview camera.
+const systemRadius = (mix) => lerp(vizOrbitOfAU(30.05), 30.05 * AU_UNIT, mix);
+>>>>>>> f5f151341652102d66d771f5d749347440f4c8d5
+
+const defaultCameraPos = (mix, out) => {
+  const direction = DEFAULT_CAM_VIZ.clone().lerp(DEFAULT_CAM_TRUE, mix).normalize();
+  const verticalHalfFov = THREE.MathUtils.degToRad(50) / 2;
+  const aspect = Math.max(window.innerWidth / Math.max(window.innerHeight, 1), 0.1);
+  const horizontalHalfFov = Math.atan(Math.tan(verticalHalfFov) * aspect);
+  const limitingHalfFov = Math.min(verticalHalfFov, horizontalHalfFov);
+  // The inscription reaches about 1.43x the outer orbit; reserve extra room
+  // so the entire solar system and the full text circle fit in the overview.
+  const visualExtent = systemRadius(mix) * 1.46;
+  const distance = (visualExtent / Math.sin(limitingHalfFov)) * 1.08;
+  return out.copy(direction).multiplyScalar(distance);
 };
 
 /* ------------------------------------------------------------------ */
@@ -231,6 +254,11 @@ async function init() {
   const brandRing = new BackgroundTextRing();
   brandRing.setRadius(ringRadiusOf(scaleState.mix));
   scene.add(brandRing.group);
+
+  // One complete 360-degree PJMC Sukhpur inscription, outside the outer orbit.
+  const backgroundTextRing = new BackgroundTextRing('PJMC Sukhpur');
+  backgroundTextRing.group.scale.setScalar(systemRadius(scaleState.mix));
+  scene.add(backgroundTextRing.group);
 
   /* ---------- simulation clock ---------- */
   const epochMs = Date.now();
@@ -502,6 +530,7 @@ async function init() {
     brandRing.setRadius(ringRadiusOf(scaleState.mix));
 
     followUpdate();
+    backgroundTextRing.group.scale.setScalar(systemRadius(scaleState.mix));
     controls.update();
     labels.update(camera, focusSystemId());
 
