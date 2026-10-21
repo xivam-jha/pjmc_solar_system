@@ -24,7 +24,7 @@ export const SPEED_PRESETS = [
   { label: '1 MO/S', mult: 2_629_800 },
   { label: '1 YR/S', mult: 31_557_600 },
 ];
-export const DEFAULT_SPEED_INDEX = 0; // Start aligned to real time; users can accelerate the simulation.
+export const DEFAULT_SPEED_INDEX = 2; // 1 day per second
 
 export const SUN_DATA = {
   id: 'sun',

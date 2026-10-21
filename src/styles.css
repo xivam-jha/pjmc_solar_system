@@ -206,13 +206,6 @@ body {
   border-bottom: 1px solid var(--line);
 }
 
-.body-search {
-  width: 100%; padding: 10px 11px; color: var(--text); background: rgba(2, 7, 13, .92);
-  border: 0; border-bottom: 1px solid var(--line); outline: none; font: 11px var(--mono);
-}
-.body-search:focus { border-bottom-color: var(--accent); box-shadow: inset 0 -1px var(--accent); }
-.body-search::placeholder { color: var(--text-dim); }
-.language-btn { color: var(--accent); }
 .body-list-items {
   overflow-y: auto;
   scrollbar-width: thin;
@@ -464,13 +457,7 @@ body {
   .top-bar {
     padding: 10px;
     gap: 8px;
-    align-items: flex-start;
   }
-  .app-title { width: 100%; }
-  .title-main { font-size: 11px; letter-spacing: .22em; }
-  .title-sub { font-size: 9px; letter-spacing: .18em; }
-  .view-controls { justify-content: flex-start; gap: 5px; }
-  .view-controls .hud-btn { font-size: 9px; padding: 6px 7px; letter-spacing: .04em; }
 
   .hud-btn {
     font-size: 10px;
@@ -479,9 +466,9 @@ body {
 
   .body-list {
     display: none;
-    top: 122px;
+    top: 104px;
     left: 12px;
-    width: min(220px, calc(100vw - 24px));
+    width: 160px;
   }
 
   .body-list.open {
@@ -508,12 +495,10 @@ body {
 
   .time-bar {
     gap: 6px;
-    padding: 8px 6px 10px;
+    padding: 10px 8px 12px;
   }
 
-  .sim-date { font-size: 10px; letter-spacing: 0; min-width: 0; }
-  .sim-date-wrap { padding: 4px 7px; }
-  .sim-date-label { letter-spacing: .08em; }
-  .speed-btn { padding: 6px 5px; font-size: 8px; letter-spacing: 0; }
-  .time-bar { max-height: 125px; overflow: visible; }
+  .sim-date {
+    font-size: 11px;
+  }
 }

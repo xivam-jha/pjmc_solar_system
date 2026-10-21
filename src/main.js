@@ -370,7 +370,6 @@ async function init() {
   const hud = createHUD(
     {
       onSelectBody: (id) => focusBody(entryById.get(id)),
-      onLanguageChange: (lang) => { infoPanel.setLanguage(lang); labels.setLanguage(lang); },
       onTogglePlay: () => {
         playing = !playing;
         hud.setPlaying(playing);
@@ -447,8 +446,7 @@ async function init() {
 
   function refreshDateReadout() {
     const d = new Date(epochMs + simMs);
-    const ist = new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).format(d);
-    hud.setDate(`${ist} IST`);
+    hud.setDate(`${d.toISOString().slice(0, 16).replace('T', ' ')} UTC`);
   }
 
   function animate() {

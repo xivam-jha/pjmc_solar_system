@@ -52,10 +52,6 @@ Requires Node.js ≥ 20.19 (any recent LTS).
 | Scale | VISUALIZATION ↔ TRUE SCALE (animated transition) |
 | Clutter | ORBITS and LABELS toggles |
 
-The date/time bar shows the current clock in India Standard Time (IST) by default. The simulation starts at real time; the speed presets let you accelerate it. Search planets and moons in English or Hindi, and use the language toggle for the interface.
-
-**Position accuracy note:** this is an educational circular-orbit approximation anchored to J2000 mean-longitude values, not a precision ephemeris. Its positions update with the current date/time, but they should not be used for scientific navigation or exact sky predictions. The textures are procedural visuals, not NASA high-resolution image maps.
-
 The simulated date is shown in the bottom bar. The info panel (name, type, diameter,
 distance, periods, tilt, moons, and a fact) opens whenever a body is selected.
 
@@ -156,27 +152,3 @@ data edit, not a code change.
 Measured ~60 fps in testing. Geometry is shared (unit spheres scaled per body), the
 belt is a single instanced draw call, stars are one `Points` draw call, and per-frame
 work is dominated by 4,500 instance matrix updates (~1 ms).
-
-
-## Deploy to GitHub Pages
-
-1. Create a GitHub repository, for example `solar-system`.
-2. Upload the contents of this folder to the repository root (so `package.json`, `index.html`, `src/`, and `.github/` are at the root).
-3. Push to the `main` branch. The included GitHub Actions workflow runs `npm ci`, `npm run build`, and publishes `dist/` to GitHub Pages.
-4. In GitHub, open **Settings → Pages** and confirm the source is **GitHub Actions**. Wait for the workflow to finish successfully. Your public URL will look like `https://YOUR-USERNAME.github.io/solar-system/`.
-
-## Link it from an InfinityFree website
-
-After replacing the example URL with your actual GitHub Pages URL, add a link or button to any PHP/HTML page on InfinityFree:
-
-```html
-<a class="solar-system-link" href="https://YOUR-USERNAME.github.io/solar-system/" target="_blank" rel="noopener noreferrer">
-  Explore the 3D Solar System ↗
-</a>
-<style>
-.solar-system-link { display:inline-block; padding:12px 18px; border-radius:12px; background:#071523; color:#8ee5ff; border:1px solid #3489ad; text-decoration:none; font-weight:700; }
-.solar-system-link:hover { background:#10304a; }
-</style>
-```
-
-The GitHub Pages app opens as its own page/tab; InfinityFree only hosts the link unless you intentionally embed the app in an iframe.
