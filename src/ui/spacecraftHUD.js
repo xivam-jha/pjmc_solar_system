@@ -52,6 +52,7 @@ export function createSpacecraftHUD({ targets, onCameraToggle, onExit, onAutopil
   nav.append(navLabel, autoButton, cameraButton);
 
   const keyLegend = element('div', 'flight-key-legend', 'DRAG TO LOOK · EXTERNAL WHEEL = ZOOM · W / ↑ THRUST · A / D TURN · Q / E ALTITUDE · SHIFT BOOST');
+  const hideControlsButton = makeButton('HIDE CONTROLS', 'flight-hide-ui-btn', () => setControlsHidden(true));
   const touchControls = element('div', 'spacecraft-touch-controls');
   const dpad = element('div', 'flight-dpad');
   const controls = [
@@ -107,13 +108,38 @@ export function createSpacecraftHUD({ targets, onCameraToggle, onExit, onAutopil
   }
   touchControls.append(dpad, vertical);
   const exitButton = makeButton('EXIT FLIGHT', 'flight-exit-btn', onExit);
-  root.append(heading, instruments, nav, keyLegend, exitButton);
+  const restoreControlsButton = makeButton('SHOW CONTROLS', 'flight-restore-btn', () => setControlsHidden(false));
+  restoreControlsButton.hidden = true;
+  root.append(heading, instruments, nav, keyLegend, hideControlsButton, exitButton);
   document.body.append(root);
   document.body.append(touchControls);
-  touchControls.hidden = true;
+  document.body.append(restoreControlsButton);
+
+  let flightVisible = false;
+  let controlsMinimized = false;
+
+  function applyVisibility() {
+    root.hidden = !flightVisible || controlsMinimized;
+    touchControls.hidden = !flightVisible || controlsMinimized;
+    restoreControlsButton.hidden = !flightVisible || !controlsMinimized;
+    document.body.classList.toggle('spacecraft-ui-minimized', flightVisible && controlsMinimized);
+  }
+
+  function setControlsHidden(hidden) {
+    if (!flightVisible) return;
+    controlsMinimized = Boolean(hidden);
+    applyVisibility();
+  }
+
+  applyVisibility();
 
   return {
-    setVisible(visible) { root.hidden = !visible; touchControls.hidden = !visible; },
+    setVisible(visible) {
+      flightVisible = Boolean(visible);
+      if (!flightVisible) controlsMinimized = false;
+      applyVisibility();
+    },
+    setControlsHidden,
     setStatus(text) { status.textContent = text; },
     setSpeed(speed) { speedBox.querySelector('.flight-speed').textContent = `${speed.toFixed(1)} u/s`; },
     setCameraMode(mode) {

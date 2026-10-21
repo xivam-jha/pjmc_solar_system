@@ -8,6 +8,7 @@
 - Spacecraft बटन पर लॉन्च/अंतरिक्ष में प्रवेश का एनीमेशन; इसके बाद मैनुअल उड़ान।
 - Cockpit View और External View के बीच स्विच; canvas पर drag करने से कैमरा एंगल बदलता है और External View में scroll से zoom होता है।
 - कंप्यूटर पर W/Arrow Up आगे, S/Arrow Down पीछे, A/D या Left/Right से मोड़ना, Q/E से ऊँचाई बदलना और Shift से boost। मोबाइल स्क्रीन पर टच कंट्रोल।
+- **मोबाइल Full View:** फ्लाइट पैनल में `HIDE CONTROLS` दबाने पर फ्लाइट पैनल, टच कंट्रोल और ऊपर का ब्रांड बार छिप जाते हैं। दृश्य के कोने में छोटा `SHOW CONTROLS` बटन रहता है, जिससे सारे कंट्रोल फिर खोले जा सकते हैं।
 - Destination सूची से ग्रह चुनकर optional auto-pilot; नज़दीक पहुँचकर यान रुकता है। यह शैक्षणिक विज़ुअल सिमुलेशन है, वास्तविक कक्षीय उड़ान का मॉडल नहीं।
 - Spacecraft अलग `src/objects/Spacecraft.js` और `src/ui/spacecraftHUD.js` मॉड्यूल में रखा गया है, ताकि मुख्य ग्रह/कक्षा मॉड्यूल से अलग रहे।
 
@@ -38,3 +39,5 @@
 ## वैज्ञानिक सटीकता
 
 यह अभी भी शैक्षणिक/visual circular-orbit simulation है, NASA JPL जैसी precision real-time ephemeris नहीं। समय IST में प्रदर्शित होता है, मगर इससे कक्षीय गणना अपने-आप high-precision नहीं हो जाती।
+
+- **मोबाइल Full View:** `HIDE CONTROLS` दबाने पर फ्लाइट पैनल, टच जॉयस्टिक और ऊपर का ब्रांड बार छिप जाते हैं। छोटा `SHOW CONTROLS` बटन दबाकर कंट्रोल वापस खोले जा सकते हैं।
