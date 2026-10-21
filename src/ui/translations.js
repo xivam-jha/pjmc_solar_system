@@ -1,0 +1,78 @@
+export const BODY_NAMES_HI = {
+  sun: 'सूर्य',
+  mercury: 'बुध',
+  venus: 'शुक्र',
+  earth: 'पृथ्वी',
+  moon: 'चंद्रमा',
+  mars: 'मंगल',
+  phobos: 'फोबोस',
+  deimos: 'डीमोस',
+  jupiter: 'बृहस्पति',
+  io: 'आयो',
+  europa: 'यूरोपा',
+  ganymede: 'गेनीमीड',
+  callisto: 'कैलिस्टो',
+  saturn: 'शनि',
+  titan: 'टाइटन',
+  uranus: 'अरुण',
+  neptune: 'वरुण',
+  triton: 'ट्राइटन',
+  pluto: 'प्लूटो',
+  charon: 'कैरन',
+};
+
+export const BODY_FACTS_HI = {
+  sun: 'सूर्य में सौरमंडल के कुल द्रव्यमान का लगभग 99.86% है और इसके केंद्र में लगातार हाइड्रोजन का संलयन होता है।',
+  mercury: 'बुध पर दिन और रात के तापमान में 600°C से भी अधिक अंतर हो सकता है। इसका एक सौर दिन इसके दो वर्षों जितना लंबा होता है।',
+  venus: 'तीव्र ग्रीनहाउस प्रभाव के कारण शुक्र सबसे गर्म ग्रह है। यह अपनी धुरी पर उल्टी दिशा में घूमता है।',
+  earth: 'पृथ्वी एकमात्र ज्ञात ऐसा संसार है जहाँ सतह पर तरल पानी और जीवन मौजूद है। चंद्रमा पृथ्वी की धुरी के झुकाव को स्थिर रखने में मदद करता है।',
+  moon: 'चंद्रमा पृथ्वी के साथ ज्वारीय रूप से लॉक है, इसलिए इसका लगभग एक ही हिस्सा हमेशा पृथ्वी की ओर रहता है। यह हर साल पृथ्वी से लगभग 3.8 सेंटीमीटर दूर जा रहा है।',
+  mars: 'मंगल पर ओलंपस मॉन्स नाम का विशाल ज्वालामुखी और अमेरिका जितनी लंबी घाटी प्रणाली वैलेस मेरिनेरिस है।',
+  phobos: 'फोबोस मंगल के घूमने से भी तेज़ उसकी परिक्रमा करता है, इसलिए मंगल से यह पश्चिम में उदित होता दिखाई देगा।',
+  deimos: 'डीमोस मंगल का छोटा और बाहरी चंद्रमा है। इसकी सतह धूल और प्राचीन गड्ढों से ढकी है।',
+  jupiter: 'बृहस्पति अन्य सभी ग्रहों को मिलाकर भी उनसे अधिक विशाल है। इसका ग्रेट रेड स्पॉट पृथ्वी से भी बड़ा तूफान है।',
+  io: 'आयो सौरमंडल का सबसे अधिक ज्वालामुखीय सक्रिय पिंड है। बृहस्पति का गुरुत्व इसकी आंतरिक परतों को लगातार खींचता-मरोड़ता है।',
+  europa: 'यूरोपा की बर्फीली सतह के नीचे वैश्विक खारे पानी का महासागर होने की संभावना है।',
+  ganymede: 'गेनीमीड सौरमंडल का सबसे बड़ा चंद्रमा है और इसका अपना चुंबकीय क्षेत्र भी है।',
+  callisto: 'कैलिस्टो की सतह पर बहुत बड़ी संख्या में प्राचीन प्रभाव-गड्ढे हैं।',
+  saturn: 'शनि के छल्ले लगभग 280,000 किलोमीटर तक फैले हैं, लेकिन औसतन केवल लगभग 10 मीटर मोटे हैं।',
+  titan: 'टाइटन का घना वायुमंडल है। वहाँ मीथेन की बारिश होती है और हाइड्रोकार्बन की झीलें मौजूद हैं।',
+  uranus: 'अरुण लगभग अपनी करवट पर घूमता है। इसके धुरी का झुकाव लगभग 98° है।',
+  neptune: 'वरुण पर सौरमंडल की सबसे तेज़ हवाओं में से कुछ चलती हैं और यह सूर्य से बहुत दूर स्थित है।',
+  triton: 'ट्राइटन वरुण की परिक्रमा उल्टी दिशा में करता है। संभव है कि यह पहले कुइपर बेल्ट का स्वतंत्र पिंड रहा हो।',
+  pluto: 'प्लूटो एक बौना ग्रह है। इसका सबसे बड़ा चंद्रमा कैरन इतना बड़ा है कि दोनों एक साझा द्रव्यमान-केंद्र के चारों ओर घूमते हैं।',
+  charon: 'कैरन प्लूटो का सबसे बड़ा चंद्रमा है। प्लूटो और कैरन एक साझा बिंदु के चारों ओर परिक्रमा करते हैं।',
+};
+
+export const UI_TEXT = {
+  en: {
+    title: 'PJMC', subtitle: 'SOLAR SYSTEM', explore: 'EXPLORER',
+    visualization: 'VISUALIZATION', trueScale: 'TRUE SCALE', orbits: 'ORBITS', labels: 'LABELS',
+    freeCam: 'FREE CAM', resetView: 'RESET VIEW', bodies: 'BODIES',
+    search: 'Search planet or moon…', searchEmpty: 'No matching body',
+    simulatedTime: 'SIMULATED TIME', now: '● NOW', loading: 'PREPARING YOUR SOLAR SYSTEM',
+    close: 'Close panel', diameter: 'DIAMETER', distanceSun: 'DIST. FROM SUN',
+    distanceParent: 'DIST. FROM', period: 'ORBITAL PERIOD', day: 'DAY LENGTH',
+    tilt: 'AXIAL TILT', moons: 'MOONS', about: 'PJMC SOLAR SYSTEM · SUKHPUR',
+    school: 'Pawan Jha Mathematics Classes', created: 'Interactive 3D Explorer',
+    type: { 'G2V Star': 'G2V Star', 'Terrestrial Planet': 'Terrestrial Planet', 'Gas Giant': 'Gas Giant', 'Ice Giant': 'Ice Giant', 'Dwarf Planet': 'Dwarf Planet', Moon: 'Moon' },
+    speeds: ['REAL TIME', '1 HR/S', '1 DAY/S', '1 MO/S', '1 YR/S'],
+  },
+  hi: {
+    title: 'PJMC', subtitle: 'सौरमंडल', explore: 'एक्सप्लोरर',
+    visualization: 'दृश्य स्केल', trueScale: 'वास्तविक स्केल', orbits: 'कक्षाएँ', labels: 'नाम',
+    freeCam: 'फ्री कैमरा', resetView: 'व्यू रीसेट', bodies: 'खगोलीय पिंड',
+    search: 'ग्रह या चंद्रमा खोजें…', searchEmpty: 'कोई पिंड नहीं मिला',
+    simulatedTime: 'सिमुलेशन का समय', now: '● अभी', loading: 'आपका सौरमंडल तैयार हो रहा है',
+    close: 'पैनल बंद करें', diameter: 'व्यास', distanceSun: 'सूर्य से दूरी',
+    distanceParent: 'दूरी', period: 'परिक्रमा अवधि', day: 'दिन की लंबाई',
+    tilt: 'धुरी का झुकाव', moons: 'चंद्रमा', about: 'PJMC सौरमंडल · सुखपुर',
+    school: 'पवन झा मैथमेटिक्स क्लासेस', created: 'इंटरैक्टिव 3D एक्सप्लोरर',
+    type: { 'G2V Star': 'G2V तारा', 'Terrestrial Planet': 'स्थलीय ग्रह', 'Gas Giant': 'गैसीय दानव', 'Ice Giant': 'हिम दानव', 'Dwarf Planet': 'बौना ग्रह', Moon: 'चंद्रमा' },
+    speeds: ['वास्तविक समय', '1 घंटा/से', '1 दिन/से', '1 माह/से', '1 वर्ष/से'],
+  },
+};
+
+export function bodyName(id, englishName, language = 'en') {
+  return language === 'hi' ? (BODY_NAMES_HI[id] ?? englishName) : englishName;
+}

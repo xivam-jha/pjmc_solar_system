@@ -1,0 +1,132 @@
+function element(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+
+function makeButton(text, className, onClick) {
+  const button = element('button', className, text);
+  button.type = 'button';
+  button.addEventListener('click', onClick);
+  return button;
+}
+
+/** UI for piloting and exploring with PJMC SPACE EXPLORER. */
+export function createSpacecraftHUD({ targets, onCameraToggle, onExit, onAutopilot, onControl }) {
+  const root = element('section', 'spacecraft-flight-hud');
+  root.hidden = true;
+  root.setAttribute('aria-label', 'Spacecraft flight controls');
+
+  const heading = element('div', 'flight-panel-heading');
+  const title = element('div', 'flight-panel-title', 'PJMC SPACE EXPLORER');
+  const status = element('div', 'flight-status', 'PREPARING LAUNCH');
+  heading.append(title, status);
+
+  const instruments = element('div', 'flight-instruments');
+  const speedBox = element('div', 'flight-instrument');
+  speedBox.append(element('span', 'flight-instrument-label', 'VELOCITY'), element('strong', 'flight-speed', '0.0 u/s'));
+  const modeBox = element('div', 'flight-instrument');
+  modeBox.append(element('span', 'flight-instrument-label', 'CAMERA'), element('strong', 'flight-camera-state', 'EXTERNAL'));
+  instruments.append(speedBox, modeBox);
+
+  const nav = element('div', 'flight-navigation');
+  const navLabel = element('label', 'flight-label', 'DESTINATION');
+  const select = element('select', 'flight-target-select');
+  select.setAttribute('aria-label', 'Choose destination planet');
+  select.append(new Option('Select a planet…', ''));
+  for (const target of targets) select.append(new Option(target.name, target.id));
+  navLabel.append(select);
+  const autoButton = makeButton('AUTO-PILOT', 'flight-action-btn', () => {
+    if (autoButton.dataset.active === 'true') {
+      onAutopilot(null);
+    } else if (select.value) {
+      onAutopilot(select.value);
+    } else {
+      select.focus();
+      select.classList.add('needs-selection');
+      window.setTimeout(() => select.classList.remove('needs-selection'), 900);
+    }
+  });
+  const cameraButton = makeButton('SWITCH TO COCKPIT', 'flight-action-btn', onCameraToggle);
+  nav.append(navLabel, autoButton, cameraButton);
+
+  const keyLegend = element('div', 'flight-key-legend', 'DRAG TO LOOK · EXTERNAL WHEEL = ZOOM · W / ↑ THRUST · A / D TURN · Q / E ALTITUDE · SHIFT BOOST');
+  const touchControls = element('div', 'spacecraft-touch-controls');
+  const dpad = element('div', 'flight-dpad');
+  const controls = [
+    { id: 'yawLeft', label: '◀', title: 'Turn left' },
+    { id: 'forward', label: '▲', title: 'Move forward' },
+    { id: 'yawRight', label: '▶', title: 'Turn right' },
+    { id: 'back', label: '▼', title: 'Move backward' },
+  ];
+  for (const item of controls) {
+    const button = element('button', 'flight-key', item.label);
+    button.type = 'button';
+    button.title = item.title;
+    button.dataset.control = item.id;
+    button.setAttribute('aria-label', item.title);
+    const press = (event) => {
+      event.preventDefault();
+      onControl(item.id, true);
+      try { button.setPointerCapture(event.pointerId); } catch {}
+    };
+    const release = (event) => {
+      if (event) event.preventDefault();
+      onControl(item.id, false);
+    };
+    button.addEventListener('pointerdown', press);
+    button.addEventListener('pointerup', release);
+    button.addEventListener('pointercancel', release);
+    button.addEventListener('lostpointercapture', release);
+    dpad.append(button);
+  }
+  const vertical = element('div', 'flight-vertical-controls');
+  for (const item of [
+    { id: 'up', label: 'ALT +' },
+    { id: 'down', label: 'ALT −' },
+    { id: 'boost', label: 'BOOST' },
+  ]) {
+    const button = element('button', 'flight-key flight-key-small', item.label);
+    button.type = 'button';
+    button.setAttribute('aria-label', item.label);
+    const press = (event) => {
+      event.preventDefault();
+      onControl(item.id, true);
+      try { button.setPointerCapture(event.pointerId); } catch {}
+    };
+    const release = (event) => {
+      if (event) event.preventDefault();
+      onControl(item.id, false);
+    };
+    button.addEventListener('pointerdown', press);
+    button.addEventListener('pointerup', release);
+    button.addEventListener('pointercancel', release);
+    button.addEventListener('lostpointercapture', release);
+    vertical.append(button);
+  }
+  touchControls.append(dpad, vertical);
+  const exitButton = makeButton('EXIT FLIGHT', 'flight-exit-btn', onExit);
+  root.append(heading, instruments, nav, keyLegend, exitButton);
+  document.body.append(root);
+  document.body.append(touchControls);
+  touchControls.hidden = true;
+
+  return {
+    setVisible(visible) { root.hidden = !visible; touchControls.hidden = !visible; },
+    setStatus(text) { status.textContent = text; },
+    setSpeed(speed) { speedBox.querySelector('.flight-speed').textContent = `${speed.toFixed(1)} u/s`; },
+    setCameraMode(mode) {
+      const isCockpit = mode === 'cockpit';
+      modeBox.querySelector('.flight-camera-state').textContent = isCockpit ? 'COCKPIT' : 'EXTERNAL';
+      cameraButton.textContent = isCockpit ? 'SWITCH TO EXTERNAL' : 'SWITCH TO COCKPIT';
+    },
+    setAutopilot(active, targetId = '') {
+      autoButton.dataset.active = active ? 'true' : 'false';
+      autoButton.classList.toggle('active', active);
+      autoButton.textContent = active ? 'STOP AUTO-PILOT' : 'AUTO-PILOT';
+      if (targetId) select.value = targetId;
+    },
+    getTargetId() { return select.value; },
+  };
+}
