@@ -874,3 +874,55 @@ body.spacecraft-active.spacecraft-ui-minimized #app canvas { height: 100dvh; }
   .flight-lever-track { height: 96px; width: 30px; }
   .flight-lever-handle { width: 25px; height: 28px; }
 }
+
+/* Optional, user-initiated hand tracking panel. The local preview makes camera
+   activity explicit instead of running a hidden camera feed. */
+.flight-gesture-panel {
+  display: grid;
+  grid-template-columns: 104px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px 10px;
+  margin-top: 9px;
+  padding: 9px;
+  border: 1px solid rgba(83, 184, 245, 0.28);
+  background: rgba(4, 20, 33, 0.78);
+}
+.flight-gesture-panel[hidden] { display: none !important; }
+.flight-gesture-preview {
+  width: 104px;
+  height: 78px;
+  overflow: hidden;
+  border: 1px solid rgba(95, 212, 255, 0.32);
+  border-radius: 4px;
+  background: #020b13;
+}
+.flight-gesture-video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1);
+}
+.flight-gesture-status {
+  color: #74ddff;
+  font-size: 8px;
+  line-height: 1.6;
+  letter-spacing: 0.07em;
+  overflow-wrap: anywhere;
+}
+.flight-gesture-help {
+  grid-column: 1 / -1;
+  color: #89aabd;
+  font-size: 7px;
+  line-height: 1.7;
+  letter-spacing: 0.03em;
+}
+.flight-gesture-toggle { border-color: rgba(76, 202, 255, 0.5); }
+.flight-gesture-toggle.active { background: rgba(28, 125, 161, 0.58); }
+
+@media (max-width: 420px) {
+  .flight-gesture-panel { grid-template-columns: 86px minmax(0, 1fr); gap: 7px; padding: 7px; }
+  .flight-gesture-preview { width: 86px; height: 66px; }
+  .flight-gesture-status { font-size: 7px; }
+  .flight-gesture-help { font-size: 6px; }
+}

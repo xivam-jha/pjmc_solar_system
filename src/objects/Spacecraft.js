@@ -3,23 +3,23 @@ import * as THREE from 'three';
 function makeLabelTexture(text) {
   const canvas = document.createElement('canvas');
   canvas.width = 1024;
-  canvas.height = 160;
+  canvas.height = 144;
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.font = '900 74px Arial, sans-serif';
+  ctx.font = '900 66px Arial, sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.lineJoin = 'round';
-  ctx.shadowColor = 'rgba(0, 145, 255, 0.95)';
-  ctx.shadowBlur = 14;
-  ctx.strokeStyle = '#071522';
-  ctx.lineWidth = 13;
+  ctx.shadowColor = 'rgba(0, 145, 255, 0.48)';
+  ctx.shadowBlur = 5;
+  ctx.strokeStyle = '#061522';
+  ctx.lineWidth = 9;
   ctx.strokeText(text, canvas.width / 2, canvas.height / 2);
   ctx.shadowBlur = 0;
-  const gradient = ctx.createLinearGradient(0, 18, 0, canvas.height - 18);
-  gradient.addColorStop(0, '#ffffff');
-  gradient.addColorStop(0.5, '#d3f4ff');
-  gradient.addColorStop(1, '#51baf2');
+  const gradient = ctx.createLinearGradient(0, 12, 0, canvas.height - 12);
+  gradient.addColorStop(0, '#eafaff');
+  gradient.addColorStop(0.5, '#c7edff');
+  gradient.addColorStop(1, '#70cbff');
   ctx.fillStyle = gradient;
   ctx.fillText(text, canvas.width / 2, canvas.height / 2);
   const texture = new THREE.CanvasTexture(canvas);
@@ -111,8 +111,9 @@ export class Spacecraft {
     const leftWing = buildWing(wingMaterial, 1);
     const rightWing = buildWing(wingMaterial, -1);
     this.exterior.add(leftWing, rightWing);
-    box(this.exterior, accent, [0.07, 0.045, 1.52], [0.7, -0.075, 1.36], [0, 0.05, -0.18]);
-    box(this.exterior, accent, [0.07, 0.045, 1.52], [-0.7, -0.075, 1.36], [0, -0.05, 0.18]);
+    // Keep wing stripes out of the fuselage-name area so they cannot cross the decals in perspective.
+    box(this.exterior, accent, [0.07, 0.045, 0.92], [1.02, -0.055, 1.72], [0, 0.05, -0.18]);
+    box(this.exterior, accent, [0.07, 0.045, 0.92], [-1.02, -0.055, 1.72], [0, -0.05, 0.18]);
 
     // Vertical tail fins.
     box(this.exterior, pale, [0.13, 0.82, 1.13], [0.38, 0.47, 1.34], [0.18, 0, -0.12]);
@@ -149,23 +150,45 @@ export class Spacecraft {
     canopyRim.rotation.x = Math.PI / 2;
     this.exterior.add(canopyRim);
 
-    // PJMC title decals on both sides of the fuselage.
+    // Flush side nameplates + surface-aligned decals. The small backing plates create
+    // a predictable flat area on the capsule hull, avoiding text clipping/z-fighting.
+    const nameplateMaterial = new THREE.MeshStandardMaterial({
+      color: 0x102536, metalness: 0.62, roughness: 0.34,
+      emissive: 0x061a29, emissiveIntensity: 0.22,
+    });
     const labelTexture = makeLabelTexture('PJMC SPACE EXPLORER');
-    const labelMaterial = new THREE.MeshBasicMaterial({ map: labelTexture, transparent: true, side: THREE.DoubleSide, depthWrite: false, toneMapped: false });
-    const labelL = new THREE.Mesh(new THREE.PlaneGeometry(1.85, 0.27), labelMaterial);
-    labelL.position.set(0.475, 0.02, 0.18);
-    labelL.rotation.y = Math.PI / 2;
-    this.exterior.add(labelL);
-    const labelR = new THREE.Mesh(new THREE.PlaneGeometry(1.85, 0.27), labelMaterial.clone());
-    labelR.position.set(-0.475, 0.02, 0.18);
-    labelR.rotation.y = -Math.PI / 2;
-    this.exterior.add(labelR);
+    for (const side of [-1, 1]) {
+      const nameplate = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.225, 1.68), nameplateMaterial);
+      nameplate.position.set(side * 0.466, 0.015, 0.08);
+      nameplate.name = side < 0 ? 'PJMC nameplate left' : 'PJMC nameplate right';
+      this.exterior.add(nameplate);
+
+      const labelMaterial = new THREE.MeshBasicMaterial({
+        map: labelTexture,
+        transparent: true,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+        depthTest: true,
+        polygonOffset: true,
+        polygonOffsetFactor: -2,
+        polygonOffsetUnits: -2,
+        toneMapped: false,
+      });
+      const label = new THREE.Mesh(new THREE.PlaneGeometry(1.58, 0.19), labelMaterial);
+      label.position.set(side * 0.489, 0.015, 0.08);
+      label.rotation.y = side > 0 ? Math.PI / 2 : -Math.PI / 2;
+      label.renderOrder = 3;
+      label.name = side < 0 ? 'PJMC SPACE EXPLORER left decal' : 'PJMC SPACE EXPLORER right decal';
+      this.exterior.add(label);
+    }
 
     // Astronaut sitting behind the dashboard. The procedural suit stays crisp and light-weight.
     this.pilot = new THREE.Group();
     this.pilot.name = 'Seated astronaut';
     this.pilot.position.y = 0.18;
-    this.exterior.add(this.pilot);
+    // Keep pilot/seat as a sibling of the outer hull, so cockpit mode can hide
+    // the exterior shell without accidentally hiding the seated astronaut too.
+    this.group.add(this.pilot);
     const seat = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.98, 0.24), dark);
     seat.position.set(0, -0.06, -0.05);
     this.pilot.add(seat);

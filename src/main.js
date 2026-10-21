@@ -22,6 +22,7 @@ import { createStarfield } from './objects/Starfield.js';
 import { AsteroidBelt } from './objects/AsteroidBelt.js';
 import { BrandingArch } from './objects/BrandingArch.js';
 import { Spacecraft } from './objects/Spacecraft.js';
+import { HandGestureController } from './objects/HandGestureController.js';
 import { createHUD } from './ui/hud.js';
 import { createSpacecraftHUD } from './ui/spacecraftHUD.js';
 import { InfoPanel } from './ui/infoPanel.js';
@@ -462,6 +463,11 @@ async function init() {
   let flightAutopilotTarget = null;
   const keyboardFlightControls = new Set();
   const touchFlightControls = new Set();
+  const gestureFlightControls = new Set();
+  let handGestureController = null;
+  let gestureControlActive = false;
+  let gestureControlBusy = false;
+  let gestureRequestId = 0;
   const flightVelocity = new THREE.Vector3();
   const flightForward = new THREE.Vector3();
   const flightUp = new THREE.Vector3();
@@ -496,12 +502,13 @@ async function init() {
   }
 
   function isFlightControlPressed(control) {
-    return keyboardFlightControls.has(control) || touchFlightControls.has(control);
+    return keyboardFlightControls.has(control) || touchFlightControls.has(control) || gestureFlightControls.has(control);
   }
 
   function clearFlightControls() {
     keyboardFlightControls.clear();
     touchFlightControls.clear();
+    gestureFlightControls.clear();
   }
 
   function setFlightCameraMode(mode) {
@@ -570,6 +577,15 @@ async function init() {
     document.body.classList.remove('spacecraft-active');
     hud.setSpacecraftActive(false);
     spacecraftHud?.setVisible(false);
+    gestureRequestId += 1;
+    gestureControlActive = false;
+    gestureControlBusy = false;
+    if (handGestureController) {
+      handGestureController.stop();
+      handGestureController = null;
+    }
+    spacecraftHud?.setGestureEnabled(false);
+    gestureFlightControls.clear();
     controls.enabled = flightSavedControlsEnabled;
     if (flightSavedCamera) camera.position.copy(flightSavedCamera);
     if (flightSavedTarget) controls.target.copy(flightSavedTarget);
@@ -669,12 +685,74 @@ async function init() {
     updateFlightCamera();
   }
 
+  async function toggleHandGestureControl() {
+    if (gestureControlBusy) return;
+    gestureControlBusy = true;
+    if (gestureControlActive) {
+      gestureControlActive = false;
+      gestureRequestId += 1;
+      gestureFlightControls.clear();
+      await handGestureController?.stop();
+      handGestureController = null;
+      spacecraftHud?.setGestureEnabled(false);
+      spacecraftHud?.setGestureStatus('CAMERA OFF');
+      gestureControlBusy = false;
+      return;
+    }
+
+    const requestId = ++gestureRequestId;
+    let controller = null;
+    try {
+      controller = new HandGestureController({
+        onFrame: (frame) => {
+          gestureFlightControls.clear();
+          for (const control of frame.controls || []) gestureFlightControls.add(control);
+          if (spacecraftActive && flightCameraMode === 'external' && frame.zoomDelta) {
+            externalCameraDistance = THREE.MathUtils.clamp(
+              externalCameraDistance * Math.exp(-frame.zoomDelta * 3.5),
+              3.5,
+              28,
+            );
+            updateFlightCamera();
+          }
+        },
+        onStatus: (message) => spacecraftHud?.setGestureStatus(message),
+      });
+      handGestureController = controller;
+      spacecraftHud?.setGestureVideo(controller.video);
+      spacecraftHud?.setGestureEnabled(true);
+      await controller.start();
+      if (requestId !== gestureRequestId || !spacecraftActive) {
+        await controller.stop();
+        if (handGestureController === controller) handGestureController = null;
+        spacecraftHud?.setGestureEnabled(false);
+        gestureControlBusy = false;
+        return;
+      }
+      gestureControlActive = true;
+      gestureControlBusy = false;
+    } catch (error) {
+      gestureFlightControls.clear();
+      await controller?.stop();
+      if (handGestureController === controller) handGestureController = null;
+      if (requestId === gestureRequestId && spacecraftActive) {
+        gestureControlActive = false;
+        spacecraftHud?.setGestureEnabled(false);
+        spacecraftHud?.setGestureStatus('CAMERA OFF');
+        window.alert(`Hand control could not start. ${error?.message || 'Check camera permission and internet connection.'}`);
+      }
+      // Do not disturb a newer gesture session if the previous start was cancelled.
+      if (requestId === gestureRequestId) gestureControlBusy = false;
+    }
+  }
+
   spacecraftHud = createSpacecraftHUD({
     targets: entries.filter((entry) => !entry.isMoon && entry.id !== 'sun').map((entry) => ({ id: entry.id, name: entry.name })),
     onCameraToggle: () => setFlightCameraMode(flightCameraMode === 'external' ? 'cockpit' : 'external'),
     onExit: exitSpacecraftMode,
     onAutopilot: beginAutopilot,
     onControl: setFlightControl,
+    onGestureToggle: toggleHandGestureControl,
   });
   window.addEventListener('keydown', (event) => {
     if (!spacecraftActive) return;
@@ -694,9 +772,22 @@ async function init() {
   });
   window.addEventListener('blur', clearFlightControls);
 
-  // Drag on the canvas to look around independently of the ship's flight path.
+  // Pointer look, external-camera wheel zoom, and mobile two-finger pinch zoom.
+  const activeFlightPointers = new Map();
+  let lastPinchDistance = null;
   renderer.domElement.addEventListener('pointerdown', (event) => {
     if (!spacecraftActive || event.button > 0) return;
+    if (event.pointerType === 'touch') {
+      activeFlightPointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      try { renderer.domElement.setPointerCapture(event.pointerId); } catch {}
+      if (activeFlightPointers.size >= 2) {
+        const pts = [...activeFlightPointers.values()];
+        lastPinchDistance = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+        flightLookDragging = false;
+        flightLookPointerId = null;
+        return;
+      }
+    }
     flightLookDragging = true;
     flightLookPointerId = event.pointerId;
     flightLookPointerX = event.clientX;
@@ -704,7 +795,22 @@ async function init() {
     try { renderer.domElement.setPointerCapture(event.pointerId); } catch {}
   });
   renderer.domElement.addEventListener('pointermove', (event) => {
-    if (!spacecraftActive || !flightLookDragging || event.pointerId !== flightLookPointerId) return;
+    if (!spacecraftActive) return;
+    if (event.pointerType === 'touch' && activeFlightPointers.has(event.pointerId)) {
+      activeFlightPointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      if (activeFlightPointers.size >= 2) {
+        const pts = [...activeFlightPointers.values()];
+        const distance = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+        if (lastPinchDistance !== null && flightCameraMode === 'external') {
+          const change = distance - lastPinchDistance;
+          externalCameraDistance = THREE.MathUtils.clamp(externalCameraDistance * Math.exp(-change * 0.006), 3.5, 28);
+          updateFlightCamera();
+        }
+        lastPinchDistance = distance;
+        return;
+      }
+    }
+    if (!flightLookDragging || event.pointerId !== flightLookPointerId) return;
     const dx = event.clientX - flightLookPointerX;
     const dy = event.clientY - flightLookPointerY;
     flightLookPointerX = event.clientX;
@@ -714,6 +820,21 @@ async function init() {
     updateFlightCamera();
   });
   const stopFlightLook = (event) => {
+    if (event?.pointerType === 'touch' && activeFlightPointers.has(event.pointerId)) {
+      activeFlightPointers.delete(event.pointerId);
+      if (activeFlightPointers.size < 2) lastPinchDistance = null;
+      if (activeFlightPointers.size === 1) {
+        const [id, point] = [...activeFlightPointers.entries()][0];
+        flightLookDragging = true;
+        flightLookPointerId = id;
+        flightLookPointerX = point.x;
+        flightLookPointerY = point.y;
+      } else {
+        flightLookDragging = false;
+        flightLookPointerId = null;
+      }
+      return;
+    }
     if (event && flightLookPointerId !== null && event.pointerId !== flightLookPointerId) return;
     flightLookDragging = false;
     flightLookPointerId = null;
@@ -724,7 +845,7 @@ async function init() {
   renderer.domElement.addEventListener('wheel', (event) => {
     if (!spacecraftActive || flightCameraMode !== 'external') return;
     event.preventDefault();
-    externalCameraDistance = THREE.MathUtils.clamp(externalCameraDistance * Math.exp(event.deltaY * 0.001), 4.2, 28);
+    externalCameraDistance = THREE.MathUtils.clamp(externalCameraDistance * Math.exp(event.deltaY * 0.001), 3.5, 28);
     updateFlightCamera();
   }, { passive: false });
 

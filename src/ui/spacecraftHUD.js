@@ -13,7 +13,7 @@ function makeButton(text, className, onClick) {
 }
 
 /** UI for piloting and exploring with PJMC SPACE EXPLORER. */
-export function createSpacecraftHUD({ targets, onCameraToggle, onExit, onAutopilot, onControl }) {
+export function createSpacecraftHUD({ targets, onCameraToggle, onExit, onAutopilot, onControl, onGestureToggle }) {
   const root = element('section', 'spacecraft-flight-hud');
   root.hidden = true;
   root.setAttribute('aria-label', 'Spacecraft flight controls');
@@ -49,7 +49,15 @@ export function createSpacecraftHUD({ targets, onCameraToggle, onExit, onAutopil
     }
   });
   const cameraButton = makeButton('SWITCH TO COCKPIT', 'flight-action-btn', onCameraToggle);
-  nav.append(navLabel, autoButton, cameraButton);
+  const gestureButton = makeButton('ENABLE HAND CONTROL', 'flight-action-btn flight-gesture-toggle', onGestureToggle);
+  nav.append(navLabel, autoButton, cameraButton, gestureButton);
+
+  const gesturePanel = element('div', 'flight-gesture-panel');
+  gesturePanel.hidden = true;
+  const gesturePreview = element('div', 'flight-gesture-preview');
+  const gestureStatus = element('div', 'flight-gesture-status', 'CAMERA OFF');
+  const gestureHelp = element('div', 'flight-gesture-help', 'ONE HAND: PUSH/PULL TO THRUST · MOVE LEFT/RIGHT TO TURN · UP/DOWN TO CLIMB/DESCEND · TWO HANDS: SPREAD/PINCH TO ZOOM');
+  gesturePanel.append(gesturePreview, gestureStatus, gestureHelp);
 
   const keyLegend = element('div', 'flight-key-legend', 'DRAG TO LOOK · EXTERNAL WHEEL = ZOOM · W / ↑ THRUST · A / D TURN · Q / E ALTITUDE · SHIFT BOOST');
   const hideControlsButton = makeButton('HIDE CONTROLS', 'flight-hide-ui-btn', () => setControlsHidden(true));
@@ -147,7 +155,7 @@ export function createSpacecraftHUD({ targets, onCameraToggle, onExit, onAutopil
   const exitButton = makeButton('EXIT FLIGHT', 'flight-exit-btn', onExit);
   const restoreControlsButton = makeButton('SHOW CONTROLS', 'flight-restore-btn', () => setControlsHidden(false));
   restoreControlsButton.hidden = true;
-  root.append(heading, instruments, nav, keyLegend, hideControlsButton, exitButton);
+  root.append(heading, instruments, nav, gesturePanel, keyLegend, hideControlsButton, exitButton);
   document.body.append(root);
   document.body.append(touchControls);
   document.body.append(restoreControlsButton);
@@ -185,6 +193,16 @@ export function createSpacecraftHUD({ targets, onCameraToggle, onExit, onAutopil
       modeBox.querySelector('.flight-camera-state').textContent = isCockpit ? 'COCKPIT' : 'EXTERNAL';
       cameraButton.textContent = isCockpit ? 'SWITCH TO EXTERNAL' : 'SWITCH TO COCKPIT';
     },
+    setGestureVideo(video) {
+      if (video && video.parentElement !== gesturePreview) gesturePreview.replaceChildren(video);
+    },
+    setGestureEnabled(enabled) {
+      gestureButton.textContent = enabled ? 'STOP HAND CONTROL' : 'ENABLE HAND CONTROL';
+      gestureButton.classList.toggle('active', enabled);
+      gesturePanel.hidden = !enabled;
+      if (!enabled) gestureStatus.textContent = 'CAMERA OFF';
+    },
+    setGestureStatus(text) { gestureStatus.textContent = text; },
     setAutopilot(active, targetId = '') {
       autoButton.dataset.active = active ? 'true' : 'false';
       autoButton.classList.toggle('active', active);
