@@ -1,6 +1,6 @@
-/** Mission-control HUD with body search and a live English/Hindi switch. */
+/** Responsive DOM HUD for PJMC Solar System Explorer. */
 import { SPEED_PRESETS } from '../data/celestialBodies.js';
-import { bodyName, UI_TEXT, uiText } from './i18n.js';
+import { BODY_NAMES_HI, UI_TEXT, bodyName } from './translations.js';
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -16,115 +16,83 @@ function button(label, className, onClick) {
   return b;
 }
 
-const SPEED_KEYS = ['realtime', 'hourPerSecond', 'dayPerSecond', 'monthPerSecond', 'yearPerSecond'];
-
-/**
- * @param {object} app callbacks into main.js
- * @param {Array} bodyList flat [{id, name, hiName, isMoon}]
- */
 export function createHUD(app, bodyList) {
-  const hud = el('div', 'hud');
   let language = 'en';
+  let lastSearchMatches = [];
+  const words = () => UI_TEXT[language];
+  const hud = el('div', 'hud');
 
-  /* ---------------- top bar ---------------- */
   const top = el('header', 'top-bar');
-  const title = el('div', 'app-title');
-  const titleMain = el('span', 'title-main', 'SOLAR SYSTEM');
-  const titleSub = el('span', 'title-sub', 'EXPLORER');
-  title.append(titleMain, titleSub);
-  top.append(title);
+  const brand = el('div', 'app-title');
+  const brandMark = el('div', 'brand-mark', 'P');
+  const brandCopy = el('div', 'brand-copy');
+  const titleLine = el('div', 'brand-title-line');
+  const titleMain = el('span', 'title-main', 'PJMC');
+  const titleSub = el('span', 'title-sub', 'SOLAR SYSTEM');
+  titleLine.append(titleMain, titleSub);
+  const titleTagline = el('div', 'title-tagline', 'INTERACTIVE 3D EXPLORER');
+  brandCopy.append(titleLine, titleTagline);
+  brand.append(brandMark, brandCopy);
 
-  const viewControls = el('div', 'view-controls');
-  const languageBtn = button(uiText('languageButton'), 'language-btn', () => {
-    setLanguage(language === 'en' ? 'hi' : 'en');
-    app.onSetLanguage?.(language);
-  });
-  languageBtn.title = 'Switch interface language';
+  const searchWrap = el('div', 'planet-search-wrap');
+  const searchIcon = el('span', 'search-icon', '⌕');
+  const searchInput = el('input', 'planet-search');
+  searchInput.type = 'search';
+  searchInput.autocomplete = 'off';
+  searchInput.spellcheck = false;
+  searchInput.setAttribute('aria-label', 'Search planets and moons');
+  const searchResults = el('div', 'search-results');
+  searchResults.hidden = true;
+  searchWrap.append(searchIcon, searchInput, searchResults);
 
-  const vizBtn = button('VISUALIZATION', 'scale-btn active', () => app.onSetScaleMode('viz'));
-  const trueBtn = button('TRUE SCALE', 'scale-btn', () => app.onSetScaleMode('true'));
+  const controls = el('div', 'view-controls');
   const scaleGroup = el('div', 'btn-group');
+  const vizBtn = button('', 'scale-btn active', () => app.onSetScaleMode('viz'));
+  const trueBtn = button('', 'scale-btn', () => app.onSetScaleMode('true'));
   scaleGroup.append(vizBtn, trueBtn);
 
   let orbitsOn = true;
   let labelsOn = true;
-  const orbitsBtn = button('ORBITS', 'toggle-btn active', () => {
+  const orbitsBtn = button('', 'toggle-btn active', () => {
     orbitsOn = !orbitsOn;
     orbitsBtn.classList.toggle('active', orbitsOn);
     app.onToggleOrbits(orbitsOn);
   });
-  const labelsBtn = button('LABELS', 'toggle-btn active', () => {
+  const labelsBtn = button('', 'toggle-btn active', () => {
     labelsOn = !labelsOn;
     labelsBtn.classList.toggle('active', labelsOn);
     app.onToggleLabels(labelsOn);
   });
-  const freeBtn = button('FREE CAM', 'action-btn active', () => app.onFreeCamera());
-  const resetBtn = button('RESET VIEW', 'action-btn', () => app.onResetView());
-
-  viewControls.append(languageBtn, scaleGroup, orbitsBtn, labelsBtn, freeBtn, resetBtn);
-  top.append(viewControls);
+  const freeBtn = button('', 'action-btn active', () => app.onFreeCamera());
+  const resetBtn = button('', 'action-btn', () => app.onResetView());
+  const languageBtn = button('हिंदी', 'language-btn', () => {
+    language = language === 'en' ? 'hi' : 'en';
+    applyLanguage();
+    app.onLanguageChange?.(language);
+  });
+  controls.append(scaleGroup, orbitsBtn, labelsBtn, freeBtn, resetBtn, languageBtn);
+  top.append(brand, searchWrap, controls);
   hud.append(top);
 
-  /* ---------------- searchable body selector ---------------- */
   const listWrap = el('aside', 'body-list');
-  const bodyHeading = el('div', 'panel-heading', 'BODIES');
-  const searchWrap = el('div', 'body-search-wrap');
-  const searchInput = el('input', 'body-search');
-  searchInput.type = 'search';
-  searchInput.autocomplete = 'off';
-  searchInput.spellcheck = false;
-  searchInput.setAttribute('aria-label', uiText('searchAria'));
-  searchInput.placeholder = uiText('searchPlaceholder');
-  searchWrap.append(searchInput);
+  const listHeading = el('div', 'panel-heading');
   const list = el('div', 'body-list-items');
-  const noResults = el('div', 'body-no-results', uiText('noResults'));
-  noResults.hidden = true;
   const itemButtons = new Map();
-  const itemRows = new Map();
-
+  const bodyById = new Map(bodyList.map((b) => [b.id, b]));
   for (const body of bodyList) {
-    const item = button(bodyName(body.id, body.name, language), `body-item ${body.isMoon ? 'moon-item' : ''}`, () => {
-      searchInput.value = '';
-      renderFilter();
-      app.onSelectBody(body.id);
-    });
+    const item = button(body.name, `body-item ${body.isMoon ? 'moon-item' : ''}`, () => app.onSelectBody(body.id));
     itemButtons.set(body.id, item);
-    itemRows.set(body.id, { body, item });
     list.append(item);
   }
-  list.append(noResults);
-  listWrap.append(bodyHeading, searchWrap, list);
+  listWrap.append(listHeading, list);
   hud.append(listWrap);
 
-  function renderFilter() {
-    const query = searchInput.value.trim().toLocaleLowerCase();
-    let visible = 0;
-    for (const { body, item } of itemRows.values()) {
-      const haystack = `${body.name} ${body.hiName ?? ''} ${body.id}`.toLocaleLowerCase();
-      const match = !query || haystack.includes(query);
-      item.hidden = !match;
-      if (match) visible++;
-    }
-    noResults.hidden = visible !== 0;
-  }
-  searchInput.addEventListener('input', renderFilter);
-  searchInput.addEventListener('keydown', (event) => {
-    if (event.key !== 'Enter') return;
-    const first = [...itemRows.values()].find(({ item }) => !item.hidden);
-    if (first) {
-      searchInput.value = '';
-      renderFilter();
-      app.onSelectBody(first.body.id);
-    }
-  });
-
-  const bodiesToggle = button('BODIES ▾', 'bodies-toggle', () => {
+  const bodiesToggle = button('', 'bodies-toggle', () => {
     listWrap.classList.toggle('open');
     bodiesToggle.classList.toggle('active', listWrap.classList.contains('open'));
   });
   hud.append(bodiesToggle);
 
-  /* ---------------- time bar ---------------- */
   const timeBar = el('footer', 'time-bar');
   const playBtn = button('❚❚', 'play-btn', () => app.onTogglePlay());
   const speeds = el('div', 'speed-group');
@@ -133,58 +101,114 @@ export function createHUD(app, bodyList) {
     speeds.append(b);
     return b;
   });
-
   const dateWrap = el('div', 'sim-date-wrap');
-  const dateLabel = el('div', 'sim-date-label', 'SIMULATION TIME');
+  const dateLabel = el('div', 'sim-date-label');
   const dateEl = el('div', 'sim-date', '—');
   dateWrap.append(dateLabel, dateEl);
   const nowBtn = button('● NOW', 'now-btn', () => app.onGoToNow());
-  nowBtn.title = uiText('nowTitle');
+  nowBtn.title = 'Jump to the current date and time (IST)';
   const dateGroup = el('div', 'date-group');
   dateGroup.append(dateWrap, nowBtn);
   timeBar.append(playBtn, speeds, dateGroup);
   hud.append(timeBar);
+
+  const brandFooter = el('div', 'brand-footer');
+  const footerTitle = el('div', 'brand-footer-title');
+  const footerSubtitle = el('div', 'brand-footer-subtitle');
+  brandFooter.append(footerTitle, footerSubtitle);
+  hud.append(brandFooter);
   document.body.append(hud);
 
-  function setLanguage(nextLanguage) {
-    language = nextLanguage === 'hi' ? 'hi' : 'en';
-    document.documentElement.lang = language;
-    const t = (key) => uiText(key, language);
-    titleMain.textContent = t('solarSystem');
-    titleSub.textContent = t('explorer');
-    languageBtn.textContent = t('languageButton');
-    languageBtn.title = language === 'en' ? 'Switch interface to Hindi' : 'Switch interface to English';
-    vizBtn.textContent = t('visualization');
-    trueBtn.textContent = t('trueScale');
-    orbitsBtn.textContent = t('orbits');
-    labelsBtn.textContent = t('labels');
-    freeBtn.textContent = t('freeCamera');
-    resetBtn.textContent = t('resetView');
-    bodyHeading.textContent = t('bodies');
-    bodiesToggle.textContent = `${t('bodies')} ▾`;
-    searchInput.placeholder = t('searchPlaceholder');
-    searchInput.setAttribute('aria-label', t('searchAria'));
-    noResults.textContent = t('noResults');
-    dateLabel.textContent = t('simulatedTime');
-    nowBtn.textContent = t('now');
-    nowBtn.title = t('nowTitle');
-    speedButtons.forEach((b, i) => { b.textContent = t(SPEED_KEYS[i]); });
-    for (const { body, item } of itemRows.values()) {
-      item.textContent = bodyName(body.id, body.name, language);
-    }
-    renderFilter();
+  function matchingBodies(query) {
+    const q = query.trim().toLocaleLowerCase();
+    if (!q) return [];
+    return bodyList.filter((body) => {
+      const hindi = BODY_NAMES_HI[body.id] ?? '';
+      return body.name.toLocaleLowerCase().includes(q) || hindi.toLocaleLowerCase().includes(q) || body.id.toLocaleLowerCase().includes(q);
+    }).slice(0, 7);
   }
 
+  function chooseSearchResult(id) {
+    const body = bodyById.get(id);
+    if (!body) return;
+    searchInput.value = bodyName(body.id, body.name, language);
+    searchResults.hidden = true;
+    app.onSelectBody(id);
+  }
+
+  function renderSearchResults() {
+    lastSearchMatches = matchingBodies(searchInput.value);
+    searchResults.replaceChildren();
+    if (!searchInput.value.trim()) {
+      searchResults.hidden = true;
+      return;
+    }
+    if (lastSearchMatches.length === 0) {
+      searchResults.append(el('div', 'search-empty', words().searchEmpty));
+    } else {
+      for (const body of lastSearchMatches) {
+        const item = el('button', 'search-result');
+        item.type = 'button';
+        const name = el('span', 'search-result-name', bodyName(body.id, body.name, language));
+        const secondary = el('span', 'search-result-secondary', body.name);
+        item.append(name, secondary);
+        item.addEventListener('click', () => chooseSearchResult(body.id));
+        searchResults.append(item);
+      }
+    }
+    searchResults.hidden = false;
+  }
+
+  searchInput.addEventListener('input', renderSearchResults);
+  searchInput.addEventListener('focus', renderSearchResults);
+  searchInput.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') {
+      if (lastSearchMatches[0]) chooseSearchResult(lastSearchMatches[0].id);
+    } else if (event.key === 'Escape') {
+      searchInput.value = '';
+      searchResults.hidden = true;
+      searchInput.blur();
+    }
+  });
+  document.addEventListener('pointerdown', (event) => {
+    if (!searchWrap.contains(event.target)) searchResults.hidden = true;
+  });
+
+  function applyLanguage() {
+    const t = words();
+    document.documentElement.lang = language === 'hi' ? 'hi' : 'en';
+    titleMain.textContent = t.title;
+    titleSub.textContent = t.subtitle;
+    titleTagline.textContent = t.created.toUpperCase();
+    vizBtn.textContent = t.visualization;
+    trueBtn.textContent = t.trueScale;
+    orbitsBtn.textContent = t.orbits;
+    labelsBtn.textContent = t.labels;
+    freeBtn.textContent = t.freeCam;
+    resetBtn.textContent = t.resetView;
+    listHeading.textContent = t.bodies;
+    bodiesToggle.textContent = language === 'hi' ? 'पिंड ▾' : 'BODIES ▾';
+    dateLabel.textContent = t.simulatedTime;
+    nowBtn.textContent = t.now;
+    languageBtn.textContent = language === 'en' ? 'हिंदी' : 'ENGLISH';
+    searchInput.placeholder = t.search;
+    searchInput.setAttribute('aria-label', t.search);
+    speedButtons.forEach((b, i) => { b.textContent = t.speeds[i] ?? SPEED_PRESETS[i].label; });
+    for (const body of bodyList) itemButtons.get(body.id).textContent = bodyName(body.id, body.name, language);
+    footerTitle.textContent = t.about;
+    footerSubtitle.textContent = t.school;
+    if (!searchResults.hidden) renderSearchResults();
+  }
+
+  applyLanguage();
   return {
     setDate(text) { dateEl.textContent = text; },
     setPlaying(playing) {
       playBtn.textContent = playing ? '❚❚' : '▶';
       playBtn.classList.toggle('paused', !playing);
-      playBtn.setAttribute('aria-label', playing ? 'Pause simulation' : 'Play simulation');
+      playBtn.setAttribute('aria-label', playing ? 'Pause simulation' : 'Resume simulation');
     },
-    setActiveSpeed(index) {
-      speedButtons.forEach((b, i) => b.classList.toggle('active', i === index));
-    },
+    setActiveSpeed(index) { speedButtons.forEach((b, i) => b.classList.toggle('active', i === index)); },
     setScaleMode(mode) {
       vizBtn.classList.toggle('active', mode === 'viz');
       trueBtn.classList.toggle('active', mode === 'true');
@@ -195,7 +219,6 @@ export function createHUD(app, bodyList) {
       listWrap.classList.remove('open');
       bodiesToggle.classList.remove('active');
     },
-    setLanguage,
     getLanguage() { return language; },
   };
 }

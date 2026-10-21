@@ -71,7 +71,7 @@ export class Sun {
       vertexShader: VERTEX,
       fragmentShader: FRAGMENT,
     });
-    this.surfaceMesh = new THREE.Mesh(getSphereGeometry(96), this.material);
+    this.surfaceMesh = new THREE.Mesh(getSphereGeometry(64), this.material);
     this.surfaceMesh.userData.bodyId = data.id;
     this.spinGroup.add(this.surfaceMesh);
 

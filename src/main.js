@@ -19,13 +19,11 @@ import { createTextureSet } from './textures/proceduralTextures.js';
 import { Sun } from './objects/Sun.js';
 import { Planet } from './objects/Planet.js';
 import { createStarfield } from './objects/Starfield.js';
-import { BackgroundTextRing } from './objects/BackgroundTextRing.js';
 import { AsteroidBelt } from './objects/AsteroidBelt.js';
-import { BackgroundTextRing } from './objects/BackgroundTextRing.js';
+import { BrandingArch } from './objects/BrandingArch.js';
 import { createHUD } from './ui/hud.js';
 import { InfoPanel } from './ui/infoPanel.js';
 import { Labels } from './ui/labels.js';
-import { bodyName } from './ui/i18n.js';
 import './styles.css';
 
 /* ------------------------------------------------------------------ */
@@ -50,56 +48,46 @@ const scaleAPI = {
   bodyRadius(p) {
     return lerp(vizRadiusOf(p.data, p.isMoon), trueRadiusOf(p.data), scaleState.mix);
   },
-  orbitRadius(p) {
+  orbitRadius(p, days = 0) {
     if (p.isMoon) {
       const viz = vizRadiusOf(p.parent.data, false) * p.data.vizDistanceFactor;
       return lerp(viz, p.data.distanceKm * KM_TO_UNIT, scaleState.mix);
     }
     if (!p.data.distanceAU) return 0;
-    return lerp(vizOrbitOfAU(p.data.distanceAU), p.data.distanceAU * AU_UNIT, scaleState.mix);
+    const elements = p.data.orbitElements;
+    const centuries = THREE.MathUtils.clamp(days / 36525, -50, 10);
+    const aAU = p.data.distanceAU + (elements?.aRate ?? 0) * centuries;
+    return lerp(vizOrbitOfAU(aAU), aAU * AU_UNIT, scaleState.mix);
   },
   orbitRadiusOfAU(au) {
     return lerp(vizOrbitOfAU(au), au * AU_UNIT, scaleState.mix);
   },
 };
 
-<<<<<<< HEAD
-// The overview is fitted around Pluto too (39.5 AU semi-major axis), not
-// just Neptune. The brand ring is scaled from the same system radius so its
-// complete circumference stays in frame when switching scale modes.
-const systemRadius = (mix) => lerp(vizOrbitOfAU(39.5), 39.5 * AU_UNIT, mix);
-// 1.50× leaves room for Pluto near aphelion before the ring band begins.
-const ringRadiusOf = (mix) => systemRadius(mix) * 1.50;
-const defaultCameraPos = (mix, out) => {
-  const verticalHalfFov = THREE.MathUtils.degToRad(50) / 2;
-  const aspect = Math.max(0.25, window.innerWidth / Math.max(1, window.innerHeight));
-  const horizontalHalfFov = Math.atan(Math.tan(verticalHalfFov) * aspect);
-  const limitingHalfFov = Math.min(verticalHalfFov, horizontalHalfFov);
-  // The extra margin accounts for the slight tilt of the camera and keeps
-  // the full circular ring visible on portrait/mobile screens as well.
-  const distance = (ringRadiusOf(mix) * 1.25) / Math.tan(limitingHalfFov);
-  return out.set(0, distance * 0.42, distance);
-};
-=======
-// Camera overview positions for each scale mode.
-const DEFAULT_CAM_VIZ = new THREE.Vector3(0, 115, 255);
-const DEFAULT_CAM_TRUE = new THREE.Vector3(0, 1050, 2400);
-// Representative system radius, used to scale the background inscription and
-// to frame the complete system in the overview camera.
+// Representative system radius, used to scale both the 3D branding and overview.
 const systemRadius = (mix) => lerp(vizOrbitOfAU(30.05), 30.05 * AU_UNIT, mix);
->>>>>>> f5f151341652102d66d771f5d749347440f4c8d5
+const overviewTarget = (mix, out) => out.set(0, systemRadius(mix) * 1.12, 0);
+
+// Fit the system plus the complete PJMC semicircular arch. On narrow screens,
+// horizontal fit becomes the limiting dimension and the initial view pulls back.
+function overviewDistance(mix) {
+  const r = systemRadius(mix);
+  const width = r * 4.5;
+  const height = r * 4.55;
+  const halfFov = THREE.MathUtils.degToRad(50 / 2);
+  const margin = 0.78;
+  const aspect = Math.max(window.innerWidth / Math.max(window.innerHeight, 1), 0.35);
+  return Math.max(
+    height / (2 * Math.tan(halfFov) * margin),
+    width / (2 * Math.tan(halfFov) * aspect * margin),
+  );
+}
 
 const defaultCameraPos = (mix, out) => {
-  const direction = DEFAULT_CAM_VIZ.clone().lerp(DEFAULT_CAM_TRUE, mix).normalize();
-  const verticalHalfFov = THREE.MathUtils.degToRad(50) / 2;
-  const aspect = Math.max(window.innerWidth / Math.max(window.innerHeight, 1), 0.1);
-  const horizontalHalfFov = Math.atan(Math.tan(verticalHalfFov) * aspect);
-  const limitingHalfFov = Math.min(verticalHalfFov, horizontalHalfFov);
-  // The inscription reaches about 1.43x the outer orbit; reserve extra room
-  // so the entire solar system and the full text circle fit in the overview.
-  const visualExtent = systemRadius(mix) * 1.46;
-  const distance = (visualExtent / Math.sin(limitingHalfFov)) * 1.08;
-  return out.copy(direction).multiplyScalar(distance);
+  const target = overviewTarget(mix, new THREE.Vector3());
+  const distance = overviewDistance(mix);
+  const elevationRatio = 0.18;
+  return out.set(0, target.y + distance * elevationRatio, distance * Math.sqrt(1 - elevationRatio ** 2));
 };
 
 /* ------------------------------------------------------------------ */
@@ -160,9 +148,10 @@ async function init() {
   defaultCameraPos(0, camera.position);
 
   const controls = new OrbitControls(camera, renderer.domElement);
+  overviewTarget(0, controls.target);
   controls.enableDamping = true;
   controls.dampingFactor = 0.08;
-  controls.maxDistance = 26000;
+  controls.maxDistance = Math.max(26000, overviewDistance(1) * 1.5);
   controls.minDistance = 0.01;
 
   /* ---------- lighting ---------- */
@@ -245,20 +234,14 @@ async function init() {
   scene.add(belt.mesh);
 
   setStatus('IGNITING STARFIELD…');
-  // Keep the camera inside the background star sphere even when True Scale
-  // or a narrow portrait overview requires a much longer camera distance.
-  const starfieldRadius = Math.max(12000, ringRadiusOf(1) * 8);
-  scene.add(createStarfield(textures, { radius: starfieldRadius }));
+  scene.add(createStarfield(textures));
 
-  setStatus('BUILDING PJMC SUKHPUR BRAND RING…');
-  const brandRing = new BackgroundTextRing();
-  brandRing.setRadius(ringRadiusOf(scaleState.mix));
-  scene.add(brandRing.group);
-
-  // One complete 360-degree PJMC Sukhpur inscription, outside the outer orbit.
-  const backgroundTextRing = new BackgroundTextRing('PJMC Sukhpur');
-  backgroundTextRing.group.scale.setScalar(systemRadius(scaleState.mix));
-  scene.add(backgroundTextRing.group);
+  // The PJMC wordmark lives in world space high above the outer orbit. It scales
+  // with Visualization/True Scale and is never pinned to the screen.
+  const baseSystemRadius = systemRadius(0);
+  const brandingArch = new BrandingArch(baseSystemRadius);
+  brandingArch.setScale(systemRadius(scaleState.mix) / baseSystemRadius);
+  scene.add(brandingArch.group);
 
   /* ---------- simulation clock ---------- */
   const epochMs = Date.now();
@@ -334,7 +317,7 @@ async function init() {
 
     hud.setActiveBody(entry.id);
     hud.setFreeCam(false);
-    infoPanel.show(entry.data, entry.parentName);
+    infoPanel.show(entry.data, entry.parentName, entry.body.distanceFromSunAU ?? null);
     updateOrbitVisibility();
   }
 
@@ -355,11 +338,12 @@ async function init() {
     const startCam = camera.position.clone();
     const startTarget = controls.target.clone();
     const endCam = defaultCameraPos(scaleState.mix, new THREE.Vector3());
+    const endTarget = overviewTarget(scaleState.mix, new THREE.Vector3());
     activeCamTween = addTween({
       duration: 1.2,
       onUpdate(e) {
         camera.position.lerpVectors(startCam, endCam, e);
-        controls.target.lerpVectors(startTarget, _v1.set(0, 0, 0), e);
+        controls.target.lerpVectors(startTarget, endTarget, e);
       },
       onComplete() {
         focusTweenActive = false;
@@ -412,15 +396,8 @@ async function init() {
   }
 
   /* ---------- UI ---------- */
-  const bodyList = entries.map((e) => ({
-    id: e.id,
-    name: e.name,
-    hiName: bodyName(e.id, e.name, 'hi'),
-    isMoon: e.isMoon,
-  }));
+  const bodyList = entries.map((e) => ({ id: e.id, name: e.name, isMoon: e.isMoon }));
   const infoPanel = new InfoPanel(() => releaseFocus());
-  let interfaceLanguage = 'en';
-  let labels;
   const hud = createHUD(
     {
       onSelectBody: (id) => focusBody(entryById.get(id)),
@@ -446,10 +423,10 @@ async function init() {
         updateOrbitVisibility();
       },
       onToggleLabels: (on) => labels.setEnabled(on),
-      onSetLanguage: (language) => {
-        interfaceLanguage = language;
-        infoPanel.setLanguage(language);
+      onLanguageChange: (language) => {
         labels.setLanguage(language);
+        infoPanel.setLanguage(language);
+        refreshDateReadout();
       },
     },
     bodyList,
@@ -457,9 +434,9 @@ async function init() {
   hud.setActiveSpeed(speedIndex);
   hud.setPlaying(playing);
 
-  labels = new Labels(
+  const labels = new Labels(
     document.getElementById('labels'),
-    entries.map((e) => ({ id: e.id, name: e.name, hiName: bodyName(e.id, e.name, 'hi'), isMoon: e.isMoon, parentId: e.parentId, body: e.body })),
+    entries.map((e) => ({ id: e.id, name: e.name, isMoon: e.isMoon, parentId: e.parentId, body: e.body })),
     (id) => focusBody(entryById.get(id)),
   );
 
@@ -505,13 +482,13 @@ async function init() {
 
   function refreshDateReadout() {
     const d = new Date(epochMs + simMs);
-    const locale = interfaceLanguage === 'hi' ? 'hi-IN' : 'en-IN';
-    const value = new Intl.DateTimeFormat(locale, {
+    const isHindi = hud.getLanguage() === 'hi';
+    const formatted = new Intl.DateTimeFormat(isHindi ? 'hi-IN' : 'en-IN', {
       timeZone: 'Asia/Kolkata',
-      day: '2-digit', month: 'short', year: 'numeric',
+      year: 'numeric', month: 'short', day: '2-digit',
       hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true,
     }).format(d);
-    hud.setDate(`${value} IST`);
+    hud.setDate(`${formatted} IST`);
   }
 
   function animate() {
@@ -527,10 +504,9 @@ async function init() {
     sun.update(days, scaleAPI, dt);
     for (const planet of planets) planet.update(days, scaleAPI);
     belt.update(days, scaleAPI.orbitRadiusOfAU);
-    brandRing.setRadius(ringRadiusOf(scaleState.mix));
+    brandingArch.setScale(systemRadius(scaleState.mix) / baseSystemRadius);
 
     followUpdate();
-    backgroundTextRing.group.scale.setScalar(systemRadius(scaleState.mix));
     controls.update();
     labels.update(camera, focusSystemId());
 
@@ -549,6 +525,8 @@ async function init() {
   sun.update(daysSinceJ2000(), scaleAPI, 0);
   for (const planet of planets) planet.update(daysSinceJ2000(), scaleAPI);
   belt.update(daysSinceJ2000(), scaleAPI.orbitRadiusOfAU);
+  brandingArch.setScale(systemRadius(scaleState.mix) / baseSystemRadius);
+  refreshDateReadout();
 
   renderer.setAnimationLoop(animate);
   document.getElementById('loading').classList.add('hidden');

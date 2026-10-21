@@ -4,7 +4,7 @@
  * Scene-graph layout per body:
  *
  *   root (Group, orbital-plane inclination)
- *   ├── orbitLine (unit ellipse, scaled to the current semi-major axis)
+ *   ├── orbitLine (unit circle, scaled to the current orbit radius)
  *   └── bodyGroup (Group, positioned on the orbit; never scaled)
  *       └── tiltGroup (Group, axial tilt)
  *           ├── spinGroup (Group, daily rotation; scale = display radius)
@@ -28,6 +28,7 @@ const _q = new THREE.Quaternion();
 
 /* Shared unit-sphere geometries, keyed by segment count. */
 const sphereCache = new Map();
+const eccentricOrbitCache = new Map();
 export function getSphereGeometry(segments) {
   if (!sphereCache.has(segments)) {
     sphereCache.set(segments, new THREE.SphereGeometry(1, segments, segments / 2));
@@ -35,37 +36,40 @@ export function getSphereGeometry(segments) {
   return sphereCache.get(segments);
 }
 
-/* Shared unit semi-major-axis orbit geometries, keyed by fixed J2000 elements. */
-const orbitGeometryCache = new Map();
-function getOrbitGeometry(eccentricity = 0, perihelionDeg = 0) {
-  const e = Math.max(0, Math.min(0.95, eccentricity || 0));
-  const peri = THREE.MathUtils.degToRad(perihelionDeg || 0);
-  const key = `${e.toFixed(6)}:${peri.toFixed(4)}`;
-  if (!orbitGeometryCache.has(key)) {
+/* Shared unit-circle line geometry for orbit paths. */
+let circleGeometry = null;
+function getCircleGeometry() {
+  if (!circleGeometry) {
     const pts = [];
-    const cp = Math.cos(peri);
-    const sp = Math.sin(peri);
-    const minor = Math.sqrt(1 - e * e);
-    for (let i = 0; i < 512; i++) {
-      const E = (i / 512) * TWO_PI;
-      const x0 = Math.cos(E) - e;
-      const z0 = -minor * Math.sin(E);
-      pts.push(new THREE.Vector3(x0 * cp + z0 * sp, 0, -x0 * sp + z0 * cp));
+    for (let i = 0; i < 256; i++) {
+      const a = (i / 256) * TWO_PI;
+      pts.push(new THREE.Vector3(Math.cos(a), 0, -Math.sin(a)));
     }
-    orbitGeometryCache.set(key, new THREE.BufferGeometry().setFromPoints(pts));
+    circleGeometry = new THREE.BufferGeometry().setFromPoints(pts);
   }
-  return orbitGeometryCache.get(key);
+  return circleGeometry;
 }
 
-/** Solve Kepler's equation M = E - e sin(E) with Newton iteration. */
-function eccentricAnomaly(meanAnomaly, eccentricity) {
-  const e = Math.max(0, Math.min(0.95, eccentricity || 0));
-  const M = Math.atan2(Math.sin(meanAnomaly), Math.cos(meanAnomaly));
-  let E = e < 0.8 ? M : Math.PI;
+function getEccentricOrbitGeometry(eccentricity) {
+  const key = Number(eccentricity).toFixed(5);
+  if (!eccentricOrbitCache.has(key)) {
+    const pts = [];
+    const e = THREE.MathUtils.clamp(eccentricity, 0, 0.95);
+    for (let i = 0; i < 256; i++) {
+      const E = (i / 256) * TWO_PI;
+      pts.push(new THREE.Vector3(Math.cos(E) - e, 0, -Math.sqrt(1 - e * e) * Math.sin(E)));
+    }
+    eccentricOrbitCache.set(key, new THREE.BufferGeometry().setFromPoints(pts));
+  }
+  return eccentricOrbitCache.get(key);
+}
+
+function solveEccentricAnomaly(meanAnomaly, eccentricity) {
+  let E = meanAnomaly + eccentricity * Math.sin(meanAnomaly) * (1 + eccentricity * Math.cos(meanAnomaly));
   for (let i = 0; i < 8; i++) {
-    const delta = (E - e * Math.sin(E) - M) / (1 - e * Math.cos(E));
-    E -= delta;
-    if (Math.abs(delta) < 1e-8) break;
+    const correction = (E - eccentricity * Math.sin(E) - meanAnomaly) / (1 - eccentricity * Math.cos(E));
+    E -= correction;
+    if (Math.abs(correction) < 1e-10) break;
   }
   return E;
 }
@@ -127,7 +131,7 @@ function createAtmosphere(spec) {
     blending: THREE.AdditiveBlending,
     depthWrite: false,
   });
-  const mesh = new THREE.Mesh(getSphereGeometry(64), material);
+  const mesh = new THREE.Mesh(getSphereGeometry(48), material);
   mesh.scale.setScalar(1.07);
   return mesh;
 }
@@ -147,6 +151,7 @@ export class Planet {
     this.isMoon = isMoon;
     this.parent = parent;
     this._radius = 1;
+    this.distanceFromSunAU = null;
     this.spinOffset = ((data.phaseDeg ?? 0) * Math.PI) / 180;
     this.ringShadowShader = null; // set by onBeforeCompile when applicable
 
@@ -164,7 +169,7 @@ export class Planet {
     this.root.add(this.bodyGroup);
 
     // -- surface ----------------------------------------------------
-    const segments = isMoon ? 48 : 96;
+    const segments = isMoon ? 32 : 48;
     this.surfaceMaterial = new THREE.MeshLambertMaterial({ map: textures[data.texture] });
     this.surfaceMesh = new THREE.Mesh(getSphereGeometry(segments), this.surfaceMaterial);
     this.surfaceMesh.userData.bodyId = data.id;
@@ -202,8 +207,11 @@ export class Planet {
     }
 
     // -- orbit line ----------------------------------------------------
+    const orbitGeometry = !isMoon && data.orbitElements
+      ? getEccentricOrbitGeometry(data.orbitElements.eccentricity)
+      : getCircleGeometry();
     this.orbitLine = new THREE.LineLoop(
-      getOrbitGeometry(data.eccentricity ?? 0, data.longitudeOfPerihelionDeg ?? 0),
+      orbitGeometry,
       new THREE.LineBasicMaterial({
         color: isMoon ? 0x35586e : 0x3b6a8a,
         transparent: true,
@@ -297,31 +305,47 @@ export class Planet {
     this._radius = r;
     this.spinGroup.scale.setScalar(r);
 
-    // Keplerian orbit approximation. Planet positions use the J2000 mean
-    // longitude plus average motion; eccentricity adds the elliptical path.
-    // Elements are fixed, so this is a useful educational approximation,
-    // not a replacement for a high-precision JPL ephemeris.
-    const orbitR = scale.orbitRadius(this); // semi-major axis in display units
-    const eccentricity = Math.max(0, Math.min(0.95, this.data.eccentricity ?? 0));
-    const peri = THREE.MathUtils.degToRad(this.data.longitudeOfPerihelionDeg ?? 0);
-    const periodDays = this.data.orbitalPeriodDays ?? 1;
-    // Keep the sign: a negative period denotes retrograde motion (Triton).
-    const safePeriodDays = Math.abs(periodDays) < 1e-6
-      ? (periodDays < 0 ? -1e-6 : 1e-6)
-      : periodDays;
-    const meanLongitude = THREE.MathUtils.degToRad(this.data.meanLongitudeDeg ?? 0)
-      + this.spinOffset * (this.isMoon ? 1 : 0)
-      + (TWO_PI * daysSinceJ2000) / safePeriodDays;
-    const E = eccentricAnomaly(meanLongitude - peri, eccentricity);
-    const x0 = Math.cos(E) - eccentricity;
-    const z0 = -Math.sqrt(1 - eccentricity * eccentricity) * Math.sin(E);
-    const cp = Math.cos(peri);
-    const sp = Math.sin(peri);
-    this.bodyGroup.position.set(
-      (x0 * cp + z0 * sp) * orbitR,
-      0,
-      (-x0 * sp + z0 * cp) * orbitR,
-    );
+    // Major planets use Kepler's equation and JPL's approximate elements; moons
+    // retain their current circular visualization orbits. Results are visual
+    // approximations, not a high-precision ephemeris.
+    const orbitR = scale.orbitRadius(this, daysSinceJ2000);
+    const elements = !this.isMoon ? this.data.orbitElements : null;
+    if (elements) {
+      const actualT = daysSinceJ2000 / 36525;
+      const T = THREE.MathUtils.clamp(actualT, -50, 10);
+      const e = THREE.MathUtils.clamp(elements.eccentricity + (elements.eRate ?? 0) * T, 0, 0.95);
+      const inclination = elements.inclination + (elements.iRate ?? 0) * T;
+      const meanLongitudeAtBound = elements.meanLongitude + (elements.lRate ?? 0) * T;
+      const extrapolatedDays = (actualT - T) * 36525;
+      const meanLongitude = meanLongitudeAtBound + (extrapolatedDays ? extrapolatedDays / this.data.orbitalPeriodDays * 360 : 0);
+      const perihelion = elements.perihelion + (elements.periRate ?? 0) * T;
+      const node = elements.node + (elements.nodeRate ?? 0) * T;
+      const fRadians = THREE.MathUtils.degToRad((elements.anomalyF ?? 0) * T);
+      const meanAnomalyDeg = meanLongitude - perihelion
+        + (elements.anomalyB ?? 0) * T * T
+        + (elements.anomalyC ?? 0) * Math.cos(fRadians)
+        + (elements.anomalyS ?? 0) * Math.sin(fRadians);
+      const meanAnomaly = THREE.MathUtils.degToRad(THREE.MathUtils.euclideanModulo(meanAnomalyDeg + 180, 360) - 180);
+      const E = solveEccentricAnomaly(meanAnomaly, e);
+      const aAU = this.data.distanceAU + (elements.aRate ?? 0) * T;
+      this.distanceFromSunAU = aAU * (1 - e * Math.cos(E));
+      const localX = orbitR * (Math.cos(E) - e);
+      const localZ = -orbitR * Math.sqrt(1 - e * e) * Math.sin(E);
+      const omega = THREE.MathUtils.degToRad(perihelion - node);
+      this.root.rotation.x = THREE.MathUtils.degToRad(inclination);
+      this.root.rotation.y = THREE.MathUtils.degToRad(node);
+      this.orbitLine.rotation.y = omega;
+      this.bodyGroup.position.set(
+        localX * Math.cos(omega) + localZ * Math.sin(omega),
+        0,
+        -localX * Math.sin(omega) + localZ * Math.cos(omega),
+      );
+    } else {
+      const L0 = ((this.data.meanLongitudeDeg ?? 0) * Math.PI) / 180 + this.spinOffset * (this.isMoon ? 1 : 0);
+      const angle = L0 + (TWO_PI * daysSinceJ2000) / this.data.orbitalPeriodDays;
+      this.bodyGroup.position.set(Math.cos(angle) * orbitR, 0, -Math.sin(angle) * orbitR);
+      this.orbitLine.rotation.y = 0;
+    }
     this.orbitLine.scale.setScalar(orbitR);
 
     // Daily rotation (Venus/Uranus/Pluto retrograde comes from tilt > 90 deg).

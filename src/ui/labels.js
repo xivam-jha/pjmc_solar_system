@@ -8,7 +8,7 @@
  */
 
 import * as THREE from 'three';
-import { bodyName } from './i18n.js';
+import { bodyName } from './translations.js';
 
 const _world = new THREE.Vector3();
 const _view = new THREE.Vector3();

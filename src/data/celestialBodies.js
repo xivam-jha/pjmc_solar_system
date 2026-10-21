@@ -2,9 +2,9 @@
  * Celestial body data table.
  *
  * All physical values (diameters, distances, periods, tilts) are real.
- * Mean longitudes at the J2000 epoch are used so the planets start in
- * approximately their true present-day arrangement (circular-orbit
- * approximation).
+ * JPL approximate Keplerian elements referenced to J2000 are used for the
+ * major planets (and static approximate elements for Pluto). The visual model
+ * is not a substitute for a precision ephemeris such as JPL Horizons.
  *
  * Visual-only fields:
  *   - texture:           key into the procedural texture set
@@ -24,7 +24,7 @@ export const SPEED_PRESETS = [
   { label: '1 MO/S', mult: 2_629_800 },
   { label: '1 YR/S', mult: 31_557_600 },
 ];
-export const DEFAULT_SPEED_INDEX = 0; // start in real time; faster presets remain user-selectable
+export const DEFAULT_SPEED_INDEX = 0; // Start at the current real-time rate; speed presets can accelerate it
 
 export const SUN_DATA = {
   id: 'sun',
@@ -49,14 +49,13 @@ export const CELESTIAL_BODIES = [
     name: 'Mercury',
     type: 'Terrestrial Planet',
     diameterKm: 4879,
-    distanceAU: 0.39,
+    distanceAU: 0.38709843,
     orbitalPeriodDays: 88,
     rotationPeriodHours: 1407.6, // 58.6 days
     axialTiltDeg: 0.03,
     inclinationDeg: 7.0,
-    meanLongitudeDeg: 252.25,
-    eccentricity: 0.205636, // fixed J2000 osculating-orbit approximation
-    longitudeOfPerihelionDeg: 77.45645,
+    meanLongitudeDeg: 252.25166724,
+    orbitElements: { aRate: 0, eccentricity: 0.20563661, eRate: 0.00002123, inclination: 7.00559432, iRate: -0.00590158, meanLongitude: 252.25166724, lRate: 149472.67486623, perihelion: 77.45771895, periRate: 0.15940013, node: 48.33961819, nodeRate: -0.12214182 },
     texture: 'mercury',
     periodDisplay: '88 days',
     dayDisplay: '58.6 days',
@@ -68,13 +67,12 @@ export const CELESTIAL_BODIES = [
     name: 'Venus',
     type: 'Terrestrial Planet',
     diameterKm: 12_104,
-    distanceAU: 0.72,
+    distanceAU: 0.72332102,
     orbitalPeriodDays: 224.7,
     rotationPeriodHours: 5832, // 243 days; retrograde via 177.4 deg tilt
     axialTiltDeg: 177.4,
-    meanLongitudeDeg: 181.98,
-    eccentricity: 0.006777, // fixed J2000 osculating-orbit approximation
-    longitudeOfPerihelionDeg: 131.602467,
+    meanLongitudeDeg: 181.97970850,
+    orbitElements: { aRate: -0.00000026, eccentricity: 0.00676399, eRate: -0.00005107, inclination: 3.39777545, iRate: 0.00043494, meanLongitude: 181.97970850, lRate: 58517.81560260, perihelion: 131.76755713, periRate: 0.05679648, node: 76.67261496, nodeRate: -0.27274174 },
     texture: 'venus',
     atmosphere: { color: 0xe8d9a0, power: 3.5, intensity: 0.45 },
     periodDisplay: '224.7 days',
@@ -87,13 +85,12 @@ export const CELESTIAL_BODIES = [
     name: 'Earth',
     type: 'Terrestrial Planet',
     diameterKm: 12_742,
-    distanceAU: 1.0,
+    distanceAU: 1.00000018,
     orbitalPeriodDays: 365.25,
     rotationPeriodHours: 23.93,
     axialTiltDeg: 23.4,
-    meanLongitudeDeg: 100.46,
-    eccentricity: 0.0167086, // fixed J2000 osculating-orbit approximation
-    longitudeOfPerihelionDeg: 102.937348,
+    meanLongitudeDeg: 100.46691572,
+    orbitElements: { aRate: -0.00000003, eccentricity: 0.01673163, eRate: -0.00003661, inclination: -0.00054346, iRate: -0.01337178, meanLongitude: 100.46691572, lRate: 35999.37306329, perihelion: 102.93005885, periRate: 0.31795260, node: -5.11260389, nodeRate: -0.24123856 },
     texture: 'earth',
     clouds: 'earthClouds',
     atmosphere: { color: 0x4d9ef7, power: 3.0, intensity: 1.1 },
@@ -125,13 +122,12 @@ export const CELESTIAL_BODIES = [
     name: 'Mars',
     type: 'Terrestrial Planet',
     diameterKm: 6779,
-    distanceAU: 1.52,
+    distanceAU: 1.52371243,
     orbitalPeriodDays: 687,
     rotationPeriodHours: 24.6,
     axialTiltDeg: 25.2,
-    meanLongitudeDeg: 355.45,
-    eccentricity: 0.0934, // fixed J2000 osculating-orbit approximation
-    longitudeOfPerihelionDeg: 336.04084,
+    meanLongitudeDeg: -4.56813164,
+    orbitElements: { aRate: 0.00000097, eccentricity: 0.09336511, eRate: 0.00009149, inclination: 1.85181869, iRate: -0.00724757, meanLongitude: -4.56813164, lRate: 19140.29934243, perihelion: -23.91744784, periRate: 0.45223625, node: 49.71320984, nodeRate: -0.26852431 },
     texture: 'mars',
     atmosphere: { color: 0xd8a080, power: 4.0, intensity: 0.22 },
     periodDisplay: '687 days',
@@ -178,13 +174,12 @@ export const CELESTIAL_BODIES = [
     name: 'Jupiter',
     type: 'Gas Giant',
     diameterKm: 139_820,
-    distanceAU: 5.2,
+    distanceAU: 5.20248019,
     orbitalPeriodDays: 4332.6, // 11.86 years
     rotationPeriodHours: 9.93,
     axialTiltDeg: 3.1,
-    meanLongitudeDeg: 34.4,
-    eccentricity: 0.048498, // fixed J2000 osculating-orbit approximation
-    longitudeOfPerihelionDeg: 14.728479,
+    meanLongitudeDeg: 34.33479152,
+    orbitElements: { aRate: -0.00002864, eccentricity: 0.04853590, eRate: 0.00018026, inclination: 1.29861416, iRate: -0.00322699, meanLongitude: 34.33479152, lRate: 3034.90371757, perihelion: 14.27495244, periRate: 0.18199196, node: 100.29282654, nodeRate: 0.13024619, anomalyB: -0.00012452, anomalyC: 0.06064060, anomalyS: -0.35635438, anomalyF: 38.35125000 },
     texture: 'jupiter',
     periodDisplay: '11.86 years',
     dayDisplay: '9.9 hours',
@@ -262,13 +257,12 @@ export const CELESTIAL_BODIES = [
     name: 'Saturn',
     type: 'Gas Giant',
     diameterKm: 116_460,
-    distanceAU: 9.58,
+    distanceAU: 9.54149883,
     orbitalPeriodDays: 10_775, // 29.5 years
     rotationPeriodHours: 10.7,
     axialTiltDeg: 26.7,
-    meanLongitudeDeg: 49.94,
-    eccentricity: 0.055546, // fixed J2000 osculating-orbit approximation
-    longitudeOfPerihelionDeg: 92.598878,
+    meanLongitudeDeg: 50.07571329,
+    orbitElements: { aRate: -0.00003065, eccentricity: 0.05550825, eRate: -0.00032044, inclination: 2.49424102, iRate: 0.00451969, meanLongitude: 50.07571329, lRate: 1222.11494724, perihelion: 92.86136063, periRate: 0.54179478, node: 113.63998702, nodeRate: -0.25015002, anomalyB: 0.00025899, anomalyC: -0.13434469, anomalyS: 0.87320147, anomalyF: 38.35125000 },
     texture: 'saturn',
     rings: {
       inner: 1.24,
@@ -306,13 +300,12 @@ export const CELESTIAL_BODIES = [
     name: 'Uranus',
     type: 'Ice Giant',
     diameterKm: 50_724,
-    distanceAU: 19.2,
+    distanceAU: 19.18797948,
     orbitalPeriodDays: 30_687, // 84 years
     rotationPeriodHours: 17.2, // retrograde via 97.8 deg tilt
     axialTiltDeg: 97.8,
-    meanLongitudeDeg: 313.23,
-    eccentricity: 0.046381, // fixed J2000 osculating-orbit approximation
-    longitudeOfPerihelionDeg: 170.954276,
+    meanLongitudeDeg: 314.20276625,
+    orbitElements: { aRate: -0.00020455, eccentricity: 0.04685740, eRate: -0.00001550, inclination: 0.77298127, iRate: -0.00180155, meanLongitude: 314.20276625, lRate: 428.49512595, perihelion: 172.43404441, periRate: 0.09266985, node: 73.96250215, nodeRate: 0.05739699, anomalyB: 0.00058331, anomalyC: -0.97731848, anomalyS: 0.17689245, anomalyF: 7.67025000 },
     texture: 'uranus',
     rings: { inner: 1.55, outer: 2.05, texture: 'uranusRing', opacity: 0.7 },
     periodDisplay: '84 years',
@@ -325,13 +318,12 @@ export const CELESTIAL_BODIES = [
     name: 'Neptune',
     type: 'Ice Giant',
     diameterKm: 49_244,
-    distanceAU: 30.05,
+    distanceAU: 30.06952752,
     orbitalPeriodDays: 60_190, // 164.8 years
     rotationPeriodHours: 16.1,
     axialTiltDeg: 28.3,
-    meanLongitudeDeg: 304.88,
-    eccentricity: 0.009456, // fixed J2000 osculating-orbit approximation
-    longitudeOfPerihelionDeg: 44.964762,
+    meanLongitudeDeg: 304.22289287,
+    orbitElements: { aRate: 0.00006447, eccentricity: 0.00895439, eRate: 0.00000818, inclination: 1.77005520, iRate: 0.00022400, meanLongitude: 304.22289287, lRate: 218.46515314, perihelion: 46.68158724, periRate: 0.01009938, node: 131.78635853, nodeRate: -0.00606302, anomalyB: -0.00041348, anomalyC: 0.68346318, anomalyS: -0.10162547, anomalyF: 7.67025000 },
     texture: 'neptune',
     rings: { inner: 1.7, outer: 2.6, texture: 'neptuneRing', opacity: 0.5 },
     periodDisplay: '164.8 years',
@@ -362,14 +354,13 @@ export const CELESTIAL_BODIES = [
     name: 'Pluto',
     type: 'Dwarf Planet',
     diameterKm: 2376,
-    distanceAU: 39.5,
+    distanceAU: 39.48211675,
     orbitalPeriodDays: 90_560, // 248 years
     rotationPeriodHours: 153.3, // retrograde via 122.5 deg tilt
     axialTiltDeg: 122.5,
-    inclinationDeg: 17.2,
-    meanLongitudeDeg: 238.93,
-    eccentricity: 0.2488, // fixed J2000 osculating-orbit approximation
-    longitudeOfPerihelionDeg: 224.068916,
+    inclinationDeg: 17.14001206,
+    meanLongitudeDeg: 238.92903833,
+    orbitElements: { aRate: 0, eccentricity: 0.24882730, eRate: 0, inclination: 17.14001206, iRate: 0, meanLongitude: 238.92903833, lRate: 145.09078898, perihelion: 224.06891629, periRate: 0, node: 110.30393684, nodeRate: 0 },
     texture: 'pluto',
     periodDisplay: '248 years',
     dayDisplay: '6.4 days (retrograde)',
