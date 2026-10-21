@@ -72,9 +72,17 @@ export function createHUD(app, bodyList) {
   });
   const spacecraftBtn = button('🚀 SPACECRAFT', 'spacecraft-btn', () => app.onSpacecraftToggle?.());
   spacecraftBtn.setAttribute('aria-label', 'Enter or exit PJMC SPACE EXPLORER flight mode');
+
+  // Large animated mobile launch button, kept separate from the crowded top toolbar.
+  const mobileRocketBtn = el('button', 'mobile-spacecraft-launch');
+  mobileRocketBtn.type = 'button';
+  mobileRocketBtn.setAttribute('aria-label', 'Launch PJMC SPACE EXPLORER');
+  mobileRocketBtn.innerHTML = '<span class="mobile-rocket-orbit" aria-hidden="true"></span><span class="mobile-rocket-icon" aria-hidden="true">🚀</span><span class="mobile-rocket-flame" aria-hidden="true"></span><span class="mobile-rocket-label">SPACE EXPLORER</span><span class="mobile-rocket-subtitle">TAP TO LAUNCH</span>';
+  mobileRocketBtn.addEventListener('click', () => app.onSpacecraftToggle?.());
+
   controls.append(scaleGroup, orbitsBtn, labelsBtn, freeBtn, resetBtn, languageBtn, spacecraftBtn);
   top.append(brand, searchWrap, controls);
-  hud.append(top);
+  hud.append(top, mobileRocketBtn);
 
   const listWrap = el('aside', 'body-list');
   const listHeading = el('div', 'panel-heading');
@@ -220,6 +228,13 @@ export function createHUD(app, bodyList) {
       spacecraftBtn.classList.toggle('active', active);
       spacecraftBtn.textContent = active ? '↩ EXIT FLIGHT' : '🚀 SPACECRAFT';
       spacecraftBtn.setAttribute('aria-pressed', String(active));
+      mobileRocketBtn.classList.toggle('is-active', active);
+      mobileRocketBtn.setAttribute('aria-pressed', String(active));
+      mobileRocketBtn.setAttribute('aria-label', active ? 'Exit PJMC SPACE EXPLORER flight mode' : 'Launch PJMC SPACE EXPLORER');
+      const label = mobileRocketBtn.querySelector('.mobile-rocket-label');
+      const subtitle = mobileRocketBtn.querySelector('.mobile-rocket-subtitle');
+      if (label) label.textContent = active ? 'FLIGHT ACTIVE' : 'SPACE EXPLORER';
+      if (subtitle) subtitle.textContent = active ? 'TAP TO RETURN' : 'TAP TO LAUNCH';
     },
     setActiveBody(id) {
       for (const [bodyId, btn] of itemButtons) btn.classList.toggle('active', bodyId === id);

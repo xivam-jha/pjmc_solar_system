@@ -45,3 +45,11 @@
 
 यह अभी भी शैक्षणिक/visual circular-orbit simulation है, NASA JPL जैसी precision real-time ephemeris नहीं। समय IST में प्रदर्शित होता है, मगर इससे कक्षीय गणना अपने-आप high-precision नहीं हो जाती।
 
+
+## मोबाइल फ्लोटिंग Spacecraft लॉन्च बटन (2026-10-21)
+- मोबाइल स्क्रीन पर नीचे-दाएँ बड़ा animated rocket launcher जोड़ा गया है।
+- रॉकेट पर हल्का उड़ने/झुकने का एनीमेशन और इंजन flame effect है।
+- बटन दबाने पर मौजूदा PJMC SPACE EXPLORER flight mode खुलता है; सक्रिय flight mode में launcher छिप जाता है।
+- मोबाइल पर ऊपर के toolbar से Spacecraft बटन हटाया गया है ताकि नियंत्रणों की भीड़ कम हो।
+- Safe-area inset, छोटे स्क्रीन आकार और reduced-motion preference का ध्यान रखा गया है।
+- JavaScript syntax checks पास; npm dependencies उपलब्ध न होने से production build इस वातावरण में नहीं चलाया गया।

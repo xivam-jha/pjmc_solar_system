@@ -926,3 +926,105 @@ body.spacecraft-active.spacecraft-ui-minimized #app canvas { height: 100dvh; }
   .flight-gesture-status { font-size: 7px; }
   .flight-gesture-help { font-size: 6px; }
 }
+
+/* Large animated mobile launch control for PJMC SPACE EXPLORER. */
+.mobile-spacecraft-launch {
+  display: none;
+  position: fixed;
+  z-index: 24;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: calc(82px + env(safe-area-inset-bottom));
+  width: 106px;
+  min-height: 118px;
+  padding: 8px 5px 9px;
+  border: 1px solid rgba(103, 213, 255, .76);
+  border-radius: 54px 54px 25px 25px;
+  color: #e7faff;
+  background: radial-gradient(ellipse at 50% 28%, rgba(40, 145, 204, .38), rgba(4, 17, 31, .94) 68%);
+  box-shadow: 0 0 24px rgba(36, 164, 255, .28), inset 0 0 22px rgba(71, 191, 255, .15);
+  align-items: center;
+  justify-content: flex-start;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  animation: mobile-rocket-float 2.8s ease-in-out infinite;
+}
+.mobile-spacecraft-launch::before {
+  content: '';
+  position: absolute;
+  inset: 7px;
+  border: 1px solid rgba(125, 219, 255, .16);
+  border-radius: 48px 48px 19px 19px;
+  pointer-events: none;
+}
+.mobile-rocket-orbit {
+  position: absolute;
+  width: 86px;
+  height: 32px;
+  top: 20px;
+  left: 9px;
+  border: 1px solid rgba(114, 221, 255, .4);
+  border-radius: 50%;
+  transform: rotate(-27deg);
+  pointer-events: none;
+}
+.mobile-rocket-icon {
+  position: relative;
+  z-index: 1;
+  display: block;
+  margin-top: 6px;
+  font-size: 47px;
+  line-height: 1.12;
+  filter: drop-shadow(0 0 8px rgba(89, 204, 255, .78));
+  transform: rotate(-13deg);
+  animation: mobile-rocket-tilt 2.2s ease-in-out infinite;
+}
+.mobile-rocket-flame {
+  display: block;
+  width: 12px;
+  height: 20px;
+  margin-top: -2px;
+  border-radius: 45% 45% 65% 65%;
+  background: linear-gradient(to bottom, #fff7bf 0%, #65e6ff 34%, #258bff 72%, transparent 100%);
+  box-shadow: 0 0 14px rgba(62, 197, 255, .85);
+  transform-origin: top center;
+  animation: mobile-rocket-engine .22s ease-in-out infinite alternate;
+}
+.mobile-rocket-label, .mobile-rocket-subtitle {
+  position: relative;
+  z-index: 1;
+  max-width: 100%;
+  text-align: center;
+  white-space: nowrap;
+  font-family: var(--mono);
+  font-weight: 800;
+  letter-spacing: .06em;
+}
+.mobile-rocket-label { margin-top: 3px; font-size: 8px; }
+.mobile-rocket-subtitle { color: #72d9ff; font-size: 6px; letter-spacing: .1em; }
+.mobile-spacecraft-launch:active { transform: scale(.96); box-shadow: 0 0 30px rgba(36, 164, 255, .48), inset 0 0 25px rgba(71, 191, 255, .25); }
+.mobile-spacecraft-launch.is-active { border-color: rgba(255, 157, 139, .78); background: radial-gradient(ellipse at 50% 28%, rgba(167, 63, 63, .38), rgba(22, 8, 17, .95) 68%); }
+.mobile-spacecraft-launch.is-active .mobile-rocket-flame { background: linear-gradient(to bottom, #fff7bf, #ff9c68 40%, #ff4c66 78%, transparent); }
+@keyframes mobile-rocket-float { 0%, 100% { margin-bottom: 0; } 50% { margin-bottom: 7px; } }
+@keyframes mobile-rocket-tilt { 0%, 100% { transform: translateY(0) rotate(-13deg); } 50% { transform: translateY(-3px) rotate(-7deg); } }
+@keyframes mobile-rocket-engine { from { transform: scaleY(.78); opacity: .76; } to { transform: scaleY(1.18); opacity: 1; } }
+
+@media (max-width: 760px) {
+  .mobile-spacecraft-launch { display: flex; }
+  body.spacecraft-active .mobile-spacecraft-launch { display: none; }
+  body:not(.spacecraft-active) .view-controls .spacecraft-btn { display: none; }
+  body:not(.spacecraft-active) .mobile-spacecraft-launch { bottom: calc(88px + env(safe-area-inset-bottom)); }
+}
+@media (max-width: 420px) {
+  .mobile-spacecraft-launch { right: max(10px, env(safe-area-inset-right)); width: 94px; min-height: 108px; bottom: calc(72px + env(safe-area-inset-bottom)); }
+  .mobile-rocket-icon { font-size: 42px; }
+  .mobile-rocket-flame { height: 17px; }
+  .mobile-rocket-label { font-size: 7px; }
+  .mobile-rocket-subtitle { font-size: 5px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mobile-spacecraft-launch, .mobile-rocket-icon, .mobile-rocket-flame { animation: none !important; }
+}
