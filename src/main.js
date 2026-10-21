@@ -20,9 +20,11 @@ import { Sun } from './objects/Sun.js';
 import { Planet } from './objects/Planet.js';
 import { createStarfield } from './objects/Starfield.js';
 import { AsteroidBelt } from './objects/AsteroidBelt.js';
+import { BackgroundTextRing } from './objects/BackgroundTextRing.js';
 import { createHUD } from './ui/hud.js';
 import { InfoPanel } from './ui/infoPanel.js';
 import { Labels } from './ui/labels.js';
+import { bodyName } from './ui/i18n.js';
 import './styles.css';
 
 /* ------------------------------------------------------------------ */
@@ -60,13 +62,22 @@ const scaleAPI = {
   },
 };
 
-// Camera overview positions for each scale mode.
-const DEFAULT_CAM_VIZ = new THREE.Vector3(0, 115, 255);
-const DEFAULT_CAM_TRUE = new THREE.Vector3(0, 1050, 2400);
-const defaultCameraPos = (mix, out) => out.copy(DEFAULT_CAM_VIZ).lerp(DEFAULT_CAM_TRUE, mix);
-
-// Representative system radius, used to rescale a free camera when toggling.
-const systemRadius = (mix) => lerp(vizOrbitOfAU(30.05), 30.05 * AU_UNIT, mix);
+// The overview is fitted around Pluto too (39.5 AU semi-major axis), not
+// just Neptune. The brand ring is scaled from the same system radius so its
+// complete circumference stays in frame when switching scale modes.
+const systemRadius = (mix) => lerp(vizOrbitOfAU(39.5), 39.5 * AU_UNIT, mix);
+// 1.50× leaves room for Pluto near aphelion before the ring band begins.
+const ringRadiusOf = (mix) => systemRadius(mix) * 1.50;
+const defaultCameraPos = (mix, out) => {
+  const verticalHalfFov = THREE.MathUtils.degToRad(50) / 2;
+  const aspect = Math.max(0.25, window.innerWidth / Math.max(1, window.innerHeight));
+  const horizontalHalfFov = Math.atan(Math.tan(verticalHalfFov) * aspect);
+  const limitingHalfFov = Math.min(verticalHalfFov, horizontalHalfFov);
+  // The extra margin accounts for the slight tilt of the camera and keeps
+  // the full circular ring visible on portrait/mobile screens as well.
+  const distance = (ringRadiusOf(mix) * 1.25) / Math.tan(limitingHalfFov);
+  return out.set(0, distance * 0.42, distance);
+};
 
 /* ------------------------------------------------------------------ */
 /* Tween helper                                                        */
@@ -211,7 +222,15 @@ async function init() {
   scene.add(belt.mesh);
 
   setStatus('IGNITING STARFIELD…');
-  scene.add(createStarfield(textures));
+  // Keep the camera inside the background star sphere even when True Scale
+  // or a narrow portrait overview requires a much longer camera distance.
+  const starfieldRadius = Math.max(12000, ringRadiusOf(1) * 8);
+  scene.add(createStarfield(textures, { radius: starfieldRadius }));
+
+  setStatus('BUILDING PJMC SUKHPUR BRAND RING…');
+  const brandRing = new BackgroundTextRing();
+  brandRing.setRadius(ringRadiusOf(scaleState.mix));
+  scene.add(brandRing.group);
 
   /* ---------- simulation clock ---------- */
   const epochMs = Date.now();
@@ -365,8 +384,15 @@ async function init() {
   }
 
   /* ---------- UI ---------- */
-  const bodyList = entries.map((e) => ({ id: e.id, name: e.name, isMoon: e.isMoon }));
+  const bodyList = entries.map((e) => ({
+    id: e.id,
+    name: e.name,
+    hiName: bodyName(e.id, e.name, 'hi'),
+    isMoon: e.isMoon,
+  }));
   const infoPanel = new InfoPanel(() => releaseFocus());
+  let interfaceLanguage = 'en';
+  let labels;
   const hud = createHUD(
     {
       onSelectBody: (id) => focusBody(entryById.get(id)),
@@ -392,15 +418,20 @@ async function init() {
         updateOrbitVisibility();
       },
       onToggleLabels: (on) => labels.setEnabled(on),
+      onSetLanguage: (language) => {
+        interfaceLanguage = language;
+        infoPanel.setLanguage(language);
+        labels.setLanguage(language);
+      },
     },
     bodyList,
   );
   hud.setActiveSpeed(speedIndex);
   hud.setPlaying(playing);
 
-  const labels = new Labels(
+  labels = new Labels(
     document.getElementById('labels'),
-    entries.map((e) => ({ id: e.id, name: e.name, isMoon: e.isMoon, parentId: e.parentId, body: e.body })),
+    entries.map((e) => ({ id: e.id, name: e.name, hiName: bodyName(e.id, e.name, 'hi'), isMoon: e.isMoon, parentId: e.parentId, body: e.body })),
     (id) => focusBody(entryById.get(id)),
   );
 
@@ -446,7 +477,13 @@ async function init() {
 
   function refreshDateReadout() {
     const d = new Date(epochMs + simMs);
-    hud.setDate(`${d.toISOString().slice(0, 16).replace('T', ' ')} UTC`);
+    const locale = interfaceLanguage === 'hi' ? 'hi-IN' : 'en-IN';
+    const value = new Intl.DateTimeFormat(locale, {
+      timeZone: 'Asia/Kolkata',
+      day: '2-digit', month: 'short', year: 'numeric',
+      hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true,
+    }).format(d);
+    hud.setDate(`${value} IST`);
   }
 
   function animate() {
@@ -462,6 +499,7 @@ async function init() {
     sun.update(days, scaleAPI, dt);
     for (const planet of planets) planet.update(days, scaleAPI);
     belt.update(days, scaleAPI.orbitRadiusOfAU);
+    brandRing.setRadius(ringRadiusOf(scaleState.mix));
 
     followUpdate();
     controls.update();

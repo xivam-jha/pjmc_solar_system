@@ -24,7 +24,7 @@ export const SPEED_PRESETS = [
   { label: '1 MO/S', mult: 2_629_800 },
   { label: '1 YR/S', mult: 31_557_600 },
 ];
-export const DEFAULT_SPEED_INDEX = 2; // 1 day per second
+export const DEFAULT_SPEED_INDEX = 0; // start in real time; faster presets remain user-selectable
 
 export const SUN_DATA = {
   id: 'sun',
@@ -55,6 +55,8 @@ export const CELESTIAL_BODIES = [
     axialTiltDeg: 0.03,
     inclinationDeg: 7.0,
     meanLongitudeDeg: 252.25,
+    eccentricity: 0.205636, // fixed J2000 osculating-orbit approximation
+    longitudeOfPerihelionDeg: 77.45645,
     texture: 'mercury',
     periodDisplay: '88 days',
     dayDisplay: '58.6 days',
@@ -71,6 +73,8 @@ export const CELESTIAL_BODIES = [
     rotationPeriodHours: 5832, // 243 days; retrograde via 177.4 deg tilt
     axialTiltDeg: 177.4,
     meanLongitudeDeg: 181.98,
+    eccentricity: 0.006777, // fixed J2000 osculating-orbit approximation
+    longitudeOfPerihelionDeg: 131.602467,
     texture: 'venus',
     atmosphere: { color: 0xe8d9a0, power: 3.5, intensity: 0.45 },
     periodDisplay: '224.7 days',
@@ -88,6 +92,8 @@ export const CELESTIAL_BODIES = [
     rotationPeriodHours: 23.93,
     axialTiltDeg: 23.4,
     meanLongitudeDeg: 100.46,
+    eccentricity: 0.0167086, // fixed J2000 osculating-orbit approximation
+    longitudeOfPerihelionDeg: 102.937348,
     texture: 'earth',
     clouds: 'earthClouds',
     atmosphere: { color: 0x4d9ef7, power: 3.0, intensity: 1.1 },
@@ -124,6 +130,8 @@ export const CELESTIAL_BODIES = [
     rotationPeriodHours: 24.6,
     axialTiltDeg: 25.2,
     meanLongitudeDeg: 355.45,
+    eccentricity: 0.0934, // fixed J2000 osculating-orbit approximation
+    longitudeOfPerihelionDeg: 336.04084,
     texture: 'mars',
     atmosphere: { color: 0xd8a080, power: 4.0, intensity: 0.22 },
     periodDisplay: '687 days',
@@ -175,6 +183,8 @@ export const CELESTIAL_BODIES = [
     rotationPeriodHours: 9.93,
     axialTiltDeg: 3.1,
     meanLongitudeDeg: 34.4,
+    eccentricity: 0.048498, // fixed J2000 osculating-orbit approximation
+    longitudeOfPerihelionDeg: 14.728479,
     texture: 'jupiter',
     periodDisplay: '11.86 years',
     dayDisplay: '9.9 hours',
@@ -257,6 +267,8 @@ export const CELESTIAL_BODIES = [
     rotationPeriodHours: 10.7,
     axialTiltDeg: 26.7,
     meanLongitudeDeg: 49.94,
+    eccentricity: 0.055546, // fixed J2000 osculating-orbit approximation
+    longitudeOfPerihelionDeg: 92.598878,
     texture: 'saturn',
     rings: {
       inner: 1.24,
@@ -299,6 +311,8 @@ export const CELESTIAL_BODIES = [
     rotationPeriodHours: 17.2, // retrograde via 97.8 deg tilt
     axialTiltDeg: 97.8,
     meanLongitudeDeg: 313.23,
+    eccentricity: 0.046381, // fixed J2000 osculating-orbit approximation
+    longitudeOfPerihelionDeg: 170.954276,
     texture: 'uranus',
     rings: { inner: 1.55, outer: 2.05, texture: 'uranusRing', opacity: 0.7 },
     periodDisplay: '84 years',
@@ -316,6 +330,8 @@ export const CELESTIAL_BODIES = [
     rotationPeriodHours: 16.1,
     axialTiltDeg: 28.3,
     meanLongitudeDeg: 304.88,
+    eccentricity: 0.009456, // fixed J2000 osculating-orbit approximation
+    longitudeOfPerihelionDeg: 44.964762,
     texture: 'neptune',
     rings: { inner: 1.7, outer: 2.6, texture: 'neptuneRing', opacity: 0.5 },
     periodDisplay: '164.8 years',
@@ -352,6 +368,8 @@ export const CELESTIAL_BODIES = [
     axialTiltDeg: 122.5,
     inclinationDeg: 17.2,
     meanLongitudeDeg: 238.93,
+    eccentricity: 0.2488, // fixed J2000 osculating-orbit approximation
+    longitudeOfPerihelionDeg: 224.068916,
     texture: 'pluto',
     periodDisplay: '248 years',
     dayDisplay: '6.4 days (retrograde)',

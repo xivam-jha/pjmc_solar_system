@@ -8,6 +8,7 @@
  */
 
 import * as THREE from 'three';
+import { bodyName } from './i18n.js';
 
 const _world = new THREE.Vector3();
 const _view = new THREE.Vector3();
@@ -22,13 +23,21 @@ export class Labels {
     this.container = container;
     this.entries = entries;
     this.enabled = true;
+    this.language = 'en';
     for (const entry of entries) {
       const div = document.createElement('div');
       div.className = `body-label ${entry.isMoon ? 'moon-label' : ''}`;
-      div.textContent = entry.name;
+      div.textContent = bodyName(entry.id, entry.name, this.language);
       div.addEventListener('click', () => onPick(entry.id));
       container.append(div);
       entry.labelEl = div;
+    }
+  }
+
+  setLanguage(language) {
+    this.language = language === 'hi' ? 'hi' : 'en';
+    for (const entry of this.entries) {
+      entry.labelEl.textContent = bodyName(entry.id, entry.name, this.language);
     }
   }
 

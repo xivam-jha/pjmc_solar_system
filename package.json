@@ -3,7 +3,7 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "Interactive procedural 3D solar system visualization built with three.js",
+  "description": "Interactive 3D Solar System Explorer with PJMC Sukhpur brand ring, search, and bilingual controls",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
