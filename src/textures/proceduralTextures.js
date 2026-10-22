@@ -640,5 +640,40 @@ export async function createTextureSet(onProgress = () => {}) {
     w: 256, h: 128, craterCount: 70, craterMax: 18, contrast: 0.9,
   });
 
+  // Prefer high-resolution image-based planetary maps when online; keep the
+  // generated textures as an offline fallback. Maps are from Solar System Scope
+  // (CC BY 4.0), built from spacecraft/observatory imagery and NASA elevation data.
+  const imageMaps = {
+    mercury: '2k_mercury.jpg',
+    venus: '2k_venus_surface.jpg',
+    earth: '2k_earth_daymap.jpg',
+    earthClouds: '2k_earth_clouds.jpg',
+    moon: '2k_moon.jpg',
+    mars: '2k_mars.jpg',
+    jupiter: '2k_jupiter.jpg',
+    saturn: '2k_saturn.jpg',
+    uranus: '2k_uranus.jpg',
+    neptune: '2k_neptune.jpg',
+  };
+  const loader = new THREE.TextureLoader();
+  await Promise.all(Object.entries(imageMaps).map(([key, filename]) => new Promise((resolve) => {
+    const timer = setTimeout(resolve, 4500);
+    loader.load(
+      `https://www.solarsystemscope.com/textures/download/${filename}`,
+      (texture) => {
+        clearTimeout(timer);
+        texture.colorSpace = THREE.SRGBColorSpace;
+        texture.wrapS = THREE.RepeatWrapping;
+        texture.wrapT = THREE.ClampToEdgeWrapping;
+        const oldTexture = set[key];
+        set[key] = texture;
+        oldTexture?.dispose?.();
+        resolve();
+      },
+      undefined,
+      () => { clearTimeout(timer); resolve(); },
+    );
+  })));
+
   return set;
 }

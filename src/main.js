@@ -752,6 +752,7 @@ async function init() {
     onExit: exitSpacecraftMode,
     onAutopilot: beginAutopilot,
     onControl: setFlightControl,
+    onStop: () => { clearFlightControls(); flightVelocity.set(0, 0, 0); flightAutopilotTarget = null; spacecraftHud?.setAutopilot(false); },
     onGestureToggle: toggleHandGestureControl,
   });
   window.addEventListener('keydown', (event) => {

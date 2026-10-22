@@ -13,7 +13,7 @@ function makeButton(text, className, onClick) {
 }
 
 /** UI for piloting and exploring with PJMC SPACE EXPLORER. */
-export function createSpacecraftHUD({ targets, onCameraToggle, onExit, onAutopilot, onControl, onGestureToggle }) {
+export function createSpacecraftHUD({ targets, onCameraToggle, onExit, onAutopilot, onControl, onGestureToggle, onStop }) {
   const root = element('section', 'spacecraft-flight-hud');
   root.hidden = true;
   root.setAttribute('aria-label', 'Spacecraft flight controls');
@@ -62,6 +62,12 @@ export function createSpacecraftHUD({ targets, onCameraToggle, onExit, onAutopil
   const keyLegend = element('div', 'flight-key-legend', 'DRAG TO LOOK · EXTERNAL WHEEL = ZOOM · W / ↑ THRUST · A / D TURN · Q / E ALTITUDE · SHIFT BOOST');
   const hideControlsButton = makeButton('HIDE CONTROLS', 'flight-hide-ui-btn', () => setControlsHidden(true));
   const touchControls = element('div', 'spacecraft-touch-controls');
+  const stopButton = makeButton('■ STOP / BRAKE', 'flight-stop-btn', () => {
+    onStop?.();
+    for (const id of ['forward', 'back', 'yawLeft', 'yawRight', 'up', 'down', 'boost']) onControl(id, false);
+    onAutopilot(null);
+    status.textContent = 'BRAKES ENGAGED';
+  });
   const dpad = element('div', 'flight-dpad');
   const controls = [
     { id: 'yawLeft', label: '◀', title: 'Turn left' },
@@ -151,7 +157,7 @@ export function createSpacecraftHUD({ targets, onCameraToggle, onExit, onAutopil
     vertical.append(button);
   }
   vertical.prepend(leverWrap);
-  touchControls.append(dpad, vertical);
+  touchControls.append(dpad, vertical, stopButton);
   const exitButton = makeButton('EXIT FLIGHT', 'flight-exit-btn', onExit);
   const restoreControlsButton = makeButton('SHOW CONTROLS', 'flight-restore-btn', () => setControlsHidden(false));
   restoreControlsButton.hidden = true;

@@ -1032,3 +1032,35 @@ body.spacecraft-active.spacecraft-ui-minimized #app canvas { height: 100dvh; }
 @media (prefers-reduced-motion: reduce) {
   .mobile-spacecraft-launch, .mobile-rocket-icon, .mobile-rocket-flame { animation: none !important; }
 }
+
+/* Compact mobile flight deck and immediate brake control. */
+.flight-stop-btn {
+  display: grid;
+  place-items: center;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid rgba(255, 105, 105, .65);
+  border-radius: 10px;
+  color: #ffe8e8;
+  background: linear-gradient(145deg, rgba(120, 23, 34, .94), rgba(49, 8, 17, .96));
+  box-shadow: 0 3px 12px rgba(0,0,0,.28), inset 0 0 10px rgba(255,100,100,.12);
+  font: 700 9px var(--mono);
+  letter-spacing: .04em;
+  touch-action: manipulation;
+}
+.flight-stop-btn:active { background: #a92334; }
+@media (max-width: 760px) {
+  .spacecraft-touch-controls { left: max(7px, env(safe-area-inset-left)); bottom: calc(7px + env(safe-area-inset-bottom)); gap: 7px; padding: 7px; border-radius: 15px; }
+  .flight-dpad { grid-template-columns: repeat(3, 40px); grid-template-rows: repeat(3, 38px); gap: 3px; }
+  .flight-key { border-radius: 9px; }
+  .flight-vertical-controls { gap: 5px; }
+  .flight-lever-track { height: 100px; width: 31px; }
+  .flight-lever-handle { width: 25px; height: 29px; }
+  .flight-key-small { min-width: 45px; min-height: 33px; }
+  .flight-stop-btn { min-width: 45px; writing-mode: vertical-rl; min-height: 92px; padding: 7px 5px; font-size: 8px; }
+}
+@media (max-width: 360px) {
+  .spacecraft-touch-controls { gap: 4px; padding: 5px; }
+  .flight-dpad { grid-template-columns: repeat(3, 35px); grid-template-rows: repeat(3, 34px); gap: 2px; }
+  .flight-stop-btn { min-width: 38px; min-height: 82px; }
+}
