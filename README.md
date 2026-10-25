@@ -3,7 +3,7 @@
 **GitHub Pages:** <https://xivam-jha.github.io/pjmc_solar_system/>
 
 An interactive browser-based 3D Solar System Explorer built with [three.js](https://threejs.org/) and Vite for Pawan Jha Mathematics Classes, Sukhpur.
-**Visual effects are generated procedurally at runtime**, with higher-detail Solar System Scope planetary maps loaded when online. If a texture host is unavailable, the app falls back to generated textures. See `PLANET_TEXTURE_ATTRIBUTION.md` for third-party texture credits and licensing.
+Planet visual effects are generated procedurally, with optional high-resolution Solar System Scope image maps loaded when online. If a map host is blocked or unavailable, the built-in procedural textures remain as a fallback. See `PLANET_TEXTURE_ATTRIBUTION.md` for map credits and license.
 
 ![tech](https://img.shields.io/badge/three.js-r184-049EF4) ![tech](https://img.shields.io/badge/vite-8-646CFF)
 
@@ -20,9 +20,14 @@ Requires Node.js ≥ 20.19 (any recent LTS).
 
 ## What's in the scene
 
+- **NASA-style planet appearance:** image-based surface maps for the major planets when available, Venus cloud-top imagery, and a separate transparent Earth cloud shell. Procedural textures remain the fallback; this is not a live satellite feed.
+
 - **The Sun** — animated procedural granulation with limb darkening, additive corona
   sprites, and Unreal-bloom glow.
-- **All 8 planets + Pluto/Charon** — image-based 2K surface/cloud maps are used when the official texture host is available; procedural maps remain the fallback. Earth includes a separated cloud shell, a blue atmospheric rim, and city lights restricted to the night side. Venus uses a cloud-top map for its space-facing appearance.
+- **All 8 planets + Pluto/Charon** — each with a distinct procedural texture: craters
+  (Mercury, the Moon, Callisto, …), warped cloud bands and the Great Red Spot (Jupiter),
+  continents/oceans/ice/clouds and a fresnel atmosphere (Earth), polar caps (Mars),
+  retrograde spins (Venus, Uranus, Pluto — via their real >90° axial tilts), and so on.
 - **13 moons** — the Moon, Phobos, Deimos, Io, Europa, Ganymede, Callisto, Titan,
   Triton (retrograde orbit), Charon. All tidally locked (synchronous rotation).
 - **Ring systems** — Saturn (with Cassini division and Encke gap), plus faint Uranus and

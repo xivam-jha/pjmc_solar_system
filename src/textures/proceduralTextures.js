@@ -640,29 +640,17 @@ export async function createTextureSet(onProgress = () => {}) {
     w: 256, h: 128, craterCount: 70, craterMax: 18, contrast: 0.9,
   });
 
-<<<<<<< HEAD
-  // Prefer Solar System Scope's official image-based maps when online.
-  // Procedural canvases above remain the fallback, so the scene still opens
-  // when a map host is blocked or the device is offline. The maps are visual
-  // assets derived from NASA imagery/elevation data, not a live satellite feed.
+  // Prefer high-resolution Solar System Scope maps when online; procedural
+  // textures above remain the fallback, so the scene still opens if a map is
+  // unavailable. The maps are based on NASA imagery/elevation data; this is
+  // not a live satellite feed. The PhET-hosted Solar System Scope mirror is
+  // listed on the official texture page and is tried first.
   const imageMaps = {
     mercury: '2k_mercury.jpg',
-    // The atmospheric map gives Venus the cloud-covered appearance normally
-    // seen from space; the procedural Venus surface remains the offline fallback.
+    // From space Venus is covered by dense yellow-beige cloud tops.
     venus: '2k_venus_atmosphere.jpg',
     earth: '2k_earth_daymap.jpg',
     earthClouds: '2k_earth_clouds.jpg',
-    earthNight: '2k_earth_nightmap.jpg',
-=======
-  // Prefer high-resolution image-based planetary maps when online; keep the
-  // generated textures as an offline fallback. Maps are from Solar System Scope
-  // (CC BY 4.0), built from spacecraft/observatory imagery and NASA elevation data.
-  const imageMaps = {
-    mercury: '2k_mercury.jpg',
-    venus: '2k_venus_surface.jpg',
-    earth: '2k_earth_daymap.jpg',
-    earthClouds: '2k_earth_clouds.jpg',
->>>>>>> 81097d8cf18bbbf324ab3fe6dbbad674f3f91800
     moon: '2k_moon.jpg',
     mars: '2k_mars.jpg',
     jupiter: '2k_jupiter.jpg',
@@ -670,38 +658,44 @@ export async function createTextureSet(onProgress = () => {}) {
     uranus: '2k_uranus.jpg',
     neptune: '2k_neptune.jpg',
   };
-<<<<<<< HEAD
   const textureHosts = [
-    'https://edu.solarsystemscope.com/textures/download/',
+    'https://phet.solarsystemscope.com/textures/download/',
     'https://www.solarsystemscope.com/textures/download/',
   ];
 
   function loadImageMap(key, filename) {
     return new Promise((resolve) => {
-      let finished = false;
+      let settled = false;
       let hostIndex = 0;
       const loader = new THREE.TextureLoader();
       loader.setCrossOrigin('anonymous');
-
-      // Don't stall the whole application if a CDN hangs. A late texture is
-      // ignored after timeout; the generated procedural map remains available.
-      const totalTimeout = setTimeout(() => {
-        if (finished) return;
-        finished = true;
+      const timer = setTimeout(() => {
+        // Keep the generated texture if the remote host is slow or blocked.
+        settled = true;
         resolve();
-      }, 9000);
+      }, 8000);
 
-      const attempt = () => {
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve();
+      };
+
+      const tryHost = () => {
+        if (hostIndex >= textureHosts.length) {
+          finish();
+          return;
+        }
         const url = `${textureHosts[hostIndex]}${filename}`;
         loader.load(
           url,
           (texture) => {
-            if (finished) {
+            if (settled) {
               texture.dispose();
               return;
             }
-            finished = true;
-            clearTimeout(totalTimeout);
+            // Earth clouds are a monochrome opacity map, not display color.
             texture.colorSpace = key === 'earthClouds' ? THREE.NoColorSpace : THREE.SRGBColorSpace;
             texture.wrapS = THREE.RepeatWrapping;
             texture.wrapT = THREE.ClampToEdgeWrapping;
@@ -709,48 +703,24 @@ export async function createTextureSet(onProgress = () => {}) {
             const oldTexture = set[key];
             set[key] = texture;
             oldTexture?.dispose?.();
-            resolve();
+            finish();
           },
           undefined,
           () => {
-            if (finished) return;
+            if (settled) return;
             hostIndex += 1;
-            if (hostIndex < textureHosts.length) {
-              attempt();
-            } else {
-              finished = true;
-              clearTimeout(totalTimeout);
-              resolve();
-            }
+            tryHost();
           },
         );
       };
-      attempt();
+
+      tryHost();
     });
   }
 
-  await Promise.all(Object.entries(imageMaps).map(([key, filename]) => loadImageMap(key, filename)));
-=======
-  const loader = new THREE.TextureLoader();
-  await Promise.all(Object.entries(imageMaps).map(([key, filename]) => new Promise((resolve) => {
-    const timer = setTimeout(resolve, 4500);
-    loader.load(
-      `https://www.solarsystemscope.com/textures/download/${filename}`,
-      (texture) => {
-        clearTimeout(timer);
-        texture.colorSpace = THREE.SRGBColorSpace;
-        texture.wrapS = THREE.RepeatWrapping;
-        texture.wrapT = THREE.ClampToEdgeWrapping;
-        const oldTexture = set[key];
-        set[key] = texture;
-        oldTexture?.dispose?.();
-        resolve();
-      },
-      undefined,
-      () => { clearTimeout(timer); resolve(); },
-    );
-  })));
->>>>>>> 81097d8cf18bbbf324ab3fe6dbbad674f3f91800
+  await Promise.all(
+    Object.entries(imageMaps).map(([key, filename]) => loadImageMap(key, filename)),
+  );
 
   return set;
 }
