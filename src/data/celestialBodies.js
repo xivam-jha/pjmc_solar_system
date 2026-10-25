@@ -93,6 +93,7 @@ export const CELESTIAL_BODIES = [
     orbitElements: { aRate: -0.00000003, eccentricity: 0.01673163, eRate: -0.00003661, inclination: -0.00054346, iRate: -0.01337178, meanLongitude: 100.46691572, lRate: 35999.37306329, perihelion: 102.93005885, periRate: 0.31795260, node: -5.11260389, nodeRate: -0.24123856 },
     texture: 'earth',
     clouds: 'earthClouds',
+    nightLights: 'earthNight',
     atmosphere: { color: 0x4d9ef7, power: 3.0, intensity: 1.1 },
     periodDisplay: '365.25 days',
     dayDisplay: '23.9 hours',

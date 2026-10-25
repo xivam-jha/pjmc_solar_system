@@ -53,3 +53,13 @@
 - मोबाइल पर ऊपर के toolbar से Spacecraft बटन हटाया गया है ताकि नियंत्रणों की भीड़ कम हो।
 - Safe-area inset, छोटे स्क्रीन आकार और reduced-motion preference का ध्यान रखा गया है।
 - JavaScript syntax checks पास; npm dependencies उपलब्ध न होने से production build इस वातावरण में नहीं चलाया गया।
+
+
+## Realistic planetary texture update (2026-10-25)
+
+- Corrected the first texture host to the official Solar System Scope download URL linked by its texture gallery.
+- Enabled the 2K maps for Mercury, Venus cloud tops, Earth, Earth's Moon, Mars, Jupiter, Saturn, Uranus and Neptune.
+- Added Earth's night-lights map; the lights are rendered only on the dark hemisphere.
+- Kept procedural textures as fallbacks and made delayed downloads upgrade existing texture objects in place.
+- Fixed Earth's grayscale cloud map as an alpha mask; increased sphere tessellation for smoother close-up silhouettes.
+- These maps are precomputed and are not a live satellite feed. See `PLANET_TEXTURE_ATTRIBUTION.md` for required CC BY 4.0 credit.

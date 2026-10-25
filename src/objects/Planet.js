@@ -169,11 +169,77 @@ export class Planet {
     this.root.add(this.bodyGroup);
 
     // -- surface ----------------------------------------------------
-    const segments = isMoon ? 32 : 48;
+    // More tessellation keeps the silhouette smooth during NASA-style close-ups.
+    // Planet sizes/orbits are still resolved by the existing scale system.
+    const segments = isMoon ? 48 : 96;
     this.surfaceMaterial = new THREE.MeshLambertMaterial({ map: textures[data.texture] });
     this.surfaceMesh = new THREE.Mesh(getSphereGeometry(segments), this.surfaceMaterial);
     this.surfaceMesh.userData.bodyId = data.id;
     this.spinGroup.add(this.surfaceMesh);
+
+    // -- Earth night-side city lights --------------------------------
+    // Use a separate emission-like layer, visible only on the hemisphere
+    // facing away from the Sun (the Sun is located at the world origin).
+    this.nightLightsMesh = null;
+    this.nightLightsMaterial = null;
+    if (data.nightLights && textures[data.nightLights]) {
+      this.nightLightsMaterial = new THREE.ShaderMaterial({
+        uniforms: {
+          uNightMap: { value: textures[data.nightLights] },
+        },
+        vertexShader: /* glsl */ `
+          varying vec2 vUv;
+          varying vec3 vWorldNormal;
+          varying vec3 vWorldPosition;
+          #include <common>
+          #include <logdepthbuf_pars_vertex>
+          void main() {
+            vUv = uv;
+            vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+            vWorldPosition = worldPosition.xyz;
+            vWorldNormal = normalize(mat3(modelMatrix) * normal);
+            vec4 mvPosition = viewMatrix * worldPosition;
+            gl_Position = projectionMatrix * mvPosition;
+            #include <logdepthbuf_vertex>
+          }
+        `,
+        fragmentShader: /* glsl */ `
+          uniform sampler2D uNightMap;
+          varying vec2 vUv;
+          varying vec3 vWorldNormal;
+          varying vec3 vWorldPosition;
+          #include <common>
+          #include <logdepthbuf_pars_fragment>
+          void main() {
+            #include <logdepthbuf_fragment>
+            vec3 mapColor = texture2D(uNightMap, vUv).rgb;
+            float brightness = max(max(mapColor.r, mapColor.g), mapColor.b);
+            float cityMask = smoothstep(0.045, 0.24, brightness);
+            vec3 toSun = normalize(-vWorldPosition);
+            float daySide = dot(normalize(vWorldNormal), toSun);
+            float nightSide = 1.0 - smoothstep(-0.12, 0.12, daySide);
+            float alpha = cityMask * nightSide * 0.88;
+            if (alpha < 0.008) discard;
+            vec3 glow = mapColor * vec3(1.0, 0.77, 0.48) * 2.4;
+            gl_FragColor = vec4(glow, alpha);
+            #include <tonemapping_fragment>
+            #include <colorspace_fragment>
+          }
+        `,
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        side: THREE.FrontSide,
+        toneMapped: false,
+      });
+      this.nightLightsMesh = new THREE.Mesh(
+        getSphereGeometry(segments),
+        this.nightLightsMaterial,
+      );
+      this.nightLightsMesh.scale.setScalar(1.003);
+      this.nightLightsMesh.renderOrder = 1;
+      this.spinGroup.add(this.nightLightsMesh);
+    }
 
     // -- cloud layer (Earth) -----------------------------------------
     // Solar System Scope supplies this as a grayscale JPEG (not a PNG with
@@ -192,6 +258,7 @@ export class Planet {
         }),
       );
       this.cloudMesh.scale.setScalar(1.018);
+      this.cloudMesh.renderOrder = 2;
       this.spinGroup.add(this.cloudMesh);
     }
 

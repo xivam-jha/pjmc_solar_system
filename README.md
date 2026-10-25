@@ -181,3 +181,8 @@ work is dominated by 4,500 instance matrix updates (~1 ms).
 ## GitHub Pages deployment
 
 The workflow in `.github/workflows/deploy.yml` installs from `package-lock.json`, runs `npm run build`, then publishes the generated `dist/` folder. Keep the workflow under `.github/workflows/` and set Repository Settings → Pages → Source to **GitHub Actions**. Do not publish raw `src/` files directly.
+
+
+### Realistic planet maps
+
+The project loads the currently linked Solar System Scope 2K maps from `https://play.solarsystemscope.com/textures/download/` first, then tries alternate mirrors. The eight major planets and the Moon have image-based maps; other minor moons keep the project's existing generated maps. Earth includes a separate night-lights layer and transparent cloud-mask layer. If external images are blocked or the computer is offline, procedural fallbacks remain available. These are precomputed planetary maps, not live satellite imagery. Refer to `PLANET_TEXTURE_ATTRIBUTION.md` before redistributing the project.

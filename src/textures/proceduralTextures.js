@@ -531,6 +531,11 @@ export async function createTextureSet(onProgress = () => {}) {
   await next('EARTH');
   set.earth = generateEarth();
   set.earthClouds = generateEarthClouds();
+  // Black placeholder: the Earth night-light layer can exist immediately,
+  // and will be upgraded in-place if the real map loads later.
+  set.earthNight = makeTexture(512, 256, (_u, _v, out) => {
+    out[0] = 0; out[1] = 0; out[2] = 0;
+  }, { colorSpace: THREE.NoColorSpace });
 
   await next('THE MOON');
   set.moon = generateCratered({
@@ -647,10 +652,11 @@ export async function createTextureSet(onProgress = () => {}) {
   // listed on the official texture page and is tried first.
   const imageMaps = {
     mercury: '2k_mercury.jpg',
-    // From space Venus is covered by dense yellow-beige cloud tops.
+    // The cloud-top map is the correct visible appearance of Venus from space.
     venus: '2k_venus_atmosphere.jpg',
     earth: '2k_earth_daymap.jpg',
     earthClouds: '2k_earth_clouds.jpg',
+    earthNight: '2k_earth_nightmap.jpg',
     moon: '2k_moon.jpg',
     mars: '2k_mars.jpg',
     jupiter: '2k_jupiter.jpg',
@@ -658,59 +664,68 @@ export async function createTextureSet(onProgress = () => {}) {
     uranus: '2k_uranus.jpg',
     neptune: '2k_neptune.jpg',
   };
+  // The first host is the download URL currently linked by the official
+  // Solar System Scope texture page. Older mirrors remain as fallbacks.
   const textureHosts = [
+    'https://play.solarsystemscope.com/textures/download/',
+    'https://edu.solarsystemscope.com/textures/download/',
     'https://phet.solarsystemscope.com/textures/download/',
     'https://www.solarsystemscope.com/textures/download/',
   ];
 
   function loadImageMap(key, filename) {
     return new Promise((resolve) => {
-      let settled = false;
+      let promiseResolved = false;
       let hostIndex = 0;
       const loader = new THREE.TextureLoader();
       loader.setCrossOrigin('anonymous');
-      const timer = setTimeout(() => {
-        // Keep the generated texture if the remote host is slow or blocked.
-        settled = true;
-        resolve();
-      }, 8000);
 
-      const finish = () => {
-        if (settled) return;
-        settled = true;
+      const settle = () => {
+        if (promiseResolved) return;
+        promiseResolved = true;
         clearTimeout(timer);
         resolve();
       };
 
+      // Do not let a slow remote host prevent the app from starting. A late
+      // success still upgrades the placeholder texture in-place, so existing
+      // planet materials receive the real map without rebuilding the scene.
+      const timer = setTimeout(settle, 12000);
+
       const tryHost = () => {
         if (hostIndex >= textureHosts.length) {
-          finish();
+          settle();
           return;
         }
-        const url = `${textureHosts[hostIndex]}${filename}`;
+        const url = `${textureHosts[hostIndex++]}${filename}`;
         loader.load(
           url,
-          (texture) => {
-            if (settled) {
-              texture.dispose();
-              return;
+          (loadedTexture) => {
+            const colorSpace = (key === 'earthClouds' || key === 'earthNight')
+              ? THREE.NoColorSpace
+              : THREE.SRGBColorSpace;
+            loadedTexture.colorSpace = colorSpace;
+            loadedTexture.wrapS = THREE.RepeatWrapping;
+            loadedTexture.wrapT = THREE.ClampToEdgeWrapping;
+            loadedTexture.anisotropy = 4;
+
+            const existingTexture = set[key];
+            if (existingTexture) {
+              // Preserve object identity: meshes may already hold this texture.
+              existingTexture.image = loadedTexture.image;
+              existingTexture.colorSpace = colorSpace;
+              existingTexture.wrapS = THREE.RepeatWrapping;
+              existingTexture.wrapT = THREE.ClampToEdgeWrapping;
+              existingTexture.anisotropy = 4;
+              existingTexture.needsUpdate = true;
+              loadedTexture.dispose();
+            } else {
+              set[key] = loadedTexture;
             }
-            // Earth clouds are a monochrome opacity map, not display color.
-            texture.colorSpace = key === 'earthClouds' ? THREE.NoColorSpace : THREE.SRGBColorSpace;
-            texture.wrapS = THREE.RepeatWrapping;
-            texture.wrapT = THREE.ClampToEdgeWrapping;
-            texture.anisotropy = 4;
-            const oldTexture = set[key];
-            set[key] = texture;
-            oldTexture?.dispose?.();
-            finish();
+            settle();
           },
           undefined,
-          () => {
-            if (settled) return;
-            hostIndex += 1;
-            tryHost();
-          },
+          () => tryHost(),
         );
       };
 
