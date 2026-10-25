@@ -169,24 +169,95 @@ export class Planet {
     this.root.add(this.bodyGroup);
 
     // -- surface ----------------------------------------------------
-    const segments = isMoon ? 32 : 48;
-    this.surfaceMaterial = new THREE.MeshLambertMaterial({ map: textures[data.texture] });
+    // Higher tessellation keeps close-up planetary silhouettes smooth.
+    const segments = isMoon ? 48 : 96;
+    const isEarth = data.id === 'earth';
+    this.surfaceMaterial = new THREE.MeshPhongMaterial({
+      map: textures[data.texture],
+      color: 0xffffff,
+      // Subtle highlight, strongest on Earth; non-ocean worlds remain matte.
+      specular: new THREE.Color(isEarth ? 0x263d5b : 0x111111),
+      shininess: isEarth ? 14 : 5,
+    });
     this.surfaceMesh = new THREE.Mesh(getSphereGeometry(segments), this.surfaceMaterial);
     this.surfaceMesh.userData.bodyId = data.id;
     this.spinGroup.add(this.surfaceMesh);
 
+    // -- Earth night-side city lights --------------------------------
+    // This layer emits city lights only on the hemisphere turned away from
+    // the Sun, making the day/night transition look more like a globe render.
+    this.nightLightsMaterial = null;
+    this.nightLightsMesh = null;
+    if (data.nightLights && textures[data.nightLights]) {
+      this.nightLightsMaterial = new THREE.ShaderMaterial({
+        uniforms: {
+          uNightMap: { value: textures[data.nightLights] },
+          uSunDirectionWorld: { value: new THREE.Vector3(0, 0, 1) },
+        },
+        vertexShader: /* glsl */ `
+          #include <common>
+          #include <logdepthbuf_pars_vertex>
+          varying vec2 vUv;
+          varying vec3 vWorldNormal;
+          void main() {
+            vUv = uv;
+            vWorldNormal = normalize(mat3(modelMatrix) * normal);
+            vec4 mv = modelViewMatrix * vec4(position, 1.0);
+            gl_Position = projectionMatrix * mv;
+            #include <logdepthbuf_vertex>
+          }
+        `,
+        fragmentShader: /* glsl */ `
+          #include <common>
+          #include <logdepthbuf_pars_fragment>
+          uniform sampler2D uNightMap;
+          uniform vec3 uSunDirectionWorld;
+          varying vec2 vUv;
+          varying vec3 vWorldNormal;
+          void main() {
+            #include <logdepthbuf_fragment>
+            vec3 mapColor = texture2D(uNightMap, vUv).rgb;
+            float brightness = max(max(mapColor.r, mapColor.g), mapColor.b);
+            float cityLights = smoothstep(0.018, 0.22, brightness);
+            float daySide = dot(normalize(vWorldNormal), normalize(uSunDirectionWorld));
+            float nightSide = 1.0 - smoothstep(-0.16, 0.10, daySide);
+            float alpha = clamp(cityLights * nightSide * 0.9, 0.0, 0.82);
+            vec3 warmLights = mapColor * vec3(1.0, 0.78, 0.48) * 1.8;
+            gl_FragColor = vec4(warmLights, alpha);
+          }
+        `,
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        side: THREE.FrontSide,
+      });
+      this.nightLightsMesh = new THREE.Mesh(
+        getSphereGeometry(segments),
+        this.nightLightsMaterial,
+      );
+      this.nightLightsMesh.scale.setScalar(1.002);
+      this.nightLightsMesh.renderOrder = 1;
+      this.spinGroup.add(this.nightLightsMesh);
+    }
+
     // -- cloud layer (Earth) -----------------------------------------
+    // The original cloud map is a grayscale JPEG, not an alpha PNG. Use it
+    // as alphaMap so black areas are transparent and white clouds remain visible.
     this.cloudMesh = null;
     if (data.clouds) {
       this.cloudMesh = new THREE.Mesh(
         getSphereGeometry(segments),
-        new THREE.MeshLambertMaterial({
-          map: textures[data.clouds],
+        new THREE.MeshPhongMaterial({
+          color: 0xffffff,
+          alphaMap: textures[data.clouds],
           transparent: true,
+          opacity: 0.50,
+          shininess: 3,
           depthWrite: false,
         }),
       );
       this.cloudMesh.scale.setScalar(1.018);
+      this.cloudMesh.renderOrder = 2;
       this.spinGroup.add(this.cloudMesh);
     }
 
@@ -233,7 +304,7 @@ export class Planet {
   /**
    * Analytic ring shadow on the planet surface: for each fragment, march
    * toward the Sun (world origin) and darken if the ray crosses the ring
-   * annulus. Injected into the stock Lambert shader so standard lighting
+   * annulus. Injected into the stock Phong shader so standard lighting
    * is preserved.
    */
   #injectRingShadow(ringTexture) {
@@ -285,7 +356,7 @@ export class Planet {
         );
       self.ringShadowShader = shader;
     };
-    mat.customProgramCacheKey = () => 'lambert-ring-shadow';
+    mat.customProgramCacheKey = () => 'phong-ring-shadow';
   }
 
   get radiusWorld() {
@@ -355,6 +426,13 @@ export class Planet {
     // Clouds drift slowly relative to the ground.
     if (this.cloudMesh) {
       this.cloudMesh.rotation.y = this.spinGroup.rotation.y * 0.07;
+    }
+
+    // The Sun is at the world origin. Keep the night-lights shader oriented
+    // toward the Sun as the planet follows its orbit.
+    if (this.nightLightsMaterial) {
+      this.getWorldPosition(_v);
+      this.nightLightsMaterial.uniforms.uSunDirectionWorld.value.copy(_v).negate().normalize();
     }
 
     // Ring shader uniforms (world-space, scale-aware).

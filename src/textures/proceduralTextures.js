@@ -640,5 +640,84 @@ export async function createTextureSet(onProgress = () => {}) {
     w: 256, h: 128, craterCount: 70, craterMax: 18, contrast: 0.9,
   });
 
+  // Prefer Solar System Scope's official image-based maps when online.
+  // Procedural canvases above remain the fallback, so the scene still opens
+  // when a map host is blocked or the device is offline. The maps are visual
+  // assets derived from NASA imagery/elevation data, not a live satellite feed.
+  const imageMaps = {
+    mercury: '2k_mercury.jpg',
+    // The atmospheric map gives Venus the cloud-covered appearance normally
+    // seen from space; the procedural Venus surface remains the offline fallback.
+    venus: '2k_venus_atmosphere.jpg',
+    earth: '2k_earth_daymap.jpg',
+    earthClouds: '2k_earth_clouds.jpg',
+    earthNight: '2k_earth_nightmap.jpg',
+    moon: '2k_moon.jpg',
+    mars: '2k_mars.jpg',
+    jupiter: '2k_jupiter.jpg',
+    saturn: '2k_saturn.jpg',
+    uranus: '2k_uranus.jpg',
+    neptune: '2k_neptune.jpg',
+  };
+  const textureHosts = [
+    'https://edu.solarsystemscope.com/textures/download/',
+    'https://www.solarsystemscope.com/textures/download/',
+  ];
+
+  function loadImageMap(key, filename) {
+    return new Promise((resolve) => {
+      let finished = false;
+      let hostIndex = 0;
+      const loader = new THREE.TextureLoader();
+      loader.setCrossOrigin('anonymous');
+
+      // Don't stall the whole application if a CDN hangs. A late texture is
+      // ignored after timeout; the generated procedural map remains available.
+      const totalTimeout = setTimeout(() => {
+        if (finished) return;
+        finished = true;
+        resolve();
+      }, 9000);
+
+      const attempt = () => {
+        const url = `${textureHosts[hostIndex]}${filename}`;
+        loader.load(
+          url,
+          (texture) => {
+            if (finished) {
+              texture.dispose();
+              return;
+            }
+            finished = true;
+            clearTimeout(totalTimeout);
+            texture.colorSpace = key === 'earthClouds' ? THREE.NoColorSpace : THREE.SRGBColorSpace;
+            texture.wrapS = THREE.RepeatWrapping;
+            texture.wrapT = THREE.ClampToEdgeWrapping;
+            texture.anisotropy = 4;
+            const oldTexture = set[key];
+            set[key] = texture;
+            oldTexture?.dispose?.();
+            resolve();
+          },
+          undefined,
+          () => {
+            if (finished) return;
+            hostIndex += 1;
+            if (hostIndex < textureHosts.length) {
+              attempt();
+            } else {
+              finished = true;
+              clearTimeout(totalTimeout);
+              resolve();
+            }
+          },
+        );
+      };
+      attempt();
+    });
+  }
+
+  await Promise.all(Object.entries(imageMaps).map(([key, filename]) => loadImageMap(key, filename)));
+
   return set;
 }

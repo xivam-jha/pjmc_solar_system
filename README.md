@@ -3,9 +3,7 @@
 **GitHub Pages:** <https://xivam-jha.github.io/pjmc_solar_system/>
 
 An interactive browser-based 3D Solar System Explorer built with [three.js](https://threejs.org/) and Vite for Pawan Jha Mathematics Classes, Sukhpur.
-**Every texture and visual effect is generated procedurally at runtime** (seeded value
-noise on 2D canvases plus custom shaders), so the app has zero downloaded assets, works
-fully offline, and has no asset-licensing concerns.
+**Visual effects are generated procedurally at runtime**, with higher-detail Solar System Scope planetary maps loaded when online. If a texture host is unavailable, the app falls back to generated textures. See `PLANET_TEXTURE_ATTRIBUTION.md` for third-party texture credits and licensing.
 
 ![tech](https://img.shields.io/badge/three.js-r184-049EF4) ![tech](https://img.shields.io/badge/vite-8-646CFF)
 
@@ -24,10 +22,7 @@ Requires Node.js ≥ 20.19 (any recent LTS).
 
 - **The Sun** — animated procedural granulation with limb darkening, additive corona
   sprites, and Unreal-bloom glow.
-- **All 8 planets + Pluto/Charon** — each with a distinct procedural texture: craters
-  (Mercury, the Moon, Callisto, …), warped cloud bands and the Great Red Spot (Jupiter),
-  continents/oceans/ice/clouds and a fresnel atmosphere (Earth), polar caps (Mars),
-  retrograde spins (Venus, Uranus, Pluto — via their real >90° axial tilts), and so on.
+- **All 8 planets + Pluto/Charon** — image-based 2K surface/cloud maps are used when the official texture host is available; procedural maps remain the fallback. Earth includes a separated cloud shell, a blue atmospheric rim, and city lights restricted to the night side. Venus uses a cloud-top map for its space-facing appearance.
 - **13 moons** — the Moon, Phobos, Deimos, Io, Europa, Ganymede, Callisto, Titan,
   Triton (retrograde orbit), Charon. All tidally locked (synchronous rotation).
 - **Ring systems** — Saturn (with Cassini division and Encke gap), plus faint Uranus and
@@ -45,6 +40,7 @@ Requires Node.js ≥ 20.19 (any recent LTS).
 - **Search:** search body names in English or Hindi; choose a result to focus and follow that body.
 - **Language toggle:** switch the interface, body names and information facts between English and Hindi.
 - **Clock:** the simulation readout is formatted in India Standard Time (IST). Major-planet positions use an educational Kepler solution based on JPL approximate elements; moon paths remain visual circular approximations. This is not a precision live ephemeris.
+- **PJMC SPACE EXPLORER:** a self-contained procedural 3D spacecraft with `PJMC SPACE EXPLORER` hull decals, a seated suited astronaut visible in external view, animated engine exhaust, an entry/launch sequence, cockpit and external camera views, keyboard/touch flight controls, and optional autopilot to a selected major planet. It uses no remote model downloads.
 
 ## Controls
 
@@ -60,8 +56,17 @@ Requires Node.js ≥ 20.19 (any recent LTS).
 | Clutter | ORBITS and LABELS toggles |
 | Search | Search a planet or moon; Enter selects the first match |
 | Language | Use the हिंदी / ENGLISH button |
+| Enter/exit spacecraft flight | Click **🚀 SPACECRAFT** in the top controls, or press Escape to exit |
+| Spacecraft thrust / reverse | W / ↑ and S / ↓ |
+| Turn left / right | A / ← and D / → |
+| Move vertically | E up and Q down |
+| Boost | Hold Shift |
+| Cockpit / external camera | Use **SWITCH TO COCKPIT / SWITCH TO EXTERNAL** in the flight panel |
+| Look around / external zoom | Drag on the 3D canvas to change viewing angle; scroll to zoom the external camera |
+| Planet autopilot | Select a planet in DESTINATION and click **AUTO-PILOT**; click **STOP AUTO-PILOT** to resume manual flight |
+| Touch flight | Use the on-screen direction pad and ALT / BOOST controls on narrow screens |
 
-The simulated date is shown in the bottom bar. The info panel (name, type, diameter,
+Spacecraft flight is an educational visual simulation rather than a physical spacecraft simulator. Autopilot approaches the selected planet and stops at a viewing distance; it does not model real orbital insertion or mission physics. The simulated date is shown in the bottom bar during normal Solar System mode. The info panel (name, type, diameter,
 distance, periods, tilt, moons, and a fact) opens whenever a body is selected.
 
 ## Scale strategy
@@ -147,10 +152,12 @@ solar-system/
 │   │   ├── Rings.js                 # radial-UV ring mesh + analytic shadow shader
 │   │   ├── Starfield.js             # custom point shader + Milky Way band
 │   │   ├── BrandingArch.js          # world-space PJMC semicircular branding
+│   │   ├── Spacecraft.js            # procedural PJMC SPACE EXPLORER 3D vehicle
 │   │   └── AsteroidBelt.js          # InstancedMesh with per-rock Keplerian orbits
 │   ├── textures/proceduralTextures.js  # seeded noise → canvas textures for every body
 │   └── ui/
 │       ├── hud.js                   # top bar, body list, time bar
+│       ├── spacecraftHUD.js         # flight instruments and touch controls
 │       ├── infoPanel.js             # selected-body data sheet
 │       └── labels.js                # projected, clickable body labels
 └── README.md
