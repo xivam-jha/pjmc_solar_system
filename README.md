@@ -1,9 +1,12 @@
-# PJMC Solar System Explorer
+# Solar System Explorer
 
-**GitHub Pages:** <https://xivam-jha.github.io/pjmc_solar_system/>
+**Live demo: <https://alexnixon1228-dev.github.io/solar-system/>**
 
-An interactive browser-based 3D Solar System Explorer built with [three.js](https://threejs.org/) and Vite for Pawan Jha Mathematics Classes, Sukhpur.
-Planet visual effects are generated procedurally, with optional high-resolution Solar System Scope image maps loaded when online. If a map host is blocked or unavailable, the built-in procedural textures remain as a fallback. See `PLANET_TEXTURE_ATTRIBUTION.md` for map credits and license.
+An interactive, browser-based 3D visualization of the solar system in the spirit of
+NASA's *Eyes on the Solar System* — built with [three.js](https://threejs.org/) and Vite.
+**Every texture and visual effect is generated procedurally at runtime** (seeded value
+noise on 2D canvases plus custom shaders), so the app has zero downloaded assets, works
+fully offline, and has no asset-licensing concerns.
 
 ![tech](https://img.shields.io/badge/three.js-r184-049EF4) ![tech](https://img.shields.io/badge/vite-8-646CFF)
 
@@ -19,8 +22,6 @@ npm run preview  # serve the production build
 Requires Node.js ≥ 20.19 (any recent LTS).
 
 ## What's in the scene
-
-- **NASA-style planet appearance:** image-based surface maps for the major planets when available, Venus cloud-top imagery, and a separate transparent Earth cloud shell. Procedural textures remain the fallback; this is not a live satellite feed.
 
 - **The Sun** — animated procedural granulation with limb darkening, additive corona
   sprites, and Unreal-bloom glow.
@@ -38,15 +39,6 @@ Requires Node.js ≥ 20.19 (any recent LTS).
 - **Starfield** — ~9,000 additive point stars with varied size/brightness/colour
   temperature, concentrated along an inclined Milky Way band with faint haze sprites.
 
-## PJMC branding and extra controls
-
-- **Large 3D PJMC arch:** the word “PJMC” is laid out once along an in-world semicircle high above the system, with a smaller “SOLAR SYSTEM” line. It is not a screen-fixed overlay: zooming in naturally crops it, while Reset View frames the complete arc and planetary system.
-- **Brand surfaces:** PJMC branding appears on the loading screen, top bar, body information panel, footer, browser title and favicon.
-- **Search:** search body names in English or Hindi; choose a result to focus and follow that body.
-- **Language toggle:** switch the interface, body names and information facts between English and Hindi.
-- **Clock:** the simulation readout is formatted in India Standard Time (IST). Major-planet positions use an educational Kepler solution based on JPL approximate elements; moon paths remain visual circular approximations. This is not a precision live ephemeris.
-- **PJMC SPACE EXPLORER:** a self-contained procedural 3D spacecraft with `PJMC SPACE EXPLORER` hull decals, a seated suited astronaut visible in external view, animated engine exhaust, an entry/launch sequence, cockpit and external camera views, keyboard/touch flight controls, and optional autopilot to a selected major planet. It uses no remote model downloads.
-
 ## Controls
 
 | Action | How |
@@ -56,22 +48,15 @@ Requires Node.js ≥ 20.19 (any recent LTS).
 | Free camera | Click empty space, or the FREE CAM button |
 | Default overview | RESET VIEW |
 | Time | Play/pause + presets: real time, 1 hr/s, 1 day/s, 1 month/s, 1 year/s |
-| Jump to the present | ● NOW (returns the clock to the current time and real-time speed) |
+| Jump to the present | ● NOW (also drops the rate to real time so the clock stays at "now") |
 | Scale | VISUALIZATION ↔ TRUE SCALE (animated transition) |
 | Clutter | ORBITS and LABELS toggles |
-| Search | Search a planet or moon; Enter selects the first match |
-| Language | Use the हिंदी / ENGLISH button |
-| Enter/exit spacecraft flight | Click **🚀 SPACECRAFT** in the top controls, or press Escape to exit |
-| Spacecraft thrust / reverse | W / ↑ and S / ↓ |
-| Turn left / right | A / ← and D / → |
-| Move vertically | E up and Q down |
-| Boost | Hold Shift |
-| Cockpit / external camera | Use **SWITCH TO COCKPIT / SWITCH TO EXTERNAL** in the flight panel |
-| Look around / external zoom | Drag on the 3D canvas to change viewing angle; scroll to zoom the external camera |
-| Planet autopilot | Select a planet in DESTINATION and click **AUTO-PILOT**; click **STOP AUTO-PILOT** to resume manual flight |
-| Touch flight | Use the on-screen direction pad and ALT / BOOST controls on narrow screens |
 
-Spacecraft flight is an educational visual simulation rather than a physical spacecraft simulator. Autopilot approaches the selected planet and stops at a viewing distance; it does not model real orbital insertion or mission physics. The simulated date is shown in the bottom bar during normal Solar System mode. The info panel (name, type, diameter,
+The date/time bar shows the current clock in India Standard Time (IST) by default. The simulation starts at real time; the speed presets let you accelerate it. Search planets and moons in English or Hindi, and use the language toggle for the interface.
+
+**Position accuracy note:** this is an educational circular-orbit approximation anchored to J2000 mean-longitude values, not a precision ephemeris. Its positions update with the current date/time, but they should not be used for scientific navigation or exact sky predictions. The textures are procedural visuals, not NASA high-resolution image maps.
+
+The simulated date is shown in the bottom bar. The info panel (name, type, diameter,
 distance, periods, tilt, moons, and a fact) opens whenever a body is selected.
 
 ## Scale strategy
@@ -92,18 +77,16 @@ are used, blended by an animated `mix` parameter:
   their real semi-major axes.
 
 Because sizes/distances are resolved through scale functions *every frame*, toggling
-scale simply tweens `mix` — bodies, orbits, rings, moons, the PJMC arch and the asteroid
-belt all re-project smoothly. The major planets use an approximate Kepler solution and
-JPL J2000 orbital elements/rates; moons keep their circular visual orbits. This is an
-educational position model, not a full precision ephemeris. See [NASA/JPL's Approximate
-Positions of the Planets](https://ssd.jpl.nasa.gov/planets/approx_pos.html).
+scale simply tweens `mix` — bodies, orbits, rings, moons and the asteroid belt all
+re-project smoothly. **Relative orbital speeds, rotation rates and spin directions are
+real in both modes**, and planets start at their approximate real present-day positions
+(mean longitudes at the J2000 epoch, circular-orbit approximation).
 
 ## Engineering decisions & simplifications
 
-- **Approximate Keplerian orbits for major planets.** The 8 planets use JPL
-  approximate orbital elements/rates and elliptical paths; Pluto uses static
-  approximate elements. The displayed size/distance visualization scale is still
-  compressed, and satellite orbits are circular visual approximations.
+- **Circular, coplanar orbits.** The prompt allows circular paths; real eccentricities
+  (all < 0.21 except Pluto) and inclinations (< 7.1°) read as noise at these scales.
+  Exceptions kept for flavour: Mercury's 7° and Pluto's 17.2° orbital inclinations.
 - **Moons orbit in their parent's equatorial plane** (the moon containers live inside
   the axial-tilt group). This is physically right for the big moons of Jupiter, Saturn
   and Uranus — Uranus's moons correctly orbit "vertically" — and a small approximation
@@ -156,13 +139,10 @@ solar-system/
 │   │   ├── Planet.js                # reusable planet/moon class (recursion for moons)
 │   │   ├── Rings.js                 # radial-UV ring mesh + analytic shadow shader
 │   │   ├── Starfield.js             # custom point shader + Milky Way band
-│   │   ├── BrandingArch.js          # world-space PJMC semicircular branding
-│   │   ├── Spacecraft.js            # procedural PJMC SPACE EXPLORER 3D vehicle
 │   │   └── AsteroidBelt.js          # InstancedMesh with per-rock Keplerian orbits
 │   ├── textures/proceduralTextures.js  # seeded noise → canvas textures for every body
 │   └── ui/
 │       ├── hud.js                   # top bar, body list, time bar
-│       ├── spacecraftHUD.js         # flight instruments and touch controls
 │       ├── infoPanel.js             # selected-body data sheet
 │       └── labels.js                # projected, clickable body labels
 └── README.md
@@ -178,11 +158,25 @@ belt is a single instanced draw call, stars are one `Points` draw call, and per-
 work is dominated by 4,500 instance matrix updates (~1 ms).
 
 
-## GitHub Pages deployment
+## Deploy to GitHub Pages
 
-The workflow in `.github/workflows/deploy.yml` installs from `package-lock.json`, runs `npm run build`, then publishes the generated `dist/` folder. Keep the workflow under `.github/workflows/` and set Repository Settings → Pages → Source to **GitHub Actions**. Do not publish raw `src/` files directly.
+1. Create a GitHub repository, for example `solar-system`.
+2. Upload the contents of this folder to the repository root (so `package.json`, `index.html`, `src/`, and `.github/` are at the root).
+3. Push to the `main` branch. The included GitHub Actions workflow runs `npm ci`, `npm run build`, and publishes `dist/` to GitHub Pages.
+4. In GitHub, open **Settings → Pages** and confirm the source is **GitHub Actions**. Wait for the workflow to finish successfully. Your public URL will look like `https://YOUR-USERNAME.github.io/solar-system/`.
 
+## Link it from an InfinityFree website
 
-### Realistic planet maps
+After replacing the example URL with your actual GitHub Pages URL, add a link or button to any PHP/HTML page on InfinityFree:
 
-The project loads the currently linked Solar System Scope 2K maps from `https://play.solarsystemscope.com/textures/download/` first, then tries alternate mirrors. The eight major planets and the Moon have image-based maps; other minor moons keep the project's existing generated maps. Earth includes a separate night-lights layer and transparent cloud-mask layer. If external images are blocked or the computer is offline, procedural fallbacks remain available. These are precomputed planetary maps, not live satellite imagery. Refer to `PLANET_TEXTURE_ATTRIBUTION.md` before redistributing the project.
+```html
+<a class="solar-system-link" href="https://YOUR-USERNAME.github.io/solar-system/" target="_blank" rel="noopener noreferrer">
+  Explore the 3D Solar System ↗
+</a>
+<style>
+.solar-system-link { display:inline-block; padding:12px 18px; border-radius:12px; background:#071523; color:#8ee5ff; border:1px solid #3489ad; text-decoration:none; font-weight:700; }
+.solar-system-link:hover { background:#10304a; }
+</style>
+```
+
+The GitHub Pages app opens as its own page/tab; InfinityFree only hosts the link unless you intentionally embed the app in an iframe.

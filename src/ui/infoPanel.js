@@ -1,19 +1,13 @@
-/** Information panel for a selected celestial body. */
-import { BODY_FACTS_HI, UI_TEXT, bodyName } from './translations.js';
+/**
+ * Info panel: facts and figures for the currently selected body.
+ */
 
-function localizeValue(value, language) {
-  if (language !== 'hi' || !value || value === '—') return value ?? '—';
-  return String(value)
-    .replace(/synchronous/gi, 'समकालिक घूर्णन')
-    .replace(/retrograde/gi, 'विपरीत दिशा')
-    .replace(/none shown/gi, 'कोई प्रदर्शित नहीं')
-    .replace(/shown/gi, 'दिखाए गए')
-    .replace(/equator/gi, 'भूमध्य रेखा')
-    .replace(/\bdays?\b/gi, 'दिन')
-    .replace(/\byears?\b/gi, 'वर्ष')
-    .replace(/\bhours?\b/gi, 'घंटे');
-}
-
+const FACT_HI = {
+  sun: 'सूर्य में सौरमंडल के कुल द्रव्यमान का लगभग 99.86% है। इसके केंद्र में नाभिकीय संलयन से हाइड्रोजन हीलियम में बदलती है और ऊर्जा निकलती है।',
+  earth: 'पृथ्वी हमारी जानकारी में एकमात्र ऐसा ग्रह है जिसकी सतह पर स्थायी तरल पानी और जीवन है। इसका लगभग 23.4° अक्षीय झुकाव ऋतुओं का कारण बनता है।',
+  moon: 'चंद्रमा पृथ्वी से ज्वारीय रूप से बंधा है, इसलिए हमें इसका लगभग वही भाग हमेशा दिखाई देता है। यह हर वर्ष पृथ्वी से लगभग 3.8 सेंटीमीटर दूर जा रहा है।'
+};
+const HI = { Sun:'सूर्य', Mercury:'बुध', Venus:'शुक्र', Earth:'पृथ्वी', 'The Moon':'चंद्रमा', Mars:'मंगल', Phobos:'फोबोस', Deimos:'डिमोस', Jupiter:'बृहस्पति', Io:'आयो', Europa:'यूरोपा', Ganymede:'गेनीमेड', Callisto:'कैलिस्टो', Saturn:'शनि', Titan:'टाइटन', Triton:'ट्राइटन', Uranus:'अरुण', Neptune:'वरुण', Pluto:'प्लूटो', Charon:'कैरोन', 'DIAMETER':'व्यास', 'DIST. FROM SUN':'सूर्य से दूरी', 'ORBITAL PERIOD':'परिक्रमण अवधि', 'DAY LENGTH':'दिन की अवधि', 'AXIAL TILT':'अक्षीय झुकाव', 'MOONS':'उपग्रह', 'G2V Star':'G2V तारा', 'Terrestrial Planet':'स्थलीय ग्रह', 'Gas Giant':'गैसीय दानव', 'Ice Giant':'बर्फीला दानव', 'Moon':'उपग्रह' };
 function el(tag, className, text) {
   const node = document.createElement(tag);
   if (className) node.className = className;
@@ -23,34 +17,24 @@ function el(tag, className, text) {
 
 export class InfoPanel {
   constructor(onClose) {
-    this.onClose = onClose;
-    this.language = 'en';
-    this.currentData = null;
-    this.parentName = null;
-    this.currentDistanceAU = null;
-    this.panel = el('section', 'info-panel hidden');
-    this.panel.setAttribute('aria-live', 'polite');
+    this.panel = el('div', 'info-panel hidden');
 
     const header = el('div', 'info-header');
-    this.titleWrap = el('div', 'info-title-wrap');
     this.nameEl = el('div', 'info-name');
     this.typeEl = el('div', 'info-type');
-    this.titleWrap.append(this.nameEl, this.typeEl);
+    const titleWrap = el('div', 'info-title-wrap');
+    titleWrap.append(this.nameEl, this.typeEl);
     const closeBtn = el('button', 'info-close', '✕');
     closeBtn.type = 'button';
-    closeBtn.setAttribute('aria-label', 'Close panel');
     closeBtn.addEventListener('click', onClose);
-    header.append(this.titleWrap, closeBtn);
+    header.append(titleWrap, closeBtn);
 
     this.rows = el('div', 'info-rows');
     this.factEl = el('div', 'info-fact');
-    const brandStamp = el('div', 'info-brand-stamp');
-    this.brandTitle = el('div', 'info-brand-title', 'PJMC SOLAR SYSTEM');
-    this.brandSubtitle = el('div', 'info-brand-subtitle', 'PAWAN JHA MATHEMATICS CLASSES · SUKHPUR');
-    brandStamp.append(this.brandTitle, this.brandSubtitle);
-    this.panel.append(header, this.rows, this.factEl, brandStamp);
+    this.lang = 'en';
+    this.currentData = null; this.currentParentName = null;
+    this.panel.append(header, this.rows, this.factEl);
     document.body.append(this.panel);
-    this.closeBtn = closeBtn;
   }
 
   #row(label, value) {
@@ -59,46 +43,39 @@ export class InfoPanel {
     return row;
   }
 
-  setLanguage(language) {
-    this.language = language === 'hi' ? 'hi' : 'en';
-    const t = UI_TEXT[this.language];
-    this.closeBtn.setAttribute('aria-label', t.close);
-    this.brandTitle.textContent = t.about;
-    this.brandSubtitle.textContent = t.school;
-    if (this.currentData) this.show(this.currentData, this.parentName, this.currentDistanceAU);
-  }
+  /** @param {object} data body data entry; @param {string|null} parentName */
+  setLanguage(lang) { this.lang = lang; if (this.currentData) this.show(this.currentData, this.currentParentName); }
 
-  show(data, parentName, currentDistanceAU = null) {
-    this.currentData = data;
-    this.parentName = parentName;
-    this.currentDistanceAU = currentDistanceAU;
-    const t = UI_TEXT[this.language];
-    this.nameEl.textContent = bodyName(data.id, data.name, this.language).toLocaleUpperCase();
-    this.typeEl.textContent = t.type[data.type] ?? data.type;
+  show(data, parentName) {
+    this.currentData = data; this.currentParentName = parentName;
+    const tr = (v) => this.lang === 'hi' ? (HI[v] || v) : v;
+    this.nameEl.textContent = tr(data.name).toUpperCase();
+    this.typeEl.textContent = tr(data.type);
     this.rows.replaceChildren();
 
-    this.rows.append(this.#row(t.diameter, `${data.diameterKm.toLocaleString(this.language === 'hi' ? 'hi-IN' : 'en-US')} km`));
-    if (data.distanceAU > 0) {
-      const distanceAU = Number.isFinite(currentDistanceAU) ? currentDistanceAU : data.distanceAU;
-      const mkm = Math.round((distanceAU * 149_597_870) / 1e6);
-      this.rows.append(this.#row(t.distanceSun, `${distanceAU.toFixed(3)} AU (${mkm.toLocaleString(this.language === 'hi' ? 'hi-IN' : 'en-US')}M km)`));
-    } else if (data.distanceKm) {
-      const parent = parentName ? bodyName(parentName.toLowerCase(), parentName, this.language).toLocaleUpperCase() : (this.language === 'hi' ? 'मूल पिंड' : 'PARENT');
-      this.rows.append(this.#row(`${t.distanceParent} ${parent}`, `${data.distanceKm.toLocaleString(this.language === 'hi' ? 'hi-IN' : 'en-US')} km`));
-    }
-    this.rows.append(this.#row(t.period, localizeValue(data.periodDisplay ?? '—', this.language)));
-    this.rows.append(this.#row(t.day, localizeValue(data.dayDisplay ?? '—', this.language)));
-    this.rows.append(this.#row(t.tilt, localizeValue(data.tiltDisplay ?? `${data.axialTiltDeg ?? 0}°`, this.language)));
-    if (data.moonsDisplay !== undefined) this.rows.append(this.#row(t.moons, localizeValue(data.moonsDisplay, this.language)));
+    this.rows.append(this.#row(tr('DIAMETER'), `${data.diameterKm.toLocaleString('en-US')} km`));
 
-    this.factEl.textContent = this.language === 'hi' ? (BODY_FACTS_HI[data.id] ?? data.fact ?? '') : (data.fact ?? '');
+    if (data.distanceAU > 0) {
+      const mkm = Math.round((data.distanceAU * 149_597_870) / 1e6);
+      this.rows.append(this.#row(tr('DIST. FROM SUN'), `${data.distanceAU} AU (${mkm.toLocaleString('en-US')}M km)`));
+    } else if (data.distanceKm) {
+      this.rows.append(
+        this.#row(this.lang === 'hi' ? `${tr(parentName ?? 'PARENT')} से दूरी` : `DIST. FROM ${(parentName ?? 'PARENT').toUpperCase()}`, `${data.distanceKm.toLocaleString('en-US')} km`),
+      );
+    }
+
+    this.rows.append(this.#row(tr('ORBITAL PERIOD'), data.periodDisplay ?? '—'));
+    this.rows.append(this.#row(tr('DAY LENGTH'), data.dayDisplay ?? '—'));
+    this.rows.append(this.#row(tr('AXIAL TILT'), data.tiltDisplay ?? `${data.axialTiltDeg}°`));
+    if (data.moonsDisplay !== undefined) {
+      this.rows.append(this.#row(tr('MOONS'), data.moonsDisplay));
+    }
+
+    this.factEl.textContent = this.lang === 'hi' ? (FACT_HI[data.id] || data.fact || '') : (data.fact ?? '');
     this.panel.classList.remove('hidden');
   }
 
   hide() {
-    this.currentData = null;
-    this.parentName = null;
-    this.currentDistanceAU = null;
     this.panel.classList.add('hidden');
   }
 }

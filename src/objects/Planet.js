@@ -28,7 +28,6 @@ const _q = new THREE.Quaternion();
 
 /* Shared unit-sphere geometries, keyed by segment count. */
 const sphereCache = new Map();
-const eccentricOrbitCache = new Map();
 export function getSphereGeometry(segments) {
   if (!sphereCache.has(segments)) {
     sphereCache.set(segments, new THREE.SphereGeometry(1, segments, segments / 2));
@@ -48,30 +47,6 @@ function getCircleGeometry() {
     circleGeometry = new THREE.BufferGeometry().setFromPoints(pts);
   }
   return circleGeometry;
-}
-
-function getEccentricOrbitGeometry(eccentricity) {
-  const key = Number(eccentricity).toFixed(5);
-  if (!eccentricOrbitCache.has(key)) {
-    const pts = [];
-    const e = THREE.MathUtils.clamp(eccentricity, 0, 0.95);
-    for (let i = 0; i < 256; i++) {
-      const E = (i / 256) * TWO_PI;
-      pts.push(new THREE.Vector3(Math.cos(E) - e, 0, -Math.sqrt(1 - e * e) * Math.sin(E)));
-    }
-    eccentricOrbitCache.set(key, new THREE.BufferGeometry().setFromPoints(pts));
-  }
-  return eccentricOrbitCache.get(key);
-}
-
-function solveEccentricAnomaly(meanAnomaly, eccentricity) {
-  let E = meanAnomaly + eccentricity * Math.sin(meanAnomaly) * (1 + eccentricity * Math.cos(meanAnomaly));
-  for (let i = 0; i < 8; i++) {
-    const correction = (E - eccentricity * Math.sin(E) - meanAnomaly) / (1 - eccentricity * Math.cos(E));
-    E -= correction;
-    if (Math.abs(correction) < 1e-10) break;
-  }
-  return E;
 }
 
 /* ------------------------------------------------------------------ */
@@ -151,7 +126,6 @@ export class Planet {
     this.isMoon = isMoon;
     this.parent = parent;
     this._radius = 1;
-    this.distanceFromSunAU = null;
     this.spinOffset = ((data.phaseDeg ?? 0) * Math.PI) / 180;
     this.ringShadowShader = null; // set by onBeforeCompile when applicable
 
@@ -169,96 +143,57 @@ export class Planet {
     this.root.add(this.bodyGroup);
 
     // -- surface ----------------------------------------------------
-    // More tessellation keeps the silhouette smooth during NASA-style close-ups.
-    // Planet sizes/orbits are still resolved by the existing scale system.
-    const segments = isMoon ? 48 : 96;
-    this.surfaceMaterial = new THREE.MeshLambertMaterial({ map: textures[data.texture] });
+    const segments = isMoon ? 36 : 64;
+    const matConfig = {
+      map: textures[data.texture],
+      roughness: 0.8,
+      metalness: 0.05,
+    };
+
+    const bumpKey = data.texture + '_bump';
+    if (textures[bumpKey]) {
+      matConfig.bumpMap = textures[bumpKey];
+      matConfig.bumpScale = isMoon ? 0.02 : 0.038;
+    }
+
+    if (data.id === 'earth') {
+      matConfig.roughness = 0.55;
+      matConfig.metalness = 0.05;
+      if (textures.earth_specular) {
+        matConfig.roughnessMap = textures.earth_specular;
+      }
+      if (textures.earth_bump) {
+        matConfig.bumpMap = textures.earth_bump;
+        matConfig.bumpScale = 0.042;
+      }
+    } else if (data.type === 'Gas Giant' || data.type === 'Ice Giant') {
+      matConfig.roughness = 0.65;
+      matConfig.metalness = 0.0;
+    }
+
+    this.surfaceMaterial = new THREE.MeshStandardMaterial(matConfig);
+    if (data.id === 'earth' && textures.earth_night) {
+      this.#injectEarthNightLights(textures.earth_night);
+    }
     this.surfaceMesh = new THREE.Mesh(getSphereGeometry(segments), this.surfaceMaterial);
     this.surfaceMesh.userData.bodyId = data.id;
     this.spinGroup.add(this.surfaceMesh);
 
-    // -- Earth night-side city lights --------------------------------
-    // Use a separate emission-like layer, visible only on the hemisphere
-    // facing away from the Sun (the Sun is located at the world origin).
-    this.nightLightsMesh = null;
-    this.nightLightsMaterial = null;
-    if (data.nightLights && textures[data.nightLights]) {
-      this.nightLightsMaterial = new THREE.ShaderMaterial({
-        uniforms: {
-          uNightMap: { value: textures[data.nightLights] },
-        },
-        vertexShader: /* glsl */ `
-          varying vec2 vUv;
-          varying vec3 vWorldNormal;
-          varying vec3 vWorldPosition;
-          #include <common>
-          #include <logdepthbuf_pars_vertex>
-          void main() {
-            vUv = uv;
-            vec4 worldPosition = modelMatrix * vec4(position, 1.0);
-            vWorldPosition = worldPosition.xyz;
-            vWorldNormal = normalize(mat3(modelMatrix) * normal);
-            vec4 mvPosition = viewMatrix * worldPosition;
-            gl_Position = projectionMatrix * mvPosition;
-            #include <logdepthbuf_vertex>
-          }
-        `,
-        fragmentShader: /* glsl */ `
-          uniform sampler2D uNightMap;
-          varying vec2 vUv;
-          varying vec3 vWorldNormal;
-          varying vec3 vWorldPosition;
-          #include <common>
-          #include <logdepthbuf_pars_fragment>
-          void main() {
-            #include <logdepthbuf_fragment>
-            vec3 mapColor = texture2D(uNightMap, vUv).rgb;
-            float brightness = max(max(mapColor.r, mapColor.g), mapColor.b);
-            float cityMask = smoothstep(0.045, 0.24, brightness);
-            vec3 toSun = normalize(-vWorldPosition);
-            float daySide = dot(normalize(vWorldNormal), toSun);
-            float nightSide = 1.0 - smoothstep(-0.12, 0.12, daySide);
-            float alpha = cityMask * nightSide * 0.88;
-            if (alpha < 0.008) discard;
-            vec3 glow = mapColor * vec3(1.0, 0.77, 0.48) * 2.4;
-            gl_FragColor = vec4(glow, alpha);
-            #include <tonemapping_fragment>
-            #include <colorspace_fragment>
-          }
-        `,
-        transparent: true,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-        side: THREE.FrontSide,
-        toneMapped: false,
-      });
-      this.nightLightsMesh = new THREE.Mesh(
-        getSphereGeometry(segments),
-        this.nightLightsMaterial,
-      );
-      this.nightLightsMesh.scale.setScalar(1.003);
-      this.nightLightsMesh.renderOrder = 1;
-      this.spinGroup.add(this.nightLightsMesh);
-    }
-
     // -- cloud layer (Earth) -----------------------------------------
-    // Solar System Scope supplies this as a grayscale JPEG (not a PNG with
-    // transparent pixels). Use it as an alpha mask so dark areas stay clear
-    // and only the cloud bands are drawn over the Earth surface.
     this.cloudMesh = null;
     if (data.clouds) {
       this.cloudMesh = new THREE.Mesh(
         getSphereGeometry(segments),
-        new THREE.MeshLambertMaterial({
-          color: 0xffffff,
-          alphaMap: textures[data.clouds],
+        new THREE.MeshStandardMaterial({
+          map: textures[data.clouds],
           transparent: true,
-          opacity: 0.58,
+          opacity: 0.88,
+          roughness: 0.95,
+          metalness: 0.0,
           depthWrite: false,
         }),
       );
-      this.cloudMesh.scale.setScalar(1.018);
-      this.cloudMesh.renderOrder = 2;
+      this.cloudMesh.scale.setScalar(1.02);
       this.spinGroup.add(this.cloudMesh);
     }
 
@@ -279,11 +214,8 @@ export class Planet {
     }
 
     // -- orbit line ----------------------------------------------------
-    const orbitGeometry = !isMoon && data.orbitElements
-      ? getEccentricOrbitGeometry(data.orbitElements.eccentricity)
-      : getCircleGeometry();
     this.orbitLine = new THREE.LineLoop(
-      orbitGeometry,
+      getCircleGeometry(),
       new THREE.LineBasicMaterial({
         color: isMoon ? 0x35586e : 0x3b6a8a,
         transparent: true,
@@ -303,9 +235,61 @@ export class Planet {
   }
 
   /**
+   * Inject glowing city lights onto the night side of Earth.
+   */
+  #injectEarthNightLights(nightTexture) {
+    const mat = this.surfaceMaterial;
+    mat.onBeforeCompile = (shader) => {
+      shader.uniforms.uNightMap = { value: nightTexture };
+      shader.vertexShader = shader.vertexShader
+        .replace(
+          '#include <common>',
+          `#include <common>
+          varying vec2 vEarthUv;
+          varying vec3 vEarthWorldNormal;
+          varying vec3 vEarthWorldPos;`,
+        )
+        .replace(
+          '#include <uv_vertex>',
+          `#include <uv_vertex>
+          vEarthUv = uv;`,
+        )
+        .replace(
+          '#include <worldpos_vertex>',
+          `#include <worldpos_vertex>
+          vEarthWorldNormal = normalize(mat3(modelMatrix) * normal);
+          vEarthWorldPos = (modelMatrix * vec4(position, 1.0)).xyz;`,
+        );
+      shader.fragmentShader = shader.fragmentShader
+        .replace(
+          '#include <common>',
+          `#include <common>
+          uniform sampler2D uNightMap;
+          varying vec2 vEarthUv;
+          varying vec3 vEarthWorldNormal;
+          varying vec3 vEarthWorldPos;`,
+        )
+        .replace(
+          '#include <dithering_fragment>',
+          `#include <dithering_fragment>
+          {
+            vec3 sunDir = normalize(-vEarthWorldPos);
+            float dayAmount = dot(normalize(vEarthWorldNormal), sunDir);
+            float nightFactor = smoothstep(0.12, -0.22, dayAmount);
+            if (nightFactor > 0.0) {
+              vec3 cityLights = texture2D(uNightMap, vEarthUv).rgb;
+              gl_FragColor.rgb += cityLights * vec3(1.35, 1.18, 0.95) * nightFactor * 1.6;
+            }
+          }`,
+        );
+    };
+    mat.customProgramCacheKey = () => 'earth-night-lights';
+  }
+
+  /**
    * Analytic ring shadow on the planet surface: for each fragment, march
    * toward the Sun (world origin) and darken if the ray crosses the ring
-   * annulus. Injected into the stock Lambert shader so standard lighting
+   * annulus. Injected into the stock shader so standard lighting
    * is preserved.
    */
   #injectRingShadow(ringTexture) {
@@ -357,7 +341,7 @@ export class Planet {
         );
       self.ringShadowShader = shader;
     };
-    mat.customProgramCacheKey = () => 'lambert-ring-shadow';
+    mat.customProgramCacheKey = () => 'standard-ring-shadow';
   }
 
   get radiusWorld() {
@@ -377,47 +361,11 @@ export class Planet {
     this._radius = r;
     this.spinGroup.scale.setScalar(r);
 
-    // Major planets use Kepler's equation and JPL's approximate elements; moons
-    // retain their current circular visualization orbits. Results are visual
-    // approximations, not a high-precision ephemeris.
-    const orbitR = scale.orbitRadius(this, daysSinceJ2000);
-    const elements = !this.isMoon ? this.data.orbitElements : null;
-    if (elements) {
-      const actualT = daysSinceJ2000 / 36525;
-      const T = THREE.MathUtils.clamp(actualT, -50, 10);
-      const e = THREE.MathUtils.clamp(elements.eccentricity + (elements.eRate ?? 0) * T, 0, 0.95);
-      const inclination = elements.inclination + (elements.iRate ?? 0) * T;
-      const meanLongitudeAtBound = elements.meanLongitude + (elements.lRate ?? 0) * T;
-      const extrapolatedDays = (actualT - T) * 36525;
-      const meanLongitude = meanLongitudeAtBound + (extrapolatedDays ? extrapolatedDays / this.data.orbitalPeriodDays * 360 : 0);
-      const perihelion = elements.perihelion + (elements.periRate ?? 0) * T;
-      const node = elements.node + (elements.nodeRate ?? 0) * T;
-      const fRadians = THREE.MathUtils.degToRad((elements.anomalyF ?? 0) * T);
-      const meanAnomalyDeg = meanLongitude - perihelion
-        + (elements.anomalyB ?? 0) * T * T
-        + (elements.anomalyC ?? 0) * Math.cos(fRadians)
-        + (elements.anomalyS ?? 0) * Math.sin(fRadians);
-      const meanAnomaly = THREE.MathUtils.degToRad(THREE.MathUtils.euclideanModulo(meanAnomalyDeg + 180, 360) - 180);
-      const E = solveEccentricAnomaly(meanAnomaly, e);
-      const aAU = this.data.distanceAU + (elements.aRate ?? 0) * T;
-      this.distanceFromSunAU = aAU * (1 - e * Math.cos(E));
-      const localX = orbitR * (Math.cos(E) - e);
-      const localZ = -orbitR * Math.sqrt(1 - e * e) * Math.sin(E);
-      const omega = THREE.MathUtils.degToRad(perihelion - node);
-      this.root.rotation.x = THREE.MathUtils.degToRad(inclination);
-      this.root.rotation.y = THREE.MathUtils.degToRad(node);
-      this.orbitLine.rotation.y = omega;
-      this.bodyGroup.position.set(
-        localX * Math.cos(omega) + localZ * Math.sin(omega),
-        0,
-        -localX * Math.sin(omega) + localZ * Math.cos(omega),
-      );
-    } else {
-      const L0 = ((this.data.meanLongitudeDeg ?? 0) * Math.PI) / 180 + this.spinOffset * (this.isMoon ? 1 : 0);
-      const angle = L0 + (TWO_PI * daysSinceJ2000) / this.data.orbitalPeriodDays;
-      this.bodyGroup.position.set(Math.cos(angle) * orbitR, 0, -Math.sin(angle) * orbitR);
-      this.orbitLine.rotation.y = 0;
-    }
+    // Orbit position (circular, mean-longitude epoch alignment for planets).
+    const orbitR = scale.orbitRadius(this);
+    const L0 = ((this.data.meanLongitudeDeg ?? 0) * Math.PI) / 180 + this.spinOffset * (this.isMoon ? 1 : 0);
+    const angle = L0 + (TWO_PI * daysSinceJ2000) / this.data.orbitalPeriodDays;
+    this.bodyGroup.position.set(Math.cos(angle) * orbitR, 0, -Math.sin(angle) * orbitR);
     this.orbitLine.scale.setScalar(orbitR);
 
     // Daily rotation (Venus/Uranus/Pluto retrograde comes from tilt > 90 deg).

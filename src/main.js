@@ -20,13 +20,11 @@ import { Sun } from './objects/Sun.js';
 import { Planet } from './objects/Planet.js';
 import { createStarfield } from './objects/Starfield.js';
 import { AsteroidBelt } from './objects/AsteroidBelt.js';
-import { BrandingArch } from './objects/BrandingArch.js';
-import { Spacecraft } from './objects/Spacecraft.js';
-import { HandGestureController } from './objects/HandGestureController.js';
+import { createConstellationText } from './objects/ConstellationText.js';
 import { createHUD } from './ui/hud.js';
-import { createSpacecraftHUD } from './ui/spacecraftHUD.js';
 import { InfoPanel } from './ui/infoPanel.js';
 import { Labels } from './ui/labels.js';
+import { ExplorerGame } from './explorer/ExplorerGame.js';
 import './styles.css';
 
 /* ------------------------------------------------------------------ */
@@ -51,47 +49,26 @@ const scaleAPI = {
   bodyRadius(p) {
     return lerp(vizRadiusOf(p.data, p.isMoon), trueRadiusOf(p.data), scaleState.mix);
   },
-  orbitRadius(p, days = 0) {
+  orbitRadius(p) {
     if (p.isMoon) {
       const viz = vizRadiusOf(p.parent.data, false) * p.data.vizDistanceFactor;
       return lerp(viz, p.data.distanceKm * KM_TO_UNIT, scaleState.mix);
     }
     if (!p.data.distanceAU) return 0;
-    const elements = p.data.orbitElements;
-    const centuries = THREE.MathUtils.clamp(days / 36525, -50, 10);
-    const aAU = p.data.distanceAU + (elements?.aRate ?? 0) * centuries;
-    return lerp(vizOrbitOfAU(aAU), aAU * AU_UNIT, scaleState.mix);
+    return lerp(vizOrbitOfAU(p.data.distanceAU), p.data.distanceAU * AU_UNIT, scaleState.mix);
   },
   orbitRadiusOfAU(au) {
     return lerp(vizOrbitOfAU(au), au * AU_UNIT, scaleState.mix);
   },
 };
 
-// Representative system radius, used to scale both the 3D branding and overview.
+// Camera overview positions for each scale mode.
+const DEFAULT_CAM_VIZ = new THREE.Vector3(0, 115, 255);
+const DEFAULT_CAM_TRUE = new THREE.Vector3(0, 1050, 2400);
+const defaultCameraPos = (mix, out) => out.copy(DEFAULT_CAM_VIZ).lerp(DEFAULT_CAM_TRUE, mix);
+
+// Representative system radius, used to rescale a free camera when toggling.
 const systemRadius = (mix) => lerp(vizOrbitOfAU(30.05), 30.05 * AU_UNIT, mix);
-const overviewTarget = (mix, out) => out.set(0, systemRadius(mix) * 1.12, 0);
-
-// Fit the system plus the complete PJMC semicircular arch. On narrow screens,
-// horizontal fit becomes the limiting dimension and the initial view pulls back.
-function overviewDistance(mix) {
-  const r = systemRadius(mix);
-  const width = r * 4.5;
-  const height = r * 4.55;
-  const halfFov = THREE.MathUtils.degToRad(50 / 2);
-  const margin = 0.78;
-  const aspect = Math.max(window.innerWidth / Math.max(window.innerHeight, 1), 0.35);
-  return Math.max(
-    height / (2 * Math.tan(halfFov) * margin),
-    width / (2 * Math.tan(halfFov) * aspect * margin),
-  );
-}
-
-const defaultCameraPos = (mix, out) => {
-  const target = overviewTarget(mix, new THREE.Vector3());
-  const distance = overviewDistance(mix);
-  const elevationRatio = 0.18;
-  return out.set(0, target.y + distance * elevationRatio, distance * Math.sqrt(1 - elevationRatio ** 2));
-};
 
 /* ------------------------------------------------------------------ */
 /* Tween helper                                                        */
@@ -151,18 +128,17 @@ async function init() {
   defaultCameraPos(0, camera.position);
 
   const controls = new OrbitControls(camera, renderer.domElement);
-  overviewTarget(0, controls.target);
   controls.enableDamping = true;
-  controls.dampingFactor = 0.08;
-  controls.maxDistance = Math.max(26000, overviewDistance(1) * 1.5);
+  controls.dampingFactor = 0.045; // buttery-smooth inertia
+  controls.rotateSpeed = 0.65;
+  controls.zoomSpeed = 0.85;
+  controls.maxDistance = 26000;
   controls.minDistance = 0.01;
 
   /* ---------- lighting ---------- */
-  // Single point light at the Sun (decay 0: at true scale, physical falloff
-  // would leave the outer planets black) + faint ambient so night sides
-  // stay readable.
-  scene.add(new THREE.PointLight(0xfff3e0, 2.2, 0, 0));
-  scene.add(new THREE.AmbientLight(0x8fa3bd, 0.3));
+  // High-intensity sunlight with soft space ambient light
+  scene.add(new THREE.PointLight(0xfffaed, 2.6, 0, 0));
+  scene.add(new THREE.AmbientLight(0x40556e, 0.42));
 
   /* ---------- post-processing (graceful fallback) ---------- */
   setStatus('SETTING UP POST-PROCESSING…');
@@ -239,16 +215,8 @@ async function init() {
   setStatus('IGNITING STARFIELD…');
   scene.add(createStarfield(textures));
 
-  // The PJMC wordmark lives in world space high above the outer orbit. It scales
-  // with Visualization/True Scale and is never pinned to the screen.
-  const baseSystemRadius = systemRadius(0);
-  const brandingArch = new BrandingArch(baseSystemRadius);
-  brandingArch.setScale(systemRadius(scaleState.mix) / baseSystemRadius);
-  scene.add(brandingArch.group);
-
-  // Optional player-controlled vehicle. It stays hidden until Spacecraft mode is opened.
-  const spacecraft = new Spacecraft();
-  scene.add(spacecraft.group);
+  const constellation = createConstellationText({ text: 'PJMC STUDENT' });
+  scene.add(constellation.group);
 
   /* ---------- simulation clock ---------- */
   const epochMs = Date.now();
@@ -324,7 +292,7 @@ async function init() {
 
     hud.setActiveBody(entry.id);
     hud.setFreeCam(false);
-    infoPanel.show(entry.data, entry.parentName, entry.body.distanceFromSunAU ?? null);
+    infoPanel.show(entry.data, entry.parentName);
     updateOrbitVisibility();
   }
 
@@ -345,12 +313,11 @@ async function init() {
     const startCam = camera.position.clone();
     const startTarget = controls.target.clone();
     const endCam = defaultCameraPos(scaleState.mix, new THREE.Vector3());
-    const endTarget = overviewTarget(scaleState.mix, new THREE.Vector3());
     activeCamTween = addTween({
       duration: 1.2,
       onUpdate(e) {
         camera.position.lerpVectors(startCam, endCam, e);
-        controls.target.lerpVectors(startTarget, endTarget, e);
+        controls.target.lerpVectors(startTarget, _v1.set(0, 0, 0), e);
       },
       onComplete() {
         focusTweenActive = false;
@@ -408,6 +375,7 @@ async function init() {
   const hud = createHUD(
     {
       onSelectBody: (id) => focusBody(entryById.get(id)),
+      onLanguageChange: (lang) => { infoPanel.setLanguage(lang); labels.setLanguage(lang); },
       onTogglePlay: () => {
         playing = !playing;
         hud.setPlaying(playing);
@@ -429,19 +397,22 @@ async function init() {
         orbitsEnabled = on;
         updateOrbitVisibility();
       },
-      onToggleLabels: (on) => labels.setEnabled(on),
-      onLanguageChange: (language) => {
-        labels.setLanguage(language);
-        infoPanel.setLanguage(language);
-        refreshDateReadout();
+      onToggleLabels: (on) => {
+        labelsEnabled = on;
+        labels.setEnabled(on);
       },
-      onSpacecraftToggle: () => {
-        if (spacecraftActive) exitSpacecraftMode();
-        else startSpacecraftMode();
+      onStartExplore: () => {
+        if (!explorerGame) return;
+        releaseFocus();
+        if (scaleMode !== 'viz') setScaleMode('viz');
+        hud.setVisible(false);
+        labels.setEnabled(false);
+        explorerGame.openMenu();
       },
     },
     bodyList,
   );
+  let labelsEnabled = true;
   hud.setActiveSpeed(speedIndex);
   hud.setPlaying(playing);
 
@@ -451,404 +422,19 @@ async function init() {
     (id) => focusBody(entryById.get(id)),
   );
 
-  /* ---------- PJMC SPACE EXPLORER flight mode ---------- */
-  let spacecraftActive = false;
-  let flightCameraMode = 'external';
-  let flightLaunchElapsed = 0;
-  let flightLaunchDuration = 3.8;
-  let flightElapsed = 0;
-  let flightSavedCamera = null;
-  let flightSavedTarget = null;
-  let flightSavedControlsEnabled = true;
-  let flightAutopilotTarget = null;
-  const keyboardFlightControls = new Set();
-  const touchFlightControls = new Set();
-  const gestureFlightControls = new Set();
-  let handGestureController = null;
-  let gestureControlActive = false;
-  let gestureControlBusy = false;
-  let gestureRequestId = 0;
-  const flightVelocity = new THREE.Vector3();
-  const flightForward = new THREE.Vector3();
-  const flightUp = new THREE.Vector3();
-  const flightTemp = new THREE.Vector3();
-  const launchStart = new THREE.Vector3();
-  const launchEnd = new THREE.Vector3();
-  const cockpitLocalOffset = new THREE.Vector3(0, 0.62, -1.02);
-  const flightLookRotation = new THREE.Quaternion();
-  const externalOrbitRotation = new THREE.Quaternion();
-  let flightLookYaw = 0;
-  let flightLookPitch = 0;
-  let externalCameraDistance = 8.2;
-  let flightLookDragging = false;
-  let flightLookPointerId = null;
-  let flightLookPointerX = 0;
-  let flightLookPointerY = 0;
-  const localForward = new THREE.Vector3(0, 0, -1);
-  const autopilotQuaternion = new THREE.Quaternion();
-  let spacecraftHud = null;
-
-  const keyControlMap = new Map([
-    ['w', 'forward'], ['arrowup', 'forward'],
-    ['s', 'back'], ['arrowdown', 'back'],
-    ['a', 'yawLeft'], ['arrowleft', 'yawLeft'],
-    ['d', 'yawRight'], ['arrowright', 'yawRight'],
-    ['q', 'down'], ['e', 'up'], ['shift', 'boost'],
-  ]);
-
-  function setFlightControl(control, pressed) {
-    if (pressed) touchFlightControls.add(control);
-    else touchFlightControls.delete(control);
+  /* ---------- explorer game ---------- */
+  let explorerGame = null;
+  try {
+    explorerGame = new ExplorerGame(scene, camera, renderer, planets, sun, controls);
+    const origExitExplore = explorerGame.exitToSolarSystem.bind(explorerGame);
+    explorerGame.exitToSolarSystem = () => {
+      origExitExplore();
+      hud.setVisible(true);
+      labels.setEnabled(labelsEnabled);
+    };
+  } catch (err) {
+    console.error('ExplorerGame initialization error:', err);
   }
-
-  function isFlightControlPressed(control) {
-    return keyboardFlightControls.has(control) || touchFlightControls.has(control) || gestureFlightControls.has(control);
-  }
-
-  function clearFlightControls() {
-    keyboardFlightControls.clear();
-    touchFlightControls.clear();
-    gestureFlightControls.clear();
-  }
-
-  function setFlightCameraMode(mode) {
-    flightCameraMode = mode === 'cockpit' ? 'cockpit' : 'external';
-    flightLookYaw = 0;
-    flightLookPitch = 0;
-    spacecraft.setCockpitMode(flightCameraMode === 'cockpit');
-    spacecraftHud?.setCameraMode(flightCameraMode);
-  }
-
-  function startSpacecraftMode() {
-    if (spacecraftActive) return;
-    if (activeCamTween) activeCamTween.done = true;
-    activeCamTween = null;
-    if (activeMixTween) {
-      activeMixTween.done = true;
-      const currentSystemRadius = systemRadius(scaleState.mix);
-      scaleState.mix = scaleMode === 'true' ? 1 : 0;
-      const targetSystemRadius = systemRadius(scaleState.mix);
-      const scaleCameraBy = targetSystemRadius / Math.max(currentSystemRadius, 1e-6);
-      camera.position.multiplyScalar(scaleCameraBy);
-      controls.target.multiplyScalar(scaleCameraBy);
-      activeMixTween = null;
-    }
-    focusTweenActive = false;
-    releaseFocus();
-    flightSavedControlsEnabled = controls.enabled;
-    controls.enabled = true;
-    flightSavedCamera = camera.position.clone();
-    flightSavedTarget = controls.target.clone();
-    flightSavedControlsEnabled = true;
-
-    const radius = systemRadius(scaleState.mix);
-    spacecraft.group.position.set(0, Math.max(2, radius * 0.12), radius * 1.52);
-    flightTemp.set(0, -spacecraft.group.position.y, -spacecraft.group.position.z).normalize();
-    spacecraft.group.quaternion.setFromUnitVectors(localForward, flightTemp);
-    spacecraft.group.visible = true;
-    setFlightCameraMode('external');
-    flightVelocity.set(0, 0, 0);
-    externalCameraDistance = 8.2;
-    flightLaunchElapsed = 0;
-    flightElapsed = 0;
-    flightLaunchDuration = THREE.MathUtils.clamp(radius * 0.36 / 28, 2.6, 5.2);
-    launchStart.copy(spacecraft.group.position);
-    launchEnd.set(0, Math.max(1.5, radius * 0.075), radius * 1.14);
-    flightAutopilotTarget = null;
-    spacecraftActive = true;
-    document.body.classList.add('spacecraft-active');
-    hud.setSpacecraftActive(true);
-    spacecraftHud?.setVisible(true);
-    spacecraftHud?.setAutopilot(false);
-    spacecraftHud?.setStatus('LAUNCH SEQUENCE');
-    spacecraftHud?.setSpeed(0);
-    spacecraftHud?.setCameraMode(flightCameraMode);
-    updateFlightCamera();
-  }
-
-  function exitSpacecraftMode() {
-    if (!spacecraftActive) return;
-    spacecraftActive = false;
-    spacecraft.group.visible = false;
-    setFlightCameraMode('external');
-    flightAutopilotTarget = null;
-    flightVelocity.set(0, 0, 0);
-    clearFlightControls();
-    document.body.classList.remove('spacecraft-active');
-    hud.setSpacecraftActive(false);
-    spacecraftHud?.setVisible(false);
-    gestureRequestId += 1;
-    gestureControlActive = false;
-    gestureControlBusy = false;
-    if (handGestureController) {
-      handGestureController.stop();
-      handGestureController = null;
-    }
-    spacecraftHud?.setGestureEnabled(false);
-    gestureFlightControls.clear();
-    controls.enabled = flightSavedControlsEnabled;
-    if (flightSavedCamera) camera.position.copy(flightSavedCamera);
-    if (flightSavedTarget) controls.target.copy(flightSavedTarget);
-    controls.update();
-    flightSavedCamera = null;
-    flightSavedTarget = null;
-  }
-
-  function beginAutopilot(targetId) {
-    if (!spacecraftActive) return;
-    if (!targetId) {
-      flightAutopilotTarget = null;
-      spacecraftHud?.setAutopilot(false);
-      spacecraftHud?.setStatus('MANUAL FLIGHT');
-      return;
-    }
-    const entry = entryById.get(targetId);
-    if (!entry || entry.id === 'sun') return;
-    flightAutopilotTarget = entry;
-    clearFlightControls();
-    spacecraftHud?.setAutopilot(true, entry.id);
-    spacecraftHud?.setStatus(`AUTO-PILOT · ${entry.name.toUpperCase()}`);
-  }
-
-  function updateFlightCamera() {
-    if (!spacecraftActive) return;
-    if (flightCameraMode === 'cockpit') {
-      camera.position.copy(spacecraft.group.localToWorld(cockpitLocalOffset.clone()));
-      flightLookRotation.setFromEuler(new THREE.Euler(flightLookPitch - 0.12, flightLookYaw, 0, 'YXZ'));
-      camera.quaternion.copy(spacecraft.group.quaternion).multiply(flightLookRotation);
-    } else {
-      externalOrbitRotation.setFromEuler(new THREE.Euler(flightLookPitch, flightLookYaw, 0, 'YXZ'));
-      const offset = new THREE.Vector3(0, 2.9, externalCameraDistance).applyQuaternion(externalOrbitRotation);
-      camera.position.copy(spacecraft.group.localToWorld(offset));
-      camera.lookAt(spacecraft.group.position);
-    }
-    camera.updateMatrixWorld();
-  }
-
-  function updateSpacecraftFlight(dt) {
-    if (!spacecraftActive) return;
-    flightElapsed += dt;
-    spacecraft.update(dt, flightElapsed);
-
-    if (flightLaunchElapsed < flightLaunchDuration) {
-      flightLaunchElapsed += dt;
-      const t = THREE.MathUtils.clamp(flightLaunchElapsed / flightLaunchDuration, 0, 1);
-      const eased = t * t * (3 - 2 * t);
-      spacecraft.group.position.lerpVectors(launchStart, launchEnd, eased);
-      if (t >= 1) spacecraftHud?.setStatus('FLIGHT READY · MANUAL CONTROL');
-      updateFlightCamera();
-      spacecraftHud?.setSpeed(launchStart.distanceTo(launchEnd) / flightLaunchDuration * (6 * t * (1 - t)));
-      return;
-    }
-
-    const scaleFactor = Math.max(1, systemRadius(scaleState.mix) / 150);
-    const maxSpeed = (isFlightControlPressed('boost') ? 54 : 26) * scaleFactor;
-    const acceleration = (isFlightControlPressed('boost') ? 42 : 18) * scaleFactor;
-
-    if (flightAutopilotTarget) {
-      const target = flightAutopilotTarget;
-      target.body.getWorldPosition(_v1);
-      const toTarget = _v2.copy(_v1).sub(spacecraft.group.position);
-      const approachDistance = Math.max((target.body.radiusWorld || 0.5) * 9, 5 * scaleFactor);
-      const desiredPosition = _v1.clone().addScaledVector(toTarget.clone().normalize(), -approachDistance);
-      const delta = desiredPosition.sub(spacecraft.group.position);
-      const distance = delta.length();
-      const directionToPlanet = toTarget.lengthSq() > 1e-8 ? toTarget.normalize() : localForward.clone().applyQuaternion(spacecraft.group.quaternion);
-      autopilotQuaternion.setFromUnitVectors(localForward, directionToPlanet);
-      spacecraft.group.quaternion.slerp(autopilotQuaternion, Math.min(1, dt * 1.25));
-      const autopilotSpeed = Math.min(maxSpeed, Math.max(3 * scaleFactor, distance * 1.6));
-      if (distance < Math.max(1.2 * scaleFactor, approachDistance * 0.08)) {
-        spacecraft.group.position.copy(desiredPosition);
-        flightVelocity.set(0, 0, 0);
-        flightAutopilotTarget = null;
-        spacecraftHud?.setAutopilot(false);
-        spacecraftHud?.setStatus(`ARRIVED · ${target.name.toUpperCase()}`);
-      } else {
-        flightVelocity.copy(delta.normalize()).multiplyScalar(autopilotSpeed);
-        spacecraft.group.position.addScaledVector(flightVelocity, dt);
-      }
-    } else {
-      const yaw = (Number(isFlightControlPressed('yawRight')) - Number(isFlightControlPressed('yawLeft'))) * 0.9;
-      spacecraft.group.rotateY(yaw * dt);
-      const forwardInput = Number(isFlightControlPressed('forward')) - Number(isFlightControlPressed('back'));
-      const verticalInput = Number(isFlightControlPressed('up')) - Number(isFlightControlPressed('down'));
-      flightForward.set(0, 0, -1).applyQuaternion(spacecraft.group.quaternion).normalize();
-      flightUp.set(0, 1, 0).applyQuaternion(spacecraft.group.quaternion).normalize();
-      flightVelocity.addScaledVector(flightForward, forwardInput * acceleration * dt);
-      flightVelocity.addScaledVector(flightUp, verticalInput * acceleration * 0.72 * dt);
-      flightVelocity.multiplyScalar(Math.exp(-0.3 * dt));
-      if (flightVelocity.length() > maxSpeed) flightVelocity.setLength(maxSpeed);
-      spacecraft.group.position.addScaledVector(flightVelocity, dt);
-    }
-
-    spacecraftHud?.setSpeed(flightVelocity.length());
-    updateFlightCamera();
-  }
-
-  async function toggleHandGestureControl() {
-    if (gestureControlBusy) return;
-    gestureControlBusy = true;
-    if (gestureControlActive) {
-      gestureControlActive = false;
-      gestureRequestId += 1;
-      gestureFlightControls.clear();
-      await handGestureController?.stop();
-      handGestureController = null;
-      spacecraftHud?.setGestureEnabled(false);
-      spacecraftHud?.setGestureStatus('CAMERA OFF');
-      gestureControlBusy = false;
-      return;
-    }
-
-    const requestId = ++gestureRequestId;
-    let controller = null;
-    try {
-      controller = new HandGestureController({
-        onFrame: (frame) => {
-          gestureFlightControls.clear();
-          for (const control of frame.controls || []) gestureFlightControls.add(control);
-          if (spacecraftActive && flightCameraMode === 'external' && frame.zoomDelta) {
-            externalCameraDistance = THREE.MathUtils.clamp(
-              externalCameraDistance * Math.exp(-frame.zoomDelta * 3.5),
-              3.5,
-              28,
-            );
-            updateFlightCamera();
-          }
-        },
-        onStatus: (message) => spacecraftHud?.setGestureStatus(message),
-      });
-      handGestureController = controller;
-      spacecraftHud?.setGestureVideo(controller.video);
-      spacecraftHud?.setGestureEnabled(true);
-      await controller.start();
-      if (requestId !== gestureRequestId || !spacecraftActive) {
-        await controller.stop();
-        if (handGestureController === controller) handGestureController = null;
-        spacecraftHud?.setGestureEnabled(false);
-        gestureControlBusy = false;
-        return;
-      }
-      gestureControlActive = true;
-      gestureControlBusy = false;
-    } catch (error) {
-      gestureFlightControls.clear();
-      await controller?.stop();
-      if (handGestureController === controller) handGestureController = null;
-      if (requestId === gestureRequestId && spacecraftActive) {
-        gestureControlActive = false;
-        spacecraftHud?.setGestureEnabled(false);
-        spacecraftHud?.setGestureStatus('CAMERA OFF');
-        window.alert(`Hand control could not start. ${error?.message || 'Check camera permission and internet connection.'}`);
-      }
-      // Do not disturb a newer gesture session if the previous start was cancelled.
-      if (requestId === gestureRequestId) gestureControlBusy = false;
-    }
-  }
-
-  spacecraftHud = createSpacecraftHUD({
-    targets: entries.filter((entry) => !entry.isMoon && entry.id !== 'sun').map((entry) => ({ id: entry.id, name: entry.name })),
-    onCameraToggle: () => setFlightCameraMode(flightCameraMode === 'external' ? 'cockpit' : 'external'),
-    onExit: exitSpacecraftMode,
-    onAutopilot: beginAutopilot,
-    onControl: setFlightControl,
-    onStop: () => { clearFlightControls(); flightVelocity.set(0, 0, 0); flightAutopilotTarget = null; spacecraftHud?.setAutopilot(false); },
-    onGestureToggle: toggleHandGestureControl,
-  });
-  window.addEventListener('keydown', (event) => {
-    if (!spacecraftActive) return;
-    if (event.key === 'Escape') {
-      exitSpacecraftMode();
-      return;
-    }
-    const control = keyControlMap.get(event.key.toLowerCase());
-    if (control) {
-      event.preventDefault();
-      keyboardFlightControls.add(control);
-    }
-  });
-  window.addEventListener('keyup', (event) => {
-    const control = keyControlMap.get(event.key.toLowerCase());
-    if (control) keyboardFlightControls.delete(control);
-  });
-  window.addEventListener('blur', clearFlightControls);
-
-  // Pointer look, external-camera wheel zoom, and mobile two-finger pinch zoom.
-  const activeFlightPointers = new Map();
-  let lastPinchDistance = null;
-  renderer.domElement.addEventListener('pointerdown', (event) => {
-    if (!spacecraftActive || event.button > 0) return;
-    if (event.pointerType === 'touch') {
-      activeFlightPointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
-      try { renderer.domElement.setPointerCapture(event.pointerId); } catch {}
-      if (activeFlightPointers.size >= 2) {
-        const pts = [...activeFlightPointers.values()];
-        lastPinchDistance = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
-        flightLookDragging = false;
-        flightLookPointerId = null;
-        return;
-      }
-    }
-    flightLookDragging = true;
-    flightLookPointerId = event.pointerId;
-    flightLookPointerX = event.clientX;
-    flightLookPointerY = event.clientY;
-    try { renderer.domElement.setPointerCapture(event.pointerId); } catch {}
-  });
-  renderer.domElement.addEventListener('pointermove', (event) => {
-    if (!spacecraftActive) return;
-    if (event.pointerType === 'touch' && activeFlightPointers.has(event.pointerId)) {
-      activeFlightPointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
-      if (activeFlightPointers.size >= 2) {
-        const pts = [...activeFlightPointers.values()];
-        const distance = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
-        if (lastPinchDistance !== null && flightCameraMode === 'external') {
-          const change = distance - lastPinchDistance;
-          externalCameraDistance = THREE.MathUtils.clamp(externalCameraDistance * Math.exp(-change * 0.006), 3.5, 28);
-          updateFlightCamera();
-        }
-        lastPinchDistance = distance;
-        return;
-      }
-    }
-    if (!flightLookDragging || event.pointerId !== flightLookPointerId) return;
-    const dx = event.clientX - flightLookPointerX;
-    const dy = event.clientY - flightLookPointerY;
-    flightLookPointerX = event.clientX;
-    flightLookPointerY = event.clientY;
-    flightLookYaw = THREE.MathUtils.euclideanModulo(flightLookYaw - dx * 0.004, Math.PI * 2);
-    flightLookPitch = THREE.MathUtils.clamp(flightLookPitch + dy * 0.0035, -1.08, 1.08);
-    updateFlightCamera();
-  });
-  const stopFlightLook = (event) => {
-    if (event?.pointerType === 'touch' && activeFlightPointers.has(event.pointerId)) {
-      activeFlightPointers.delete(event.pointerId);
-      if (activeFlightPointers.size < 2) lastPinchDistance = null;
-      if (activeFlightPointers.size === 1) {
-        const [id, point] = [...activeFlightPointers.entries()][0];
-        flightLookDragging = true;
-        flightLookPointerId = id;
-        flightLookPointerX = point.x;
-        flightLookPointerY = point.y;
-      } else {
-        flightLookDragging = false;
-        flightLookPointerId = null;
-      }
-      return;
-    }
-    if (event && flightLookPointerId !== null && event.pointerId !== flightLookPointerId) return;
-    flightLookDragging = false;
-    flightLookPointerId = null;
-  };
-  renderer.domElement.addEventListener('pointerup', stopFlightLook);
-  renderer.domElement.addEventListener('pointercancel', stopFlightLook);
-  renderer.domElement.addEventListener('lostpointercapture', stopFlightLook);
-  renderer.domElement.addEventListener('wheel', (event) => {
-    if (!spacecraftActive || flightCameraMode !== 'external') return;
-    event.preventDefault();
-    externalCameraDistance = THREE.MathUtils.clamp(externalCameraDistance * Math.exp(event.deltaY * 0.001), 3.5, 28);
-    updateFlightCamera();
-  }, { passive: false });
 
   /* ---------- picking ---------- */
   const raycaster = new THREE.Raycaster();
@@ -862,9 +448,9 @@ async function init() {
     downY = e.clientY;
   });
   renderer.domElement.addEventListener('pointerup', (e) => {
-    if (spacecraftActive) { pointerDown = false; return; }
     if (!pointerDown) return;
     pointerDown = false;
+    if (explorerGame && explorerGame.state !== 'INACTIVE') return;
     if (Math.hypot(e.clientX - downX, e.clientY - downY) > 6) return; // drag, not click
     pointer.set((e.clientX / window.innerWidth) * 2 - 1, -(e.clientY / window.innerHeight) * 2 + 1);
     raycaster.setFromCamera(pointer, camera);
@@ -893,13 +479,8 @@ async function init() {
 
   function refreshDateReadout() {
     const d = new Date(epochMs + simMs);
-    const isHindi = hud.getLanguage() === 'hi';
-    const formatted = new Intl.DateTimeFormat(isHindi ? 'hi-IN' : 'en-IN', {
-      timeZone: 'Asia/Kolkata',
-      year: 'numeric', month: 'short', day: '2-digit',
-      hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true,
-    }).format(d);
-    hud.setDate(`${formatted} IST`);
+    const ist = new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).format(d);
+    hud.setDate(`${ist} IST`);
   }
 
   function animate() {
@@ -915,14 +496,14 @@ async function init() {
     sun.update(days, scaleAPI, dt);
     for (const planet of planets) planet.update(days, scaleAPI);
     belt.update(days, scaleAPI.orbitRadiusOfAU);
-    brandingArch.setScale(systemRadius(scaleState.mix) / baseSystemRadius);
+    constellation.update(dt, scaleState.mix);
 
-    if (spacecraftActive) {
-      updateSpacecraftFlight(dt);
+    if (explorerGame && explorerGame.state !== 'INACTIVE') {
+      explorerGame.update(dt);
     } else {
       followUpdate();
       controls.update();
-      labels.update(camera, focusSystemId());
+      if (labelsEnabled) labels.update(camera, focusSystemId());
     }
 
     if (composer) composer.render();
@@ -940,8 +521,7 @@ async function init() {
   sun.update(daysSinceJ2000(), scaleAPI, 0);
   for (const planet of planets) planet.update(daysSinceJ2000(), scaleAPI);
   belt.update(daysSinceJ2000(), scaleAPI.orbitRadiusOfAU);
-  brandingArch.setScale(systemRadius(scaleState.mix) / baseSystemRadius);
-  refreshDateReadout();
+  constellation.update(0, scaleState.mix);
 
   renderer.setAnimationLoop(animate);
   document.getElementById('loading').classList.add('hidden');

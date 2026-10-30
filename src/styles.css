@@ -63,24 +63,6 @@ body {
   text-align: center;
 }
 
-.loading-brand {
-  font-size: clamp(42px, 10vw, 76px);
-  line-height: 1;
-  font-weight: 900;
-  letter-spacing: 0.18em;
-  color: #c8f5ff;
-  text-shadow: 0 0 14px rgba(95, 212, 255, 0.8), 0 0 44px rgba(45, 146, 255, 0.55);
-  margin-bottom: 10px;
-}
-
-.loading-tagline {
-  margin-top: 12px;
-  font-size: 8px;
-  line-height: 1.7;
-  letter-spacing: 0.18em;
-  color: var(--text-dim);
-}
-
 .loading-title {
   font-size: 15px;
   letter-spacing: 0.45em;
@@ -134,20 +116,25 @@ body {
   border: 1px solid var(--line);
   padding: 7px 12px;
   cursor: pointer;
-  backdrop-filter: blur(8px);
-  transition: color 0.15s, border-color 0.15s, background 0.15s;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 3px;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   white-space: nowrap;
 }
 
 .hud-btn:hover {
   color: var(--text);
   border-color: var(--line-strong);
+  box-shadow: 0 0 12px rgba(95, 212, 255, 0.2);
+  transform: translateY(-1px);
 }
 
 .hud-btn.active {
   color: var(--accent);
   background: var(--accent-dim);
   border-color: var(--line-strong);
+  box-shadow: inset 0 0 8px rgba(95, 212, 255, 0.15);
 }
 
 /* ---------------- top bar ---------------- */
@@ -167,111 +154,22 @@ body {
 
 .app-title {
   display: flex;
-  align-items: center;
-  gap: 10px;
+  align-items: baseline;
+  gap: 8px;
   pointer-events: auto;
-  flex-shrink: 0;
 }
-
-.brand-mark {
-  width: 39px;
-  height: 39px;
-  display: grid;
-  place-items: center;
-  border: 1px solid var(--line-strong);
-  border-radius: 50%;
-  color: #d6f7ff;
-  font-family: Arial, sans-serif;
-  font-size: 25px;
-  font-weight: 900;
-  line-height: 1;
-  text-shadow: 0 0 12px rgba(95, 212, 255, 0.9);
-  box-shadow: inset 0 0 12px rgba(95, 212, 255, 0.1), 0 0 14px rgba(95, 212, 255, 0.12);
-}
-
-.brand-copy { display: flex; flex-direction: column; gap: 4px; }
-.brand-title-line { display: flex; align-items: baseline; gap: 9px; }
 
 .title-main {
-  font-size: 16px;
-  font-weight: 900;
-  letter-spacing: 0.22em;
+  font-size: 14px;
+  letter-spacing: 0.4em;
   color: var(--text);
-  text-shadow: 0 0 10px rgba(95, 212, 255, 0.15);
 }
 
 .title-sub {
-  font-size: 10px;
-  letter-spacing: 0.22em;
+  font-size: 11px;
+  letter-spacing: 0.34em;
   color: var(--accent);
 }
-
-.title-tagline {
-  font-size: 8px;
-  letter-spacing: 0.17em;
-  color: var(--text-dim);
-}
-
-.planet-search-wrap {
-  position: relative;
-  z-index: 18;
-  display: flex;
-  align-items: center;
-  flex: 1 1 210px;
-  max-width: 300px;
-  min-width: 175px;
-  pointer-events: auto;
-  background: rgba(8, 14, 22, 0.88);
-  border: 1px solid var(--line);
-  backdrop-filter: blur(9px);
-}
-
-.search-icon { padding: 0 0 0 11px; color: var(--accent); font-size: 20px; line-height: 1; }
-.planet-search {
-  width: 100%;
-  min-width: 0;
-  padding: 10px 11px 10px 8px;
-  border: 0;
-  outline: none;
-  color: var(--text);
-  background: transparent;
-  font: 10px var(--mono);
-  letter-spacing: 0.05em;
-}
-.planet-search::placeholder { color: var(--text-dim); opacity: 0.9; }
-.planet-search::-webkit-search-cancel-button { cursor: pointer; }
-.search-results {
-  position: absolute;
-  top: calc(100% + 5px);
-  left: 0;
-  right: 0;
-  max-height: min(52vh, 390px);
-  overflow-y: auto;
-  border: 1px solid var(--line-strong);
-  background: rgba(4, 9, 17, 0.97);
-  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(14px);
-}
-.search-results[hidden] { display: none; }
-.search-result {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 10px 12px;
-  border: 0;
-  border-bottom: 1px solid rgba(120, 200, 255, 0.1);
-  background: transparent;
-  color: var(--text);
-  cursor: pointer;
-  text-align: left;
-  font-family: var(--mono);
-}
-.search-result:hover, .search-result:focus-visible { background: var(--accent-dim); outline: none; }
-.search-result-name { font-size: 11px; }
-.search-result-secondary { font-size: 9px; color: var(--text-dim); }
-.search-empty { padding: 12px; color: var(--text-dim); font-size: 10px; }
 
 .view-controls {
   display: flex;
@@ -313,6 +211,13 @@ body {
   border-bottom: 1px solid var(--line);
 }
 
+.body-search {
+  width: 100%; padding: 10px 11px; color: var(--text); background: rgba(2, 7, 13, .92);
+  border: 0; border-bottom: 1px solid var(--line); outline: none; font: 11px var(--mono);
+}
+.body-search:focus { border-bottom-color: var(--accent); box-shadow: inset 0 -1px var(--accent); }
+.body-search::placeholder { color: var(--text-dim); }
+.language-btn { color: var(--accent); }
 .body-list-items {
   overflow-y: auto;
   scrollbar-width: thin;
@@ -518,26 +423,6 @@ body {
   border-top: 1px solid var(--line);
 }
 
-.info-brand-stamp {
-  padding: 9px 14px 11px;
-  border-top: 1px solid rgba(120, 200, 255, 0.12);
-  background: rgba(2, 9, 17, 0.45);
-}
-.info-brand-title { color: var(--accent); font-size: 9px; font-weight: 800; letter-spacing: 0.16em; }
-.info-brand-subtitle { margin-top: 4px; color: var(--text-dim); font-size: 8px; letter-spacing: 0.06em; line-height: 1.5; }
-
-.brand-footer {
-  position: absolute;
-  left: 18px;
-  bottom: 22px;
-  max-width: 230px;
-  color: var(--text-dim);
-  pointer-events: none;
-  text-shadow: 0 1px 5px #000;
-}
-.brand-footer-title { color: rgba(95, 212, 255, 0.85); font-size: 8px; letter-spacing: 0.17em; }
-.brand-footer-subtitle { margin-top: 4px; font-size: 8px; letter-spacing: 0.04em; opacity: 0.8; }
-
 /* ------------------------------------------------------------------ */
 /* Floating body labels                                                 */
 /* ------------------------------------------------------------------ */
@@ -565,10 +450,12 @@ body {
   user-select: none;
   -webkit-user-select: none;
   will-change: transform;
+  transition: color 0.18s ease, text-shadow 0.18s ease;
 }
 
 .body-label:hover {
   color: var(--accent);
+  text-shadow: 0 0 8px rgba(95, 212, 255, 0.85);
 }
 
 .body-label.moon-label {
@@ -582,24 +469,15 @@ body {
 
 @media (max-width: 760px) {
   .top-bar {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    padding: 9px 10px;
+    padding: 10px;
     gap: 8px;
-    align-items: center;
+    align-items: flex-start;
   }
-
-  .app-title { grid-column: 1 / 2; grid-row: 1; gap: 7px; }
-  .brand-mark { width: 32px; height: 32px; font-size: 21px; }
-  .brand-title-line { gap: 6px; flex-wrap: wrap; }
-  .title-main { font-size: 13px; letter-spacing: 0.16em; }
-  .title-sub { font-size: 8px; letter-spacing: 0.1em; }
-  .title-tagline { font-size: 7px; letter-spacing: 0.08em; }
-  .planet-search-wrap { grid-column: 1 / -1; grid-row: 2; max-width: none; min-width: 0; width: 100%; }
-  .planet-search { padding-top: 8px; padding-bottom: 8px; }
-  .view-controls { grid-column: 1 / -1; grid-row: 3; justify-content: flex-start; gap: 5px; }
-  .language-btn { margin-left: auto; }
-  .brand-footer { display: none; }
+  .app-title { width: 100%; }
+  .title-main { font-size: 11px; letter-spacing: .22em; }
+  .title-sub { font-size: 9px; letter-spacing: .18em; }
+  .view-controls { justify-content: flex-start; gap: 5px; }
+  .view-controls .hud-btn { font-size: 9px; padding: 6px 7px; letter-spacing: .04em; }
 
   .hud-btn {
     font-size: 10px;
@@ -608,9 +486,9 @@ body {
 
   .body-list {
     display: none;
-    top: 194px;
+    top: 122px;
     left: 12px;
-    width: 160px;
+    width: min(220px, calc(100vw - 24px));
   }
 
   .body-list.open {
@@ -619,7 +497,6 @@ body {
 
   .bodies-toggle {
     display: block;
-    top: 154px;
   }
 
   .info-panel {
@@ -638,429 +515,974 @@ body {
 
   .time-bar {
     gap: 6px;
-    padding: 10px 8px 12px;
+    padding: 8px 6px 10px;
   }
 
-  .sim-date {
-    font-size: 10px;
-    min-width: 15ch;
-    letter-spacing: 0.04em;
-  }
-
-  .sim-date-label { font-size: 7px; }
-  .speed-btn { padding-left: 6px; padding-right: 6px; font-size: 8px; letter-spacing: 0.02em; }
-  .info-panel { bottom: 142px; max-height: 34vh; }
+  .sim-date { font-size: 10px; letter-spacing: 0; min-width: 0; }
+  .sim-date-wrap { padding: 4px 7px; }
+  .sim-date-label { letter-spacing: .08em; }
+  .speed-btn { padding: 6px 5px; font-size: 8px; letter-spacing: 0; }
+  .time-bar { max-height: 125px; overflow: visible; }
 }
 
-@media (max-width: 420px) {
-  .view-controls { flex-wrap: wrap; }
-  .view-controls .hud-btn { font-size: 8px; padding: 6px; letter-spacing: 0.04em; }
-  .speed-group { order: 2; }
-  .date-group { order: 3; }
-  .brand-mark { display: none; }
-  .title-main { font-size: 12px; }
-  .title-sub { font-size: 7px; }
-  .bodies-toggle { top: 185px; }
-  .body-list { top: 224px; }
+/* ================================================================== */
+/* PJMC SPACE EXPLORER — GAME MODE STYLES                             */
+/* ================================================================== */
+
+/* ---------- 🚀 Explore Space Button in Top Bar ---------- */
+.hud-btn.explore-btn {
+  background: linear-gradient(135deg, rgba(0, 100, 220, 0.45) 0%, rgba(0, 220, 255, 0.3) 100%);
+  border: 1px solid rgba(0, 235, 255, 0.75);
+  color: #cceeff;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  padding: 6px 14px;
+  box-shadow: 0 0 14px rgba(0, 180, 255, 0.35), inset 0 0 8px rgba(0, 235, 255, 0.2);
+  transition: all 0.22s ease-out;
+  border-radius: 4px;
+  position: relative;
+  overflow: hidden;
 }
 
-/* ------------------------------------------------------------------ */
-/* PJMC SPACE EXPLORER flight mode                                     */
-/* ------------------------------------------------------------------ */
-
-.spacecraft-btn {
-  color: #d6f7ff;
-  border-color: rgba(69, 180, 255, 0.6);
-  background: linear-gradient(135deg, rgba(13, 60, 94, 0.88), rgba(4, 15, 29, 0.92));
-  box-shadow: inset 0 0 14px rgba(60, 178, 255, 0.08), 0 0 12px rgba(47, 153, 255, 0.08);
-}
-.spacecraft-btn.active {
-  color: #fff;
-  border-color: #70d7ff;
-  background: linear-gradient(135deg, rgba(18, 119, 174, 0.94), rgba(5, 35, 64, 0.96));
-  box-shadow: 0 0 16px rgba(47, 173, 255, 0.25);
+.hud-btn.explore-btn:hover {
+  background: linear-gradient(135deg, rgba(0, 130, 255, 0.65) 0%, rgba(0, 240, 255, 0.45) 100%);
+  border-color: #00ffff;
+  color: #ffffff;
+  box-shadow: 0 0 22px rgba(0, 220, 255, 0.7), inset 0 0 12px rgba(0, 255, 255, 0.35);
+  transform: translateY(-1px) scale(1.02);
 }
 
-body.spacecraft-active .body-list,
-body.spacecraft-active .bodies-toggle,
-body.spacecraft-active .planet-search-wrap,
-body.spacecraft-active .time-bar,
-body.spacecraft-active .brand-footer,
-body.spacecraft-active .info-panel,
-body.spacecraft-active #labels {
-  display: none !important;
+.hud-btn.explore-btn:active {
+  transform: translateY(1px) scale(0.98);
 }
-body.spacecraft-active .top-bar { flex-wrap: nowrap; }
-body.spacecraft-active #app canvas { touch-action: none; cursor: grab; }
-body.spacecraft-active #app canvas:active { cursor: grabbing; }
-body.spacecraft-active .view-controls { margin-left: auto; }
-body.spacecraft-active .view-controls .hud-btn:not(.spacecraft-btn) { display: none; }
 
-.spacecraft-flight-hud {
+/* ---------- Launch Cinematic Overlay ---------- */
+.pjmc-launch-overlay {
   position: fixed;
-  z-index: 25;
-  top: 78px;
-  right: 18px;
-  width: min(322px, calc(100vw - 24px));
-  padding: 15px;
-  color: #e6f6ff;
-  background: linear-gradient(145deg, rgba(6, 18, 31, 0.92), rgba(3, 9, 18, 0.84));
-  border: 1px solid rgba(80, 190, 255, 0.36);
-  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.38), inset 0 0 26px rgba(37, 126, 194, 0.08);
-  backdrop-filter: blur(12px);
+  inset: 0;
+  z-index: 150;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
   font-family: var(--mono);
-  pointer-events: auto;
 }
-.spacecraft-flight-hud[hidden] { display: none !important; }
-.flight-panel-heading {
+
+.pjmc-countdown-box {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid rgba(100, 190, 245, 0.18);
+  align-items: center;
+  gap: 12px;
+  text-align: center;
 }
-.flight-panel-title {
-  font-size: 12px;
+
+.pjmc-countdown-number {
+  font-size: clamp(4rem, 12vw, 8rem);
   font-weight: 900;
-  letter-spacing: 0.17em;
-  color: #dff8ff;
-  text-shadow: 0 0 12px rgba(62, 183, 255, 0.5);
+  color: #00f0ff;
+  text-shadow: 0 0 25px rgba(0, 240, 255, 0.8), 0 0 50px rgba(0, 180, 255, 0.5);
+  animation: pjmcCountdownPulse 0.9s cubic-bezier(0.18, 0.89, 0.32, 1.28) infinite;
+  line-height: 1;
 }
-.flight-status {
-  color: #61ceff;
-  font-size: 9px;
-  letter-spacing: 0.11em;
-  line-height: 1.5;
+
+.pjmc-countdown-sub {
+  font-size: clamp(0.75rem, 2.5vw, 1.25rem);
+  letter-spacing: 0.35em;
+  color: rgba(220, 245, 255, 0.85);
+  text-shadow: 0 0 10px rgba(0, 200, 255, 0.4);
 }
-.flight-instruments {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  padding: 11px 0;
+
+@keyframes pjmcCountdownPulse {
+  0% { transform: scale(0.85); opacity: 0.6; }
+  50% { transform: scale(1.06); opacity: 1; }
+  100% { transform: scale(1); opacity: 0.85; }
 }
-.flight-instrument {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 0;
-  padding: 9px;
-  background: rgba(57, 135, 181, 0.09);
-  border: 1px solid rgba(100, 190, 245, 0.14);
-}
-.flight-instrument-label { color: #83a9bd; font-size: 8px; letter-spacing: 0.16em; }
-.flight-instrument strong { color: #f0fbff; font-size: 13px; letter-spacing: 0.03em; font-weight: 700; }
-.flight-navigation { display: grid; gap: 8px; }
-.flight-label {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  color: #83a9bd;
-  font-size: 8px;
-  letter-spacing: 0.17em;
-}
-.flight-target-select {
-  width: 100%;
-  min-height: 35px;
-  padding: 8px 9px;
-  color: #e8f8ff;
-  background: #071623;
-  border: 1px solid rgba(100, 190, 245, 0.3);
-  font: 10px var(--mono);
-  outline: none;
-}
-.flight-target-select option { color: #e8f8ff; background: #071623; }
-.flight-target-select.needs-selection { border-color: #ffc96b; box-shadow: 0 0 0 2px rgba(255, 201, 107, 0.12); }
-.flight-action-btn, .flight-exit-btn {
-  min-height: 35px;
-  padding: 8px 10px;
-  color: #bfeaff;
-  background: rgba(20, 77, 112, 0.45);
-  border: 1px solid rgba(83, 184, 245, 0.36);
-  font: 9px var(--mono);
-  letter-spacing: 0.1em;
+
+.pjmc-skip-btn {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  pointer-events: auto;
+  background: rgba(8, 20, 36, 0.85);
+  border: 1px solid rgba(0, 230, 255, 0.6);
+  color: #00f0ff;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  padding: 10px 18px;
+  min-height: 48px;
+  min-width: 48px;
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s, transform 0.15s;
+  border-radius: 4px;
+  box-shadow: 0 0 14px rgba(0, 200, 255, 0.3);
+  transition: all 0.2s ease;
+  z-index: 160;
 }
-.flight-action-btn:hover, .flight-exit-btn:hover { background: rgba(26, 112, 157, 0.58); border-color: #79d7ff; }
-.flight-action-btn:active, .flight-exit-btn:active { transform: translateY(1px); }
-.flight-action-btn.active { color: #04111e; background: #76dcff; border-color: #a4ecff; }
-.flight-key-legend {
-  margin-top: 11px;
-  padding-top: 10px;
-  border-top: 1px solid rgba(100, 190, 245, 0.16);
-  color: #82a3b8;
-  font-size: 8px;
-  line-height: 1.9;
-  letter-spacing: 0.04em;
+
+.pjmc-skip-btn:hover {
+  background: rgba(0, 200, 255, 0.25);
+  border-color: #00ffff;
+  color: #ffffff;
+  box-shadow: 0 0 20px rgba(0, 240, 255, 0.6);
 }
-.flight-hide-ui-btn { width: 100%; margin-top: 9px; min-height: 32px; color: #b8eaff; background: rgba(7, 34, 54, 0.72); border: 1px solid rgba(83, 184, 245, 0.28); font: 9px var(--mono); letter-spacing: 0.1em; cursor: pointer; }
-.flight-hide-ui-btn:hover { border-color: #79d7ff; background: rgba(26, 112, 157, 0.58); }
-.flight-restore-btn { position: fixed; z-index: 31; top: max(12px, env(safe-area-inset-top)); right: max(12px, env(safe-area-inset-right)); min-height: 36px; padding: 9px 12px; color: #dff8ff; background: linear-gradient(135deg, rgba(5, 24, 39, 0.92), rgba(4, 12, 22, 0.88)); border: 1px solid rgba(83, 184, 245, 0.6); box-shadow: 0 6px 22px rgba(0, 0, 0, 0.3), inset 0 0 12px rgba(60, 178, 255, 0.08); backdrop-filter: blur(10px); font: 9px var(--mono); letter-spacing: 0.08em; cursor: pointer; }
-.flight-restore-btn:hover { border-color: #a2e6ff; background: rgba(26, 112, 157, 0.85); }
-.flight-restore-btn[hidden] { display: none !important; }
-.flight-exit-btn { display: none; width: 100%; margin-top: 10px; color: #ffc7bd; border-color: rgba(255, 119, 100, 0.35); background: rgba(90, 25, 29, 0.42); }
-.spacecraft-touch-controls { display: none; }
-.spacecraft-touch-controls[hidden] { display: none !important; }
-.flight-dpad { display: grid; grid-template-areas: '. up .' 'left . right' '. down .'; grid-template-columns: repeat(3, 48px); grid-template-rows: repeat(3, 46px); gap: 5px; }
-.flight-key {
-  display: grid;
-  place-items: center;
-  min-width: 0;
-  min-height: 0;
-  border: 1px solid rgba(94, 202, 255, 0.38);
-  color: #d9f6ff;
-  background: rgba(5, 28, 46, 0.82);
-  box-shadow: inset 0 0 12px rgba(51, 159, 223, 0.09);
-  font: 13px var(--mono);
-  touch-action: none;
+
+/* ---------- Flight HUD & Telemetry Header ---------- */
+.pjmc-explorer-ui {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  pointer-events: none;
+  font-family: var(--mono);
   user-select: none;
   -webkit-user-select: none;
 }
-.flight-key:active { background: rgba(31, 127, 177, 0.8); border-color: #a2e6ff; }
-.flight-key[data-control="yawLeft"] { grid-area: left; }
-.flight-key[data-control="forward"] { grid-area: up; }
-.flight-key[data-control="yawRight"] { grid-area: right; }
-.flight-key[data-control="back"] { grid-area: down; }
-.flight-vertical-controls { display: grid; grid-template-columns: 1fr; gap: 6px; align-items: center; }
-.flight-lever-wrap { display: grid; justify-items: center; gap: 5px; }
-.flight-lever-caption { color: #9bcce4; font: 7px var(--mono); letter-spacing: .05em; writing-mode: vertical-rl; transform: rotate(180deg); }
-.flight-lever-track { position: relative; width: 38px; height: 128px; border: 1px solid rgba(94,202,255,.45); border-radius: 18px; background: linear-gradient(to bottom, rgba(52,155,210,.32), rgba(4,18,31,.92) 48%, rgba(52,155,210,.32)); box-shadow: inset 0 0 10px rgba(48,165,231,.18); touch-action: none; }
-.flight-lever-track::before { content: ''; position: absolute; left: 5px; right: 5px; top: 50%; border-top: 1px dashed rgba(202,239,255,.55); }
-.flight-lever-handle { position: absolute; left: 50%; transform: translate(-50%,-50%); width: 30px; height: 34px; border: 1px solid #83dfff; border-radius: 8px; color: #e5faff; background: linear-gradient(135deg,#246c91,#09253b); box-shadow: 0 2px 8px rgba(0,0,0,.45); font-size: 17px; touch-action: none; }
-.flight-lever-handle:active { background: #287da7; }
-.flight-key-small { padding: 0 9px; font-size: 9px; letter-spacing: 0.04em; white-space: nowrap; }
 
-body.spacecraft-active.spacecraft-ui-minimized .top-bar { display: none !important; }
-body.spacecraft-active.spacecraft-ui-minimized #app,
-body.spacecraft-active.spacecraft-ui-minimized #app canvas { height: 100dvh; }
-
-@media (max-width: 760px) {
-  body.spacecraft-active .view-controls { display: none; }
-  body.spacecraft-active .top-bar { padding: 8px 10px; align-items: center; }
-  body.spacecraft-active .app-title { max-width: 58vw; }
-  body.spacecraft-active .brand-title-line { flex-wrap: wrap; }
-  body.spacecraft-active .view-controls { grid-column: auto; grid-row: auto; flex-wrap: nowrap; }
-  body.spacecraft-active .spacecraft-btn { font-size: 9px; padding: 7px 8px; }
-  .spacecraft-flight-hud { top: 65px; right: 10px; width: min(245px, calc(100vw - 20px)); padding: 11px; }
-  .flight-restore-btn { top: max(10px, env(safe-area-inset-top)); right: max(10px, env(safe-area-inset-right)); min-height: 34px; padding: 8px 10px; }
-  .flight-panel-title { font-size: 10px; letter-spacing: 0.12em; }
-  .flight-instruments { padding: 8px 0; }
-  .flight-instrument { padding: 7px; }
-  .flight-instrument strong { font-size: 11px; }
-  .flight-key-legend { display: none; }
-  .spacecraft-touch-controls { position: fixed; z-index: 36; left: max(12px, env(safe-area-inset-left)); bottom: calc(14px + env(safe-area-inset-bottom)); display: flex; align-items: flex-end; gap: 12px; pointer-events: auto; padding: 9px; border: 1px solid rgba(85, 195, 255, .25); border-radius: 20px; background: linear-gradient(145deg, rgba(3, 17, 31, .72), rgba(5, 29, 47, .48)); box-shadow: 0 8px 26px rgba(0,0,0,.22), inset 0 0 18px rgba(61, 174, 235, .06); backdrop-filter: blur(8px); }
-  .flight-dpad { grid-template-columns: repeat(3, 47px); grid-template-rows: repeat(3, 45px); gap: 5px; }
-  .flight-key { border-radius: 11px; font-size: 16px; background: linear-gradient(145deg, rgba(9, 45, 68, .96), rgba(3, 16, 29, .96)); border-color: rgba(98, 211, 255, .58); box-shadow: 0 4px 12px rgba(0,0,0,.24), inset 0 0 13px rgba(55, 175, 232, .12); }
-  .flight-vertical-controls { gap: 7px; padding-left: 2px; }
-  .flight-key-small { min-width: 58px; min-height: 39px; font-size: 8px; }
-  .flight-lever-track { height: 126px; width: 38px; border-width: 2px; border-radius: 20px; box-shadow: inset 0 0 14px rgba(48,165,231,.24), 0 0 10px rgba(48,165,231,.08); }
-  .flight-lever-handle { width: 31px; height: 36px; border-radius: 10px; box-shadow: 0 3px 12px rgba(0,0,0,.55), 0 0 10px rgba(76,202,255,.18); }
-  .flight-exit-btn { display: block; }
-}
-
-@media (max-width: 420px) {
-  body.spacecraft-active .brand-copy { gap: 2px; }
-  body.spacecraft-active .title-main { font-size: 10px; }
-  body.spacecraft-active .title-sub { font-size: 6px; }
-  body.spacecraft-active .title-tagline { display: none; }
-  body.spacecraft-active .spacecraft-btn { font-size: 8px; padding: 6px; letter-spacing: 0.02em; }
-  .spacecraft-flight-hud { top: 59px; width: 214px; padding: 9px; }
-  .flight-restore-btn { min-height: 32px; padding: 7px 9px; font-size: 8px; }
-  .flight-panel-title { font-size: 9px; }
-  .flight-status { font-size: 8px; }
-  .flight-dpad { grid-template-columns: repeat(3, 40px); grid-template-rows: repeat(3, 39px); gap: 3px; }
-  .spacecraft-touch-controls { left: max(5px, env(safe-area-inset-left)); bottom: calc(5px + env(safe-area-inset-bottom)); gap: 6px; padding: 6px; border-radius: 15px; }
-  .flight-key-small { min-width: 48px; min-height: 36px; font-size: 7px; }
-  .flight-lever-track { height: 108px; width: 32px; }
-  .flight-lever-handle { width: 25px; height: 28px; }
-}
-
-/* Optional, user-initiated hand tracking panel. The local preview makes camera
-   activity explicit instead of running a hidden camera feed. */
-.flight-gesture-panel {
-  display: grid;
-  grid-template-columns: 104px minmax(0, 1fr);
-  align-items: center;
-  gap: 8px 10px;
-  margin-top: 9px;
-  padding: 9px;
-  border: 1px solid rgba(83, 184, 245, 0.28);
-  background: rgba(4, 20, 33, 0.78);
-}
-.flight-gesture-panel[hidden] { display: none !important; }
-.flight-gesture-preview {
-  width: 104px;
-  height: 78px;
-  overflow: hidden;
-  border: 1px solid rgba(95, 212, 255, 0.32);
-  border-radius: 4px;
-  background: #020b13;
-}
-.flight-gesture-video {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transform: scaleX(-1);
-}
-.flight-gesture-status {
-  color: #74ddff;
-  font-size: 8px;
-  line-height: 1.6;
-  letter-spacing: 0.07em;
-  overflow-wrap: anywhere;
-}
-.flight-gesture-help {
-  grid-column: 1 / -1;
-  color: #89aabd;
-  font-size: 7px;
-  line-height: 1.7;
-  letter-spacing: 0.03em;
-}
-.flight-gesture-toggle { border-color: rgba(76, 202, 255, 0.5); }
-.flight-gesture-toggle.active { background: rgba(28, 125, 161, 0.58); }
-
-@media (max-width: 420px) {
-  .flight-gesture-panel { grid-template-columns: 86px minmax(0, 1fr); gap: 7px; padding: 7px; }
-  .flight-gesture-preview { width: 86px; height: 66px; }
-  .flight-gesture-status { font-size: 7px; }
-  .flight-gesture-help { font-size: 6px; }
-}
-
-/* Large animated mobile launch control for PJMC SPACE EXPLORER. */
-.mobile-spacecraft-launch {
-  display: none;
+.pjmc-telemetry-bar {
   position: fixed;
-  z-index: 40;
-  pointer-events: auto; /* .hud disables pointer events globally; rocket must opt back in */
-  isolation: isolate;
-  right: max(16px, env(safe-area-inset-right));
-  bottom: calc(82px + env(safe-area-inset-bottom));
-  width: 106px;
-  min-height: 118px;
-  padding: 8px 5px 9px;
-  border: 1px solid rgba(103, 213, 255, .76);
-  border-radius: 54px 54px 25px 25px;
-  color: #e7faff;
-  background: radial-gradient(ellipse at 50% 28%, rgba(40, 145, 204, .38), rgba(4, 17, 31, .94) 68%);
-  box-shadow: 0 0 24px rgba(36, 164, 255, .28), inset 0 0 22px rgba(71, 191, 255, .15);
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(94%, 960px);
+  background: rgba(6, 16, 30, 0.78);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(0, 220, 255, 0.35);
+  box-shadow: 0 0 20px rgba(0, 180, 255, 0.18), inset 0 0 15px rgba(0, 220, 255, 0.08);
+  border-radius: 6px;
+  padding: 8px 16px;
+  display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  pointer-events: auto;
+  z-index: 90;
+}
+
+.pjmc-hud-left, .pjmc-hud-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pjmc-ship-tag {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(0, 220, 255, 0.1);
+  border: 1px solid rgba(0, 220, 255, 0.25);
+  padding: 4px 8px;
+  border-radius: 3px;
+}
+
+.pjmc-tag-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #00ff88;
+  box-shadow: 0 0 8px #00ff88;
+}
+
+.pjmc-ship-name {
+  font-weight: 800;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  color: #ffffff;
+}
+
+.pjmc-ship-status {
+  font-size: 8px;
+  color: #00ff88;
+  letter-spacing: 0.1em;
+}
+
+.pjmc-mission-badge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: #00f0ff;
+  border-left: 2px solid rgba(0, 220, 255, 0.4);
+  padding-left: 8px;
+}
+
+.pjmc-hud-center {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.pjmc-speed-gauge {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.pjmc-gauge-val {
+  font-size: 20px;
+  font-weight: 900;
+  color: #ffffff;
+  text-shadow: 0 0 10px rgba(0, 220, 255, 0.6);
+  min-width: 48px;
+  text-align: right;
+}
+
+.pjmc-gauge-unit {
+  font-size: 9px;
+  color: rgba(140, 200, 230, 0.85);
+  letter-spacing: 0.1em;
+}
+
+.pjmc-boost-wrap {
+  display: flex;
   flex-direction: column;
   gap: 2px;
+  width: 100px;
+}
+
+.pjmc-boost-track {
+  height: 6px;
+  background: rgba(20, 40, 60, 0.8);
+  border: 1px solid rgba(0, 220, 255, 0.3);
+  border-radius: 3px;
   overflow: hidden;
+}
+
+.pjmc-boost-fill {
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, #00b4d8, #00f0ff);
+  box-shadow: 0 0 8px #00f0ff;
+  transition: width 0.08s linear;
+}
+
+.pjmc-boost-label {
+  font-size: 8px;
+  letter-spacing: 0.12em;
+  color: rgba(180, 225, 255, 0.7);
+  text-align: center;
+}
+
+.pjmc-nav-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 10px;
+}
+
+.pjmc-label-dim {
+  color: rgba(130, 185, 215, 0.65);
+  margin-right: 4px;
+}
+
+.pjmc-target-val, .pjmc-dist-val, .pjmc-wp-val {
+  color: #00f0ff;
+  font-weight: 700;
+}
+
+.pjmc-hud-pause-btn {
+  background: rgba(0, 200, 255, 0.12);
+  border: 1px solid rgba(0, 200, 255, 0.35);
+  color: #00f0ff;
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
   cursor: pointer;
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
+  transition: all 0.15s ease;
+}
+
+.pjmc-hud-pause-btn:hover {
+  background: rgba(0, 220, 255, 0.3);
+  border-color: #00ffff;
+  color: #ffffff;
+  box-shadow: 0 0 10px rgba(0, 240, 255, 0.5);
+}
+
+/* ---------- 3D-to-2D Screen Nav Pointer ---------- */
+.pjmc-nav-pointer {
+  position: fixed;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+  z-index: 75;
+  transition: transform 0.04s ease-out;
+}
+
+.pjmc-pointer-arrow {
+  color: #00f0ff;
+  font-size: 18px;
+  text-shadow: 0 0 12px rgba(0, 240, 255, 0.9);
+  animation: pjmcNavBounce 1s infinite alternate;
+}
+
+.pjmc-pointer-dist {
+  background: rgba(6, 18, 32, 0.85);
+  border: 1px solid rgba(0, 240, 255, 0.6);
+  color: #ffffff;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  padding: 2px 6px;
+  border-radius: 3px;
+  box-shadow: 0 0 10px rgba(0, 200, 255, 0.4);
+  white-space: nowrap;
+}
+
+@keyframes pjmcNavBounce {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(-4px); }
+}
+
+/* ---------- First-Person Cockpit Overlay ---------- */
+.pjmc-cockpit-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 60;
+}
+
+.pjmc-cockpit-frame {
+  position: absolute;
+  inset: 0;
+  box-shadow: inset 0 0 120px rgba(0, 0, 0, 0.75);
+}
+
+.pjmc-cockpit-strut {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 48px;
+  background: linear-gradient(90deg, rgba(10, 20, 32, 0.88), rgba(15, 30, 48, 0.6) 80%, transparent);
+}
+
+.pjmc-cockpit-strut.strut-left { left: 0; }
+.pjmc-cockpit-strut.strut-right { right: 0; transform: scaleX(-1); }
+
+.pjmc-cockpit-reticle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pjmc-reticle-circle {
+  width: 64px;
+  height: 64px;
+  border: 1.5px solid rgba(0, 240, 255, 0.4);
+  border-radius: 50%;
+  box-shadow: 0 0 14px rgba(0, 240, 255, 0.2);
+}
+
+.pjmc-reticle-pip {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: #00f0ff;
+  border-radius: 50%;
+  box-shadow: 0 0 8px #00f0ff;
+}
+
+.pjmc-horizon-bar {
+  position: absolute;
+  width: 40px;
+  height: 1.5px;
+  background: rgba(0, 240, 255, 0.5);
+  box-shadow: 0 0 6px rgba(0, 240, 255, 0.4);
+}
+
+.pjmc-horizon-bar.left { right: 44px; }
+.pjmc-horizon-bar.right { left: 44px; }
+
+.pjmc-cockpit-footer {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 9px;
+  letter-spacing: 0.25em;
+  color: rgba(0, 240, 255, 0.6);
+  text-shadow: 0 0 6px rgba(0, 240, 255, 0.4);
+}
+
+/* ---------- Touch Flight Controls (Mobile First) ---------- */
+.pjmc-controls-root {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 100;
   user-select: none;
   -webkit-user-select: none;
-  animation: mobile-rocket-float 2.8s ease-in-out infinite;
+  touch-action: none;
 }
-.mobile-spacecraft-launch::before {
-  content: '';
-  position: absolute;
-  inset: 7px;
-  border: 1px solid rgba(125, 219, 255, .16);
-  border-radius: 48px 48px 19px 19px;
-  pointer-events: none;
+
+.pjmc-joystick-zone {
+  position: fixed;
+  bottom: 24px;
+  left: 24px;
+  width: 140px;
+  height: 140px;
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: none;
 }
-.mobile-rocket-orbit {
-  position: absolute;
-  width: 86px;
-  height: 32px;
-  top: 20px;
-  left: 9px;
-  border: 1px solid rgba(114, 221, 255, .4);
+
+.pjmc-joystick-base {
+  width: 120px;
+  height: 120px;
+  background: radial-gradient(circle, rgba(12, 28, 48, 0.8) 0%, rgba(6, 16, 28, 0.6) 80%);
+  border: 2px solid rgba(0, 220, 255, 0.4);
+  box-shadow: 0 0 18px rgba(0, 200, 255, 0.2), inset 0 0 20px rgba(0, 220, 255, 0.1);
   border-radius: 50%;
-  transform: rotate(-27deg);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pjmc-joystick-knob {
+  width: 50px;
+  height: 50px;
+  background: radial-gradient(circle, #00f0ff 0%, #0077b6 100%);
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 0 16px rgba(0, 240, 255, 0.8);
   pointer-events: none;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  margin-top: -25px;
+  margin-left: -25px;
+  will-change: transform;
 }
-.mobile-rocket-icon {
-  position: relative;
-  z-index: 1;
-  display: block;
-  margin-top: 6px;
-  font-size: 47px;
-  line-height: 1.12;
-  filter: drop-shadow(0 0 8px rgba(89, 204, 255, .78));
-  transform: rotate(-13deg);
-  animation: mobile-rocket-tilt 2.2s ease-in-out infinite;
+
+.pjmc-actions-zone {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  touch-action: none;
 }
-.mobile-rocket-flame {
-  display: block;
-  width: 12px;
-  height: 20px;
-  margin-top: -2px;
-  border-radius: 45% 45% 65% 65%;
-  background: linear-gradient(to bottom, #fff7bf 0%, #65e6ff 34%, #258bff 72%, transparent 100%);
-  box-shadow: 0 0 14px rgba(62, 197, 255, .85);
-  transform-origin: top center;
-  animation: mobile-rocket-engine .22s ease-in-out infinite alternate;
+
+.pjmc-action-row {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
 }
-.mobile-rocket-label, .mobile-rocket-subtitle {
-  position: relative;
-  z-index: 1;
-  max-width: 100%;
-  text-align: center;
-  white-space: nowrap;
+
+.pjmc-action-btn {
+  min-width: 54px;
+  min-height: 54px;
+  border-radius: 50%;
+  background: rgba(10, 24, 42, 0.85);
+  border: 1.5px solid rgba(0, 220, 255, 0.45);
+  color: #cceeff;
   font-family: var(--mono);
+  font-size: 10px;
   font-weight: 800;
-  letter-spacing: .06em;
-}
-.mobile-rocket-label { margin-top: 3px; font-size: 8px; }
-.mobile-rocket-subtitle { color: #72d9ff; font-size: 6px; letter-spacing: .1em; }
-.mobile-spacecraft-launch:active { transform: scale(.96); box-shadow: 0 0 30px rgba(36, 164, 255, .48), inset 0 0 25px rgba(71, 191, 255, .25); }
-.mobile-spacecraft-launch.is-active { border-color: rgba(255, 157, 139, .78); background: radial-gradient(ellipse at 50% 28%, rgba(167, 63, 63, .38), rgba(22, 8, 17, .95) 68%); }
-.mobile-spacecraft-launch.is-active .mobile-rocket-flame { background: linear-gradient(to bottom, #fff7bf, #ff9c68 40%, #ff4c66 78%, transparent); }
-@keyframes mobile-rocket-float { 0%, 100% { margin-bottom: 0; } 50% { margin-bottom: 7px; } }
-@keyframes mobile-rocket-tilt { 0%, 100% { transform: translateY(0) rotate(-13deg); } 50% { transform: translateY(-3px) rotate(-7deg); } }
-@keyframes mobile-rocket-engine { from { transform: scaleY(.78); opacity: .76; } to { transform: scaleY(1.18); opacity: 1; } }
-
-@media (max-width: 760px) {
-  .mobile-spacecraft-launch { display: flex; }
-  body.spacecraft-active .mobile-spacecraft-launch { display: none; }
-  body:not(.spacecraft-active) .view-controls .spacecraft-btn { display: none; }
-  body:not(.spacecraft-active) .mobile-spacecraft-launch { bottom: calc(88px + env(safe-area-inset-bottom)); }
-}
-@media (max-width: 420px) {
-  .mobile-spacecraft-launch { right: max(10px, env(safe-area-inset-right)); width: 94px; min-height: 108px; bottom: calc(72px + env(safe-area-inset-bottom)); }
-  .mobile-rocket-icon { font-size: 42px; }
-  .mobile-rocket-flame { height: 17px; }
-  .mobile-rocket-label { font-size: 7px; }
-  .mobile-rocket-subtitle { font-size: 5px; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .mobile-spacecraft-launch, .mobile-rocket-icon, .mobile-rocket-flame { animation: none !important; }
+  letter-spacing: 0.08em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 0 14px rgba(0, 180, 255, 0.25);
+  transition: transform 0.1s ease, background 0.15s ease, box-shadow 0.15s ease;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
 }
 
-/* Compact mobile flight deck and immediate brake control. */
-.flight-stop-btn {
+.pjmc-action-btn:active, .pjmc-action-btn.active {
+  transform: scale(0.92);
+  background: rgba(0, 220, 255, 0.35);
+  border-color: #00ffff;
+  color: #ffffff;
+  box-shadow: 0 0 22px rgba(0, 240, 255, 0.8);
+}
+
+.pjmc-action-btn.boost-btn {
+  background: linear-gradient(135deg, rgba(255, 120, 0, 0.35), rgba(255, 60, 0, 0.2));
+  border-color: rgba(255, 140, 0, 0.7);
+  color: #ffddaa;
+  box-shadow: 0 0 16px rgba(255, 120, 0, 0.35);
+}
+
+.pjmc-action-btn.boost-btn:active, .pjmc-action-btn.boost-btn.active {
+  background: linear-gradient(135deg, rgba(255, 140, 0, 0.7), rgba(255, 60, 0, 0.5));
+  border-color: #ffaa00;
+  color: #ffffff;
+  box-shadow: 0 0 28px rgba(255, 140, 0, 0.9);
+}
+
+/* ---------- Modals (Mission Select, Pause, Victory) ---------- */
+.pjmc-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+  font-family: var(--mono);
+}
+
+.pjmc-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(3, 8, 16, 0.82);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.pjmc-modal-window {
+  position: relative;
+  width: min(92%, 780px);
+  max-height: 88vh;
+  overflow-y: auto;
+  background: rgba(8, 20, 36, 0.92);
+  border: 1px solid rgba(0, 220, 255, 0.5);
+  box-shadow: 0 0 35px rgba(0, 180, 255, 0.25), inset 0 0 25px rgba(0, 220, 255, 0.08);
+  border-radius: 8px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  color: #e0f4ff;
+}
+
+.pjmc-modal-window.small {
+  max-width: 440px;
+  text-align: center;
+}
+
+.pjmc-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(0, 220, 255, 0.25);
+  padding-bottom: 14px;
+}
+
+.pjmc-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pjmc-sub-title {
+  font-size: 9px;
+  letter-spacing: 0.28em;
+  color: rgba(0, 220, 255, 0.7);
+}
+
+.pjmc-modal-title {
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  color: #ffffff;
+  margin: 0;
+  text-shadow: 0 0 12px rgba(0, 220, 255, 0.5);
+}
+
+.pjmc-modal-close-btn {
+  background: transparent;
+  border: 1px solid rgba(0, 220, 255, 0.3);
+  color: #00f0ff;
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.15s ease;
+}
+
+.pjmc-modal-close-btn:hover {
+  background: rgba(0, 220, 255, 0.2);
+  color: #ffffff;
+  border-color: #00ffff;
+}
+
+/* Mission Cards Grid */
+.pjmc-mission-grid {
   display: grid;
-  place-items: center;
-  min-height: 36px;
-  padding: 0 10px;
-  border: 1px solid rgba(255, 105, 105, .65);
-  border-radius: 10px;
-  color: #ffe8e8;
-  background: linear-gradient(145deg, rgba(120, 23, 34, .94), rgba(49, 8, 17, .96));
-  box-shadow: 0 3px 12px rgba(0,0,0,.28), inset 0 0 10px rgba(255,100,100,.12);
-  font: 700 9px var(--mono);
-  letter-spacing: .04em;
-  touch-action: manipulation;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 14px;
+  margin: 8px 0;
 }
-.flight-stop-btn:active { background: #a92334; }
-@media (max-width: 760px) {
-  .spacecraft-touch-controls { left: max(7px, env(safe-area-inset-left)); bottom: calc(7px + env(safe-area-inset-bottom)); gap: 7px; padding: 7px; border-radius: 15px; }
-  .flight-dpad { grid-template-columns: repeat(3, 40px); grid-template-rows: repeat(3, 38px); gap: 3px; }
-  .flight-key { border-radius: 9px; }
-  .flight-vertical-controls { gap: 5px; }
-  .flight-lever-track { height: 100px; width: 31px; }
-  .flight-lever-handle { width: 25px; height: 29px; }
-  .flight-key-small { min-width: 45px; min-height: 33px; }
-  .flight-stop-btn { min-width: 45px; writing-mode: vertical-rl; min-height: 92px; padding: 7px 5px; font-size: 8px; }
+
+.pjmc-mission-card {
+  background: rgba(12, 28, 48, 0.6);
+  border: 1px solid rgba(0, 180, 240, 0.3);
+  border-radius: 6px;
+  padding: 14px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: all 0.2s ease;
+  position: relative;
 }
-@media (max-width: 360px) {
-  .spacecraft-touch-controls { gap: 4px; padding: 5px; }
-  .flight-dpad { grid-template-columns: repeat(3, 35px); grid-template-rows: repeat(3, 34px); gap: 2px; }
-  .flight-stop-btn { min-width: 38px; min-height: 82px; }
+
+.pjmc-mission-card:hover {
+  border-color: rgba(0, 240, 255, 0.7);
+  background: rgba(16, 36, 62, 0.85);
+  transform: translateY(-2px);
+  box-shadow: 0 0 16px rgba(0, 200, 255, 0.3);
 }
+
+.pjmc-mission-card.active-card {
+  border-color: #00f0ff;
+  background: rgba(0, 220, 255, 0.12);
+  box-shadow: 0 0 20px rgba(0, 240, 255, 0.45);
+}
+
+.pjmc-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.pjmc-card-num {
+  font-size: 16px;
+  font-weight: 900;
+  color: #00f0ff;
+}
+
+.pjmc-card-diff {
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  padding: 2px 6px;
+  border-radius: 2px;
+}
+
+.diff-easy { background: rgba(0, 255, 120, 0.2); color: #00ff77; }
+.diff-medium { background: rgba(0, 180, 255, 0.2); color: #00f0ff; }
+.diff-hard { background: rgba(255, 180, 0, 0.2); color: #ffaa00; }
+.diff-expert { background: rgba(255, 60, 60, 0.2); color: #ff4444; }
+.diff-free { background: rgba(180, 100, 255, 0.2); color: #c77dff; }
+
+.pjmc-card-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: 0.08em;
+}
+
+.pjmc-card-desc {
+  margin: 0;
+  font-size: 10px;
+  line-height: 1.45;
+  color: rgba(180, 215, 235, 0.75);
+  flex-grow: 1;
+}
+
+.pjmc-card-reward {
+  font-size: 9px;
+  color: #ffdd88;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pjmc-select-mission-btn {
+  margin-top: 6px;
+  background: rgba(0, 200, 255, 0.15);
+  border: 1px solid rgba(0, 220, 255, 0.4);
+  color: #00f0ff;
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 700;
+  padding: 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  letter-spacing: 0.1em;
+  transition: all 0.15s ease;
+}
+
+.pjmc-mission-card.active-card .pjmc-select-mission-btn {
+  background: #00f0ff;
+  color: #001020;
+  border-color: #00ffff;
+  font-weight: 900;
+}
+
+/* Modal Buttons & Footer */
+.pjmc-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  border-top: 1px solid rgba(0, 220, 255, 0.2);
+  padding-top: 14px;
+}
+
+.pjmc-btn-primary, .pjmc-btn-secondary, .pjmc-btn-danger {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  padding: 12px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  min-height: 48px;
+  transition: all 0.18s ease;
+}
+
+.pjmc-btn-primary {
+  background: linear-gradient(135deg, #0088cc, #00d4ff);
+  border: 1px solid #00f0ff;
+  color: #001524;
+  box-shadow: 0 0 16px rgba(0, 220, 255, 0.4);
+}
+
+.pjmc-btn-primary:hover {
+  background: linear-gradient(135deg, #00aaff, #33e4ff);
+  box-shadow: 0 0 24px rgba(0, 240, 255, 0.7);
+  transform: translateY(-1px);
+}
+
+.pjmc-btn-secondary {
+  background: rgba(0, 180, 240, 0.12);
+  border: 1px solid rgba(0, 220, 255, 0.4);
+  color: #00f0ff;
+}
+
+.pjmc-btn-secondary:hover {
+  background: rgba(0, 220, 255, 0.25);
+  color: #ffffff;
+  border-color: #00ffff;
+}
+
+.pjmc-btn-danger {
+  background: rgba(255, 50, 50, 0.15);
+  border: 1px solid rgba(255, 70, 70, 0.5);
+  color: #ff6666;
+  width: 100%;
+}
+
+.pjmc-btn-danger:hover {
+  background: rgba(255, 50, 50, 0.35);
+  color: #ffffff;
+}
+
+/* Pause Modal */
+.pjmc-pause-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 10px 0;
+}
+
+.pjmc-settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(0, 180, 240, 0.08);
+  border: 1px solid rgba(0, 220, 255, 0.2);
+  border-radius: 4px;
+  padding: 8px 14px;
+}
+
+.pjmc-opt-label {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: rgba(200, 235, 255, 0.8);
+}
+
+.pjmc-opt-toggle {
+  background: rgba(0, 200, 255, 0.15);
+  border: 1px solid rgba(0, 220, 255, 0.35);
+  color: #00f0ff;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 800;
+  padding: 6px 14px;
+  border-radius: 3px;
+  cursor: pointer;
+  min-width: 60px;
+}
+
+.pjmc-opt-toggle.active {
+  background: #00f0ff;
+  color: #001220;
+}
+
+.pjmc-controls-reminder {
+  font-size: 9px;
+  line-height: 1.5;
+  color: rgba(140, 195, 225, 0.7);
+  border-top: 1px solid rgba(0, 220, 255, 0.15);
+  padding-top: 10px;
+}
+
+/* Victory Modal */
+.pjmc-victory-badge {
+  font-size: 26px;
+  color: #ffdd44;
+  text-shadow: 0 0 16px rgba(255, 220, 68, 0.8);
+  text-align: center;
+}
+
+.pjmc-victory-title {
+  font-size: 20px;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  color: #00ffff;
+  text-align: center;
+  margin: 0;
+  text-shadow: 0 0 16px rgba(0, 255, 255, 0.6);
+}
+
+.pjmc-victory-sub {
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  color: rgba(200, 240, 255, 0.85);
+  text-align: center;
+}
+
+.pjmc-stats-grid {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  margin: 10px 0;
+}
+
+.pjmc-stat-box {
+  background: rgba(0, 220, 255, 0.1);
+  border: 1px solid rgba(0, 220, 255, 0.3);
+  border-radius: 4px;
+  padding: 10px 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 90px;
+}
+
+.pjmc-stat-label {
+  font-size: 9px;
+  color: rgba(150, 200, 230, 0.7);
+  letter-spacing: 0.12em;
+}
+
+.pjmc-stat-value {
+  font-size: 16px;
+  font-weight: 900;
+  color: #ffffff;
+}
+
+.pjmc-stat-value.highlight {
+  color: #00ff88;
+}
+
+/* ---------- Mobile Portrait Orientation Hint ---------- */
+.pjmc-portrait-hint {
+  position: fixed;
+  top: 70px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 120;
+  background: rgba(14, 28, 48, 0.92);
+  border: 1px solid rgba(0, 220, 255, 0.5);
+  box-shadow: 0 0 18px rgba(0, 200, 255, 0.3);
+  border-radius: 6px;
+  padding: 8px 14px;
+  font-size: 10px;
+  color: #cceeff;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: min(90%, 380px);
+  pointer-events: auto;
+}
+
+.pjmc-rotate-icon {
+  font-size: 14px;
+  color: #00f0ff;
+}
+
+.pjmc-hint-dismiss {
+  margin-left: auto;
+  background: transparent;
+  border: none;
+  color: #00f0ff;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+
+/* ---------- Mobile Responsive Overrides ---------- */
+@media (max-width: 680px) {
+  .pjmc-telemetry-bar {
+    top: 8px;
+    padding: 6px 10px;
+    gap: 8px;
+  }
+  .pjmc-ship-tag { display: none; }
+  .pjmc-mission-badge { font-size: 9px; border-left: none; padding-left: 0; }
+  .pjmc-gauge-val { font-size: 16px; min-width: 36px; }
+  .pjmc-boost-wrap { width: 65px; }
+  .pjmc-target-row { display: none; }
+  .pjmc-nav-info { gap: 6px; font-size: 9px; }
+
+  .pjmc-joystick-zone {
+    bottom: 16px;
+    left: 16px;
+    width: 110px;
+    height: 110px;
+  }
+  .pjmc-joystick-base {
+    width: 100px;
+    height: 100px;
+  }
+  .pjmc-joystick-knob {
+    width: 44px;
+    height: 44px;
+    margin-top: -22px;
+    margin-left: -22px;
+  }
+
+  .pjmc-actions-zone {
+    bottom: 16px;
+    right: 16px;
+    gap: 8px;
+  }
+  .pjmc-action-btn {
+    min-width: 48px;
+    min-height: 48px;
+    font-size: 9px;
+  }
+
+  .pjmc-modal-window {
+    padding: 16px;
+    gap: 12px;
+  }
+  .pjmc-mission-grid {
+    grid-template-columns: 1fr;
+    max-height: 50vh;
+    overflow-y: auto;
+  }
+  .pjmc-modal-footer {
+    flex-direction: column-reverse;
+  }
+  .pjmc-modal-footer button {
+    width: 100%;
+  }
+}
+

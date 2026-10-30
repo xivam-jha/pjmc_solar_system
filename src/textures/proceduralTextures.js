@@ -483,12 +483,40 @@ function generateGlowTexture(stops) {
 }
 
 /* ------------------------------------------------------------------ */
+/* Realistic NASA Texture Loader                                       */
+/* ------------------------------------------------------------------ */
+
+const textureLoader = new THREE.TextureLoader();
+
+function loadRealisticTexture(url, { isLinear = false, wrapS = THREE.RepeatWrapping, wrapT = THREE.ClampToEdgeWrapping } = {}) {
+  return new Promise((resolve) => {
+    textureLoader.load(
+      url,
+      (tex) => {
+        tex.colorSpace = isLinear ? THREE.NoColorSpace : THREE.SRGBColorSpace;
+        tex.wrapS = wrapS;
+        tex.wrapT = wrapT;
+        tex.generateMipmaps = true;
+        tex.minFilter = THREE.LinearMipmapLinearFilter;
+        tex.magFilter = THREE.LinearFilter;
+        tex.anisotropy = 8;
+        resolve(tex);
+      },
+      undefined,
+      () => {
+        resolve(null);
+      }
+    );
+  });
+}
+
+/* ------------------------------------------------------------------ */
 /* Public factory                                                      */
 /* ------------------------------------------------------------------ */
 
 /**
- * Generate every texture the scene needs. Async: yields to the browser
- * between bodies so the loading overlay can update its status line.
+ * Generate every texture the scene needs. Loads real NASA textures when
+ * available, with procedural generation as seamless fallback.
  */
 export async function createTextureSet(onProgress = () => {}) {
   const next = (label) => {
@@ -497,8 +525,9 @@ export async function createTextureSet(onProgress = () => {}) {
   };
   const set = {};
 
-  await next('SUN');
-  set.sun = generateSunTexture();
+  await next('THE SUN');
+  const sunImg = await loadRealisticTexture('/textures/sun.jpg');
+  set.sun = sunImg || generateSunTexture();
   set.corona = generateGlowTexture([
     [0.0, 'rgba(255,255,255,1)'],
     [0.12, 'rgba(255,228,170,0.85)'],
@@ -513,13 +542,16 @@ export async function createTextureSet(onProgress = () => {}) {
   ]);
 
   await next('MERCURY');
-  set.mercury = generateCratered({
+  const mercuryImg = await loadRealisticTexture('/textures/mercury.jpg');
+  set.mercury = mercuryImg || generateCratered({
     seed: 3, dark: 0x4f4a45, base: 0x847d75, light: 0xb3aca2,
     craterCount: 170, craterMax: 26, contrast: 1.1,
   });
+  set.mercury_bump = await loadRealisticTexture('/textures/mercury_bump.jpg', { isLinear: true });
 
   await next('VENUS');
-  set.venus = generateBanded({
+  const venusImg = await loadRealisticTexture('/textures/venus.jpg');
+  set.venus = venusImg || generateBanded({
     seed: 9,
     stops: [
       [0.0, 0xd9c177], [0.22, 0xeadfb4], [0.4, 0xd8c389], [0.55, 0xf0e8c8],
@@ -527,24 +559,31 @@ export async function createTextureSet(onProgress = () => {}) {
     ],
     turb: 0.2, streakAmp: 0.05, detailAmp: 0.05,
   });
+  set.venus_bump = await loadRealisticTexture('/textures/venus_bump.jpg', { isLinear: true });
 
-  await next('EARTH');
-  set.earth = generateEarth();
-  set.earthClouds = generateEarthClouds();
-  // Black placeholder: the Earth night-light layer can exist immediately,
-  // and will be upgraded in-place if the real map loads later.
-  set.earthNight = makeTexture(512, 256, (_u, _v, out) => {
-    out[0] = 0; out[1] = 0; out[2] = 0;
-  }, { colorSpace: THREE.NoColorSpace });
+  await next('EARTH & ATMOSPHERE');
+  const earthImg = await loadRealisticTexture('/textures/earth.jpg');
+  set.earth = earthImg || generateEarth();
+
+  const earthCloudsImg = await loadRealisticTexture('/textures/earth_clouds.png');
+  set.earthClouds = earthCloudsImg || generateEarthClouds();
+
+  set.earth_bump = await loadRealisticTexture('/textures/earth_bump.jpg', { isLinear: true });
+  set.earth_specular = await loadRealisticTexture('/textures/earth_specular.jpg', { isLinear: true });
+  set.earth_night = await loadRealisticTexture('/textures/earth_night.jpg');
 
   await next('THE MOON');
-  set.moon = generateCratered({
+  const moonImg = await loadRealisticTexture('/textures/moon.jpg');
+  set.moon = moonImg || generateCratered({
     seed: 17, dark: 0x5d5b58, base: 0x969390, light: 0xc4c1bd,
     craterCount: 200, craterMax: 22, contrast: 0.95,
   });
+  set.moon_bump = await loadRealisticTexture('/textures/moon_bump.jpg', { isLinear: true });
 
-  await next('MARS');
-  set.mars = generateMars();
+  await next('MARS & MOONS');
+  const marsImg = await loadRealisticTexture('/textures/mars.jpg');
+  set.mars = marsImg || generateMars();
+  set.mars_bump = await loadRealisticTexture('/textures/mars_bump.jpg', { isLinear: true });
   set.phobos = generateCratered({
     seed: 23, dark: 0x4a423c, base: 0x6f655c, light: 0x948a7e,
     w: 256, h: 128, craterCount: 60, craterMax: 30, contrast: 1.2,
@@ -555,7 +594,8 @@ export async function createTextureSet(onProgress = () => {}) {
   });
 
   await next('JUPITER');
-  set.jupiter = generateBanded({
+  const jupiterImg = await loadRealisticTexture('/textures/jupiter.jpg');
+  set.jupiter = jupiterImg || generateBanded({
     seed: 1,
     stops: [
       [0.0, 0xa8946f], [0.07, 0xd8c3a3], [0.15, 0xa87d52], [0.24, 0xe8dabd],
@@ -578,8 +618,9 @@ export async function createTextureSet(onProgress = () => {}) {
     craterCount: 220, craterMax: 20, contrast: 1.15,
   });
 
-  await next('SATURN');
-  set.saturn = generateBanded({
+  await next('SATURN & RINGS');
+  const saturnImg = await loadRealisticTexture('/textures/saturn.jpg');
+  set.saturn = saturnImg || generateBanded({
     seed: 2,
     stops: [
       [0.0, 0xb3995f], [0.15, 0xd9c694], [0.3, 0xc4ab72], [0.45, 0xe8daad],
@@ -602,7 +643,8 @@ export async function createTextureSet(onProgress = () => {}) {
   });
 
   await next('URANUS');
-  set.uranus = generateBanded({
+  const uranusImg = await loadRealisticTexture('/textures/uranus.jpg');
+  set.uranus = uranusImg || generateBanded({
     seed: 6, w: 512, h: 256,
     stops: [[0.0, 0x9fd3da], [0.4, 0xaee1e6], [0.6, 0xa5dce2], [1.0, 0x93cdd6]],
     turb: 0.06, detailAmp: 0.02,
@@ -619,7 +661,8 @@ export async function createTextureSet(onProgress = () => {}) {
   });
 
   await next('NEPTUNE');
-  set.neptune = generateBanded({
+  const neptuneImg = await loadRealisticTexture('/textures/neptune.jpg');
+  set.neptune = neptuneImg || generateBanded({
     seed: 14, w: 512, h: 256,
     stops: [
       [0.0, 0x2440b8], [0.25, 0x3a66e8], [0.45, 0x2e51cf], [0.65, 0x4673ee],
@@ -638,104 +681,15 @@ export async function createTextureSet(onProgress = () => {}) {
   });
   set.triton = generateTriton();
 
-  await next('PLUTO & CHARON');
-  set.pluto = generatePluto();
+  await next('PLUTO & DEEP SPACE');
+  const plutoImg = await loadRealisticTexture('/textures/pluto.jpg');
+  set.pluto = plutoImg || generatePluto();
   set.charon = generateCratered({
     seed: 83, dark: 0x57504c, base: 0x8a827c, light: 0xb5ada6,
     w: 256, h: 128, craterCount: 70, craterMax: 18, contrast: 0.9,
   });
 
-  // Prefer high-resolution Solar System Scope maps when online; procedural
-  // textures above remain the fallback, so the scene still opens if a map is
-  // unavailable. The maps are based on NASA imagery/elevation data; this is
-  // not a live satellite feed. The PhET-hosted Solar System Scope mirror is
-  // listed on the official texture page and is tried first.
-  const imageMaps = {
-    mercury: '2k_mercury.jpg',
-    // The cloud-top map is the correct visible appearance of Venus from space.
-    venus: '2k_venus_atmosphere.jpg',
-    earth: '2k_earth_daymap.jpg',
-    earthClouds: '2k_earth_clouds.jpg',
-    earthNight: '2k_earth_nightmap.jpg',
-    moon: '2k_moon.jpg',
-    mars: '2k_mars.jpg',
-    jupiter: '2k_jupiter.jpg',
-    saturn: '2k_saturn.jpg',
-    uranus: '2k_uranus.jpg',
-    neptune: '2k_neptune.jpg',
-  };
-  // The first host is the download URL currently linked by the official
-  // Solar System Scope texture page. Older mirrors remain as fallbacks.
-  const textureHosts = [
-    'https://play.solarsystemscope.com/textures/download/',
-    'https://edu.solarsystemscope.com/textures/download/',
-    'https://phet.solarsystemscope.com/textures/download/',
-    'https://www.solarsystemscope.com/textures/download/',
-  ];
-
-  function loadImageMap(key, filename) {
-    return new Promise((resolve) => {
-      let promiseResolved = false;
-      let hostIndex = 0;
-      const loader = new THREE.TextureLoader();
-      loader.setCrossOrigin('anonymous');
-
-      const settle = () => {
-        if (promiseResolved) return;
-        promiseResolved = true;
-        clearTimeout(timer);
-        resolve();
-      };
-
-      // Do not let a slow remote host prevent the app from starting. A late
-      // success still upgrades the placeholder texture in-place, so existing
-      // planet materials receive the real map without rebuilding the scene.
-      const timer = setTimeout(settle, 12000);
-
-      const tryHost = () => {
-        if (hostIndex >= textureHosts.length) {
-          settle();
-          return;
-        }
-        const url = `${textureHosts[hostIndex++]}${filename}`;
-        loader.load(
-          url,
-          (loadedTexture) => {
-            const colorSpace = (key === 'earthClouds' || key === 'earthNight')
-              ? THREE.NoColorSpace
-              : THREE.SRGBColorSpace;
-            loadedTexture.colorSpace = colorSpace;
-            loadedTexture.wrapS = THREE.RepeatWrapping;
-            loadedTexture.wrapT = THREE.ClampToEdgeWrapping;
-            loadedTexture.anisotropy = 4;
-
-            const existingTexture = set[key];
-            if (existingTexture) {
-              // Preserve object identity: meshes may already hold this texture.
-              existingTexture.image = loadedTexture.image;
-              existingTexture.colorSpace = colorSpace;
-              existingTexture.wrapS = THREE.RepeatWrapping;
-              existingTexture.wrapT = THREE.ClampToEdgeWrapping;
-              existingTexture.anisotropy = 4;
-              existingTexture.needsUpdate = true;
-              loadedTexture.dispose();
-            } else {
-              set[key] = loadedTexture;
-            }
-            settle();
-          },
-          undefined,
-          () => tryHost(),
-        );
-      };
-
-      tryHost();
-    });
-  }
-
-  await Promise.all(
-    Object.entries(imageMaps).map(([key, filename]) => loadImageMap(key, filename)),
-  );
+  set.galaxy_starfield = await loadRealisticTexture('/textures/galaxy_starfield.png');
 
   return set;
 }

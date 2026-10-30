@@ -8,8 +8,8 @@
  */
 
 import * as THREE from 'three';
-import { bodyName } from './translations.js';
 
+const HI = { Sun:'सूर्य', Mercury:'बुध', Venus:'शुक्र', Earth:'पृथ्वी', 'The Moon':'चंद्रमा', Mars:'मंगल', Phobos:'फोबोस', Deimos:'डिमोस', Jupiter:'बृहस्पति', Io:'आयो', Europa:'यूरोपा', Ganymede:'गेनीमेड', Callisto:'कैलिस्टो', Saturn:'शनि', Titan:'टाइटन', Triton:'ट्राइटन', Uranus:'अरुण', Neptune:'वरुण', Pluto:'प्लूटो', Charon:'कैरोन' };
 const _world = new THREE.Vector3();
 const _view = new THREE.Vector3();
 
@@ -23,23 +23,18 @@ export class Labels {
     this.container = container;
     this.entries = entries;
     this.enabled = true;
-    this.language = 'en';
+    this.lang = 'en';
     for (const entry of entries) {
       const div = document.createElement('div');
       div.className = `body-label ${entry.isMoon ? 'moon-label' : ''}`;
-      div.textContent = bodyName(entry.id, entry.name, this.language);
+      div.textContent = entry.name;
       div.addEventListener('click', () => onPick(entry.id));
       container.append(div);
       entry.labelEl = div;
     }
   }
 
-  setLanguage(language) {
-    this.language = language === 'hi' ? 'hi' : 'en';
-    for (const entry of this.entries) {
-      entry.labelEl.textContent = bodyName(entry.id, entry.name, this.language);
-    }
-  }
+  setLanguage(lang) { this.lang = lang; for (const entry of this.entries) entry.labelEl.textContent = lang === 'hi' ? (HI[entry.name] || entry.name) : entry.name; }
 
   setEnabled(on) {
     this.enabled = on;

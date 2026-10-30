@@ -132,5 +132,19 @@ export function createStarfield(textures, { count = 9000, radius = 12000 } = {})
     group.add(sprite);
   }
 
+  // Realistic deep space background sphere
+  if (textures?.galaxy_starfield) {
+    const skyGeo = new THREE.SphereGeometry(radius * 1.05, 48, 24);
+    const skyMat = new THREE.MeshBasicMaterial({
+      map: textures.galaxy_starfield,
+      side: THREE.BackSide,
+      transparent: true,
+      opacity: 0.45,
+      depthWrite: false,
+    });
+    const skyMesh = new THREE.Mesh(skyGeo, skyMat);
+    group.add(skyMesh);
+  }
+
   return group;
 }
