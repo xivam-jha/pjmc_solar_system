@@ -682,15 +682,15 @@ export class Rocket {
     this.engineLight.position.set(0, 0, -4.0);
     this.model.add(this.engineLight);
 
-    // Cockpit camera mount point
+    // Cockpit camera mount point (attached to root to decouple from visual banking)
     this.cockpitMount = new THREE.Group();
     this.cockpitMount.position.set(0, 0.88, 1.2);
-    this.model.add(this.cockpitMount);
+    this.root.add(this.cockpitMount);
 
-    // Third-person camera mount point
+    // Third-person camera mount point (attached to root)
     this.chaseTarget = new THREE.Group();
     this.chaseTarget.position.set(0, 2.2, -8.2);
-    this.model.add(this.chaseTarget);
+    this.root.add(this.chaseTarget);
 
     /* ------------------------------------------------------------------ */
     /* 3D SURFACE BRANDING DECALS (PERMANENT, NON-OVERLAY)                 */
@@ -785,46 +785,49 @@ export class Rocket {
   }
 
   /* ------------------------------------------------------------------ */
-  /* Animation, Physics & State Updates                                 */
+  /* Spacecraft Orientation & Flight Physics Helpers                    */
   /* ------------------------------------------------------------------ */
 
-  update(dt, inputOrThrottle, maybeBoost = false) {
+  /** Apply pure local quaternion rotation (yaw, pitch, roll) without Euler angle resets */
+  applyLocalRotation(pitchDelta, yawDelta, rollDelta = 0) {
+    if (yawDelta) this.root.rotateY(yawDelta);
+    if (pitchDelta) this.root.rotateX(pitchDelta);
+    if (rollDelta) this.root.rotateZ(rollDelta);
+  }
+
+  /** Visual banking: smoothly tilts only the visual mesh child along Z without altering flight orientation */
+  setVisualBank(bankAngle) {
+    this.banking = bankAngle;
+    this.model.rotation.z = bankAngle;
+  }
+
+  /** Get normalized spacecraft world forward vector (+Z nose direction) */
+  getForwardVector(out = new THREE.Vector3()) {
+    return out.set(0, 0, 1).applyQuaternion(this.root.quaternion);
+  }
+
+  /** Get normalized spacecraft world up vector (+Y dorsal direction) */
+  getUpVector(out = new THREE.Vector3()) {
+    return out.set(0, 1, 0).applyQuaternion(this.root.quaternion);
+  }
+
+  /** Get normalized spacecraft world right vector (+X starboard direction) */
+  getRightVector(out = new THREE.Vector3()) {
+    return out.set(1, 0, 0).applyQuaternion(this.root.quaternion);
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Animation, Engine Flames & Shader Updates                          */
+  /* ------------------------------------------------------------------ */
+
+  update(dt, inputOrThrottle = 0.5, maybeBoost = false) {
     if (typeof inputOrThrottle === 'number') {
       this.throttle = inputOrThrottle;
       this.isBoosting = !!maybeBoost;
-    } else {
-      const input = inputOrThrottle || { forward: true, pitch: 0, yaw: 0, boost: false, brake: false };
-      let targetThrottle = 0.45;
-      if (input.forward) targetThrottle = 1.0;
-      if (input.brake) targetThrottle = 0.05;
-
-      if (input.boost && this.boostEnergy > 5) {
-        this.isBoosting = true;
-        this.boostEnergy = Math.max(0, this.boostEnergy - this.boostConsumption * dt);
-      } else {
-        this.isBoosting = false;
-        this.boostEnergy = Math.min(this.maxBoostEnergy, this.boostEnergy + this.boostRecharge * dt);
-      }
-
-      this.throttle = THREE.MathUtils.lerp(this.throttle, targetThrottle, dt * 4.0);
-
-      const currentMax = this.maxSpeed * (this.isBoosting ? this.boostMultiplier : 1.0);
-      const targetSpeed = currentMax * this.throttle;
-      this.speed = THREE.MathUtils.lerp(this.speed, targetSpeed, dt * (input.brake ? 4.5 : 2.5));
-
-      const pitchAmount = (input.pitch || 0) * this.turnRate * dt;
-      this.root.rotateX(pitchAmount);
-
-      const yawAmount = -(input.yaw || 0) * this.turnRate * dt;
-      this.root.rotateY(yawAmount);
-
-      const targetBank = -(input.yaw || 0) * 0.55;
-      this.banking = THREE.MathUtils.lerp(this.banking, targetBank, dt * 5.0);
-      this.model.rotation.z = this.banking;
-
-      const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(this.root.quaternion);
-      this.velocity.copy(forward).multiplyScalar(this.speed);
-      this.root.position.addScaledVector(this.velocity, dt);
+    } else if (inputOrThrottle && typeof inputOrThrottle === 'object') {
+      // Compatibility for launch sequence or standalone calls
+      this.throttle = inputOrThrottle.boost ? 1.0 : (inputOrThrottle.forward ? 0.75 : 0.4);
+      this.isBoosting = !!inputOrThrottle.boost;
     }
 
     // Engine flame plumes shader animation
@@ -835,13 +838,14 @@ export class Rocket {
     }
 
     if (this.rightFlame && this.leftFlame) {
-      const flameScaleZ = 0.5 + this.throttle * 1.0 + (this.isBoosting ? 1.8 : 0.0);
-      this.rightFlame.scale.set(1.0 + (this.isBoosting ? 0.35 : 0), 1.0 + (this.isBoosting ? 0.35 : 0), flameScaleZ);
+      const flameScaleZ = 0.6 + this.throttle * 1.2 + (this.isBoosting ? 2.4 : 0.0);
+      const flameScaleXY = 1.0 + (this.isBoosting ? 0.45 : 0.0);
+      this.rightFlame.scale.set(flameScaleXY, flameScaleXY, flameScaleZ);
       this.leftFlame.scale.copy(this.rightFlame.scale);
     }
 
     if (this.engineLight) {
-      this.engineLight.intensity = 1.2 + this.throttle * 2.2 + (this.isBoosting ? 3.8 : 0);
+      this.engineLight.intensity = 1.4 + this.throttle * 2.6 + (this.isBoosting ? 4.6 : 0.0);
     }
   }
 

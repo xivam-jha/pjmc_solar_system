@@ -78,6 +78,7 @@ export class LaunchSequence {
   #buildDOM() {
     this.overlay = document.createElement('div');
     this.overlay.className = 'pjmc-launch-overlay hidden';
+    this.overlay.style.display = 'none';
 
     this.countdownEl = document.createElement('div');
     this.countdownEl.className = 'pjmc-countdown-number';
@@ -126,6 +127,7 @@ export class LaunchSequence {
 
     // Place rocket upright on launchpad (+Y vertical launch)
     if (this.rocket) {
+      this.rocket.setVisible(true);
       this.rocket.teleport(
         this.launchPos.clone().add(new THREE.Vector3(0, 2.8, 0)),
         this.launchPos.clone().add(new THREE.Vector3(0, 50, 0)) // nose pointed UP
@@ -140,7 +142,9 @@ export class LaunchSequence {
       this.camera.lookAt(this.launchPos);
     }
 
+    this.overlay.style.display = 'flex';
     this.overlay.classList.remove('hidden');
+    this.overlay.classList.add('active');
     this.countdownEl.textContent = '5';
     this.statusEl.textContent = 'IGNITION SEQUENCE INITIALIZED';
 
@@ -217,7 +221,9 @@ export class LaunchSequence {
 
   stop() {
     this.active = false;
+    this.overlay.style.display = 'none';
     this.overlay.classList.add('hidden');
+    this.overlay.classList.remove('active');
     this.gantryGroup.visible = false;
   }
 
@@ -238,7 +244,7 @@ export class LaunchSequence {
 
     this.onComplete?.(
       this.rocket ? this.rocket.root.position : orbitPos,
-      this.rocket ? this.rocket.root.rotation : new THREE.Euler(0, 0, 0)
+      this.rocket ? this.rocket.root.quaternion : new THREE.Quaternion()
     );
   }
 

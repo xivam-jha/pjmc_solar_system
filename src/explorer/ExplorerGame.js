@@ -83,27 +83,40 @@ export class ExplorerGame {
       onPauseClick: () => this.togglePause(),
       onToggleSound: (enabled) => this.audio.setMuted(!enabled),
       onToggleQuality: (lvl) => this.setQualityLevel(lvl),
+      onOpenSettings: () => this.controls.openSettingsModal(),
     });
 
     this.launchSeq = new LaunchSequence(this.scene, this.camera, this.rocket);
 
     // Flight physics & dynamics variables
     this.velocity = new THREE.Vector3();
-    this.euler = new THREE.Euler(0, 0, 0, 'YXZ');
-    this.targetRotation = new THREE.Quaternion();
-    this.flightSpeed = 0;
-    this.maxSpeed = 24.0;
-    this.baseSpeed = 12.0;
-    this.boostSpeed = 35.0;
+    this.flightSpeed = 20.0;
+    this.cruiseSpeed = 20.0;
+    this.maxCruiseSpeed = 36.0;
+    this.boostSpeed = 52.0;
+    this.brakeSpeed = 3.5;
     this.boostEnergy = 100.0;
+    this.maxBoostEnergy = 100.0;
+    this.boostDrainRate = 28.0;
+    this.boostRechargeRate = 20.0;
     this.isBoosting = false;
+
+    // Angular velocities with damping
+    this.pitchRate = 0;
+    this.yawRate = 0;
+    this.rollRate = 0;
+    this.visualBank = 0;
+    this.maxTurnRate = 1.85; // rad/s
+    this.maxRollRate = 2.2;  // rad/s
 
     // Vectors for camera interpolation
     this.camTargetPos = new THREE.Vector3();
     this.camCurrentPos = new THREE.Vector3();
     this.camLookTarget = new THREE.Vector3();
+    this.camUp = new THREE.Vector3(0, 1, 0);
     this.tempV1 = new THREE.Vector3();
     this.tempV2 = new THREE.Vector3();
+    this.tempV3 = new THREE.Vector3();
     this.navScreenVec = new THREE.Vector3();
 
     // Cache camera state before entering explore mode
@@ -111,6 +124,71 @@ export class ExplorerGame {
     this.savedControlsTarget = new THREE.Vector3();
 
     this.activeMission = null;
+
+    // Space warp speed particles
+    this.#buildWarpParticles();
+  }
+
+  #buildWarpParticles() {
+    const count = 180;
+    const geometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(count * 3);
+
+    for (let i = 0; i < count; i++) {
+      positions[i * 3 + 0] = (Math.random() - 0.5) * 60;
+      positions[i * 3 + 1] = (Math.random() - 0.5) * 40;
+      positions[i * 3 + 2] = (Math.random() - 0.5) * 80;
+    }
+
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+    const material = new THREE.PointsMaterial({
+      color: 0x66e5ff,
+      size: 1.5,
+      transparent: true,
+      opacity: 0.75,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
+
+    this.warpPoints = new THREE.Points(geometry, material);
+    this.warpPoints.visible = false;
+    this.scene.add(this.warpPoints);
+  }
+
+  updateWarpParticles(dt) {
+    if (!this.warpPoints || !this.warpPoints.visible) return;
+
+    const posAttr = this.warpPoints.geometry.attributes.position;
+    const posArr = posAttr.array;
+    const rocketPos = this.rocket.position;
+    const forward = this.rocket.getForwardVector(this.tempV1);
+
+    const speed = this.flightSpeed * (this.isBoosting ? 2.4 : 1.2);
+    const step = speed * dt;
+
+    for (let i = 0; i < posArr.length; i += 3) {
+      // Move particle backwards along rocket heading
+      posArr[i] -= forward.x * step;
+      posArr[i + 1] -= forward.y * step;
+      posArr[i + 2] -= forward.z * step;
+
+      const dx = posArr[i] - rocketPos.x;
+      const dy = posArr[i + 1] - rocketPos.y;
+      const dz = posArr[i + 2] - rocketPos.z;
+      const dotFwd = dx * forward.x + dy * forward.y + dz * forward.z;
+      const dist = Math.hypot(dx, dy, dz);
+
+      if (dotFwd < -25 || dist > 50) {
+        posArr[i] = rocketPos.x + forward.x * (32 + Math.random() * 20) + (Math.random() - 0.5) * 28;
+        posArr[i + 1] = rocketPos.y + forward.y * (32 + Math.random() * 20) + (Math.random() - 0.5) * 20;
+        posArr[i + 2] = rocketPos.z + forward.z * (32 + Math.random() * 20) + (Math.random() - 0.5) * 28;
+      }
+    }
+
+    posAttr.needsUpdate = true;
+    this.warpPoints.material.opacity = this.isBoosting ? 0.95 : 0.65;
+    this.warpPoints.material.size = this.isBoosting ? 2.4 : 1.5;
   }
 
   /* ------------------------------------------------------------------ */
@@ -152,11 +230,10 @@ export class ExplorerGame {
         this.startSpaceFlight(rocketPos, rocketRot);
       },
       () => {
-        // Skip intro clicked
-        this.startSpaceFlight(
-          new THREE.Vector3(earthPos.x, earthPos.y + 4.0, earthPos.z + 5.0),
-          new THREE.Euler(0, 0, 0)
-        );
+        // Skip intro clicked: place spacecraft directly in orbital space
+        const orbitPos = earthPos.clone().add(new THREE.Vector3(0, 24, 18));
+        this.rocket.teleport(orbitPos, orbitPos.clone().add(new THREE.Vector3(0, 5, 20)));
+        this.startSpaceFlight(orbitPos, this.rocket.quaternion);
       }
     );
   }
@@ -167,25 +244,42 @@ export class ExplorerGame {
 
     // Position rocket
     this.rocket.setPosition(startPos.x, startPos.y, startPos.z);
-    this.rocket.rotation.copy(startRot);
+    if (startRot) {
+      if (startRot.isQuaternion) {
+        this.rocket.quaternion.copy(startRot);
+      } else if (startRot.isEuler) {
+        this.rocket.rotation.copy(startRot);
+      }
+    }
     this.rocket.setVisible(true);
 
     // Initial forward momentum (Nose is at +Z)
-    this.flightSpeed = 8.0;
-    this.velocity.set(0, 0, 1).applyQuaternion(this.rocket.quaternion).multiplyScalar(this.flightSpeed);
+    this.flightSpeed = this.cruiseSpeed;
+    this.pitchRate = 0;
+    this.yawRate = 0;
+    this.rollRate = 0;
+    this.visualBank = 0;
+    this.rocket.setVisualBank(0);
+    this.rocket.getForwardVector(this.velocity).multiplyScalar(this.flightSpeed);
 
     // Setup initial chase camera behind rocket (looking forward toward space)
-    const offset = new THREE.Vector3(0, 2.2, -8.2).applyQuaternion(this.rocket.quaternion);
+    const offset = new THREE.Vector3(0, 2.4, -9.5).applyQuaternion(this.rocket.quaternion);
     this.camera.position.copy(this.rocket.position).add(offset);
     this.camCurrentPos.copy(this.camera.position);
-    const lookTarget = new THREE.Vector3(0, 0.4, 6.0).applyQuaternion(this.rocket.quaternion);
+
+    const lookTarget = new THREE.Vector3(0, 0.4, 8.0).applyQuaternion(this.rocket.quaternion);
     this.camLookTarget.copy(this.rocket.position).add(lookTarget);
+
+    const rocketUp = this.rocket.getUpVector(this.tempV2);
+    this.camUp.copy(rocketUp);
+    this.camera.up.copy(this.camUp);
     this.camera.lookAt(this.camLookTarget);
 
     // Enable touch & keyboard controls
     this.controls.show();
     this.hud.show();
     this.setCockpitMode(false);
+    if (this.warpPoints) this.warpPoints.visible = true;
   }
 
   resumeFlight() {
@@ -232,6 +326,7 @@ export class ExplorerGame {
     // Cleanup launch, rocket, waypoints, controls, HUD
     this.launchSeq.stop();
     this.rocket.setVisible(false);
+    if (this.warpPoints) this.warpPoints.visible = false;
     this.missions.clearCheckpoints();
     this.controls.hide();
     this.hud.hide();
@@ -309,62 +404,91 @@ export class ExplorerGame {
   }
 
   updateFlightPhysics(dt) {
-    const steer = this.controls.getSteer();
-    const isBraking = this.controls.isBraking();
+    const input = this.controls.getInput();
 
-    // Boost energy management
-    if (this.controls.isBoosting() && this.boostEnergy > 2) {
-      this.isBoosting = true;
-      this.boostEnergy = Math.max(0, this.boostEnergy - dt * 25);
+    // 1. Boost energy & thruster management
+    const wantBoost = input.boost && this.boostEnergy > 3.0;
+    if (wantBoost) {
+      this.boostEnergy = Math.max(0, this.boostEnergy - dt * this.boostDrainRate);
+      if (!this.isBoosting) {
+        this.isBoosting = true;
+        this.audio.playBoostWhoosh();
+      }
     } else {
-      this.isBoosting = false;
-      this.boostEnergy = Math.min(100, this.boostEnergy + dt * 15);
+      this.boostEnergy = Math.min(this.maxBoostEnergy, this.boostEnergy + dt * this.boostRechargeRate);
+      if (this.isBoosting) {
+        this.isBoosting = false;
+        this.audio.stopBoost();
+      }
     }
 
-    // Target flight speed
-    let targetSpeed = this.baseSpeed;
+    // 2. Realistic Spacecraft Forward Speed
+    let targetSpeed = this.cruiseSpeed;
     if (this.isBoosting) {
       targetSpeed = this.boostSpeed;
-    } else if (isBraking) {
-      targetSpeed = 4.0;
+    } else if (input.thrust > 0.04) {
+      // Pushing AAGE on stick increases speed smoothly up to maxCruiseSpeed
+      targetSpeed = this.cruiseSpeed + input.thrust * (this.maxCruiseSpeed - this.cruiseSpeed);
+    } else if (input.thrust < -0.04 || input.brake) {
+      // Pulling PICHE on stick or brake decelerates down to brakeSpeed
+      const brakeNorm = Math.min(1.0, Math.abs(input.thrust));
+      targetSpeed = this.cruiseSpeed - brakeNorm * (this.cruiseSpeed - this.brakeSpeed);
     }
 
-    // Accelerate / decelerate smoothly
-    const accelRate = this.isBoosting ? 25.0 : 12.0;
-    this.flightSpeed = THREE.MathUtils.lerp(this.flightSpeed, targetSpeed, Math.min(1.0, dt * 3.5));
+    // Smooth acceleration / deceleration
+    const speedDamp = this.isBoosting ? 5.0 : (input.thrust < -0.04 ? 6.0 : 4.0);
+    this.flightSpeed = THREE.MathUtils.damp(this.flightSpeed, targetSpeed, speedDamp, dt);
 
-    // Pitch & Yaw rotation from joystick / keyboard
-    const turnRate = 2.0;
-    const yawDelta = -steer.x * turnRate * dt;
-    const pitchDelta = -steer.y * turnRate * dt;
+    // 3. Angular velocity with responsive damping
+    const targetPitchRate = input.pitch * this.maxTurnRate;
+    const targetYawRate = input.yaw * this.maxTurnRate;
+    const targetRollRate = input.roll * this.maxRollRate;
 
-    // Apply rotation around rocket's local axes
-    this.rocket.rotateY(yawDelta);
-    this.rocket.rotateX(pitchDelta);
+    this.pitchRate = THREE.MathUtils.damp(this.pitchRate, targetPitchRate, 7.5, dt);
+    this.yawRate = THREE.MathUtils.damp(this.yawRate, targetYawRate, 7.5, dt);
+    this.rollRate = THREE.MathUtils.damp(this.rollRate, targetRollRate, 8.0, dt);
 
-    // Natural banking/roll when turning horizontally
-    const targetRoll = -steer.x * 0.45;
-    this.rocket.rotation.z = THREE.MathUtils.lerp(this.rocket.rotation.z, targetRoll, dt * 5.0);
+    // Apply rotation around spacecraft's local axes via pure quaternion operations
+    // Sliding Lever UP (pitch > 0) -> Nose tilts UP around local -X
+    // Sliding Lever DOWN (pitch < 0) -> Nose tilts DOWN around local +X
+    // Steering Joystick RIGHT (yaw > 0) -> Nose turns RIGHT around local +Y
+    // Steering Joystick LEFT (yaw < 0) -> Nose turns LEFT around local -Y
+    // Roll RIGHT (roll > 0) -> Rolls clockwise around local -Z
+    const pitchDelta = -this.pitchRate * dt;
+    const yawDelta = this.yawRate * dt;
+    const rollDelta = -this.rollRate * dt;
+    this.rocket.applyLocalRotation(pitchDelta, yawDelta, rollDelta);
 
-    // Forward direction vector (in direction of nose +Z)
-    const forward = this.tempV1.set(0, 0, 1).applyQuaternion(this.rocket.quaternion);
+    // 4. Automatic Visual Banking (tilts visual mesh along Z without altering flight orientation)
+    if (this.controls.settings.autoBank) {
+      const targetBank = -this.yawRate * 0.52; // Bank naturally into the turn
+      this.visualBank = THREE.MathUtils.damp(this.visualBank, targetBank, 6.0, dt);
+    } else {
+      this.visualBank = THREE.MathUtils.damp(this.visualBank, 0, 6.0, dt);
+    }
+    this.rocket.setVisualBank(this.visualBank);
 
-    // Apply forward thrust to position
-    this.rocket.position.addScaledVector(forward, this.flightSpeed * dt);
+    // 5. Forward movement along actual facing vector (+Z)
+    const forward = this.rocket.getForwardVector(this.tempV1);
+    this.velocity.copy(forward).multiplyScalar(this.flightSpeed);
+    this.rocket.position.addScaledVector(this.velocity, dt);
 
-    // Soft celestial boundaries: prevent flying beyond radius 260
+    // 6. Update Space Warp Particles
+    this.updateWarpParticles(dt);
+
+    // 6. Soft celestial boundaries: prevent flying beyond radius 260
     const distFromOrigin = this.rocket.position.length();
     if (distFromOrigin > 250) {
       const pull = this.tempV2.copy(this.rocket.position).normalize().negate();
       this.rocket.position.addScaledVector(pull, (distFromOrigin - 250) * dt * 2.0);
     }
 
-    // Update rocket flame animation and boost intensity
-    const throttleNorm = this.flightSpeed / this.maxSpeed;
-    this.rocket.update(dt, throttleNorm, this.isBoosting);
+    // 7. Update rocket flame animation and boost intensity
+    const throttleNorm = (this.flightSpeed - this.brakeSpeed) / (this.boostSpeed - this.brakeSpeed);
+    this.rocket.update(dt, Math.max(0.12, Math.min(1.0, throttleNorm)), this.isBoosting);
 
-    // Modulate audio engine rumble with throttle
-    this.audio.playEngineThrottle(throttleNorm);
+    // 8. Modulate engine audio
+    this.audio.playEngineThrottle(throttleNorm, this.isBoosting);
   }
 
   updateCamera(dt) {
@@ -375,16 +499,22 @@ export class ExplorerGame {
       this.camera.quaternion.copy(this.rocket.quaternion);
     } else {
       // Third-Person Smooth Chase Camera (Positioned behind engines, looking forward past nose)
-      const offset = this.tempV1.set(0, 2.2, -8.2).applyQuaternion(this.rocket.quaternion);
+      const offset = this.tempV1.set(0, 2.4, -9.5).applyQuaternion(this.rocket.quaternion);
       this.camTargetPos.copy(this.rocket.position).add(offset);
 
       // Smooth interpolation for camera position
-      this.camCurrentPos.lerp(this.camTargetPos, Math.min(1.0, dt * 8.0));
+      this.camCurrentPos.lerp(this.camTargetPos, Math.min(1.0, dt * 7.5));
       this.camera.position.copy(this.camCurrentPos);
 
       // Camera looks forward past the rocket nose
-      const lookAhead = this.tempV2.set(0, 0.4, 6.0).applyQuaternion(this.rocket.quaternion);
+      const lookAhead = this.tempV2.set(0, 0.4, 8.0).applyQuaternion(this.rocket.quaternion);
       this.camLookTarget.copy(this.rocket.position).add(lookAhead);
+
+      // Interpolate camera UP vector with rocket local UP (prevents flips during loops or steep pitch)
+      const targetUp = this.rocket.getUpVector(this.tempV3);
+      this.camUp.lerp(targetUp, Math.min(1.0, dt * 6.0)).normalize();
+      this.camera.up.copy(this.camUp);
+
       this.camera.lookAt(this.camLookTarget);
     }
   }

@@ -19,7 +19,7 @@ export class FlightHUD {
     // callbacks: onResume, onRestart, onSelectMission, onExitExplore, onToggleSound, onToggleQuality
 
     this.root = document.createElement('div');
-    this.root.className = 'pjmc-explorer-ui';
+    this.root.className = 'pjmc-explorer-ui hidden';
     this.root.id = 'pjmc-explorer-ui';
     this.root.style.display = 'none';
 
@@ -236,6 +236,9 @@ export class FlightHUD {
           <button type="button" class="pjmc-btn-secondary" id="pjmc-pause-restart">
             ↺ RESTART MISSION
           </button>
+          <button type="button" class="pjmc-btn-secondary" id="pjmc-pause-settings">
+            ⚙ FLIGHT CONTROLS SETTINGS
+          </button>
 
           <div class="pjmc-settings-row">
             <span class="pjmc-opt-label">SOUND FX</span>
@@ -253,7 +256,7 @@ export class FlightHUD {
         </div>
 
         <div class="pjmc-controls-reminder">
-          <strong>CONTROLS:</strong> WASD/Arrows to Steer • SPACE to Boost • C for Cockpit • ESC to Pause
+          <strong>CONTROLS:</strong> WASD/Stick to Steer • SPACE/Hold Boost • C Cockpit • ESC Pause
         </div>
       </div>
     `;
@@ -265,6 +268,9 @@ export class FlightHUD {
 
     const restartBtn = this.pauseModalEl.querySelector('#pjmc-pause-restart');
     restartBtn.addEventListener('click', () => this.callbacks.onRestart?.());
+
+    const settingsBtn = this.pauseModalEl.querySelector('#pjmc-pause-settings');
+    settingsBtn.addEventListener('click', () => this.callbacks.onOpenSettings?.());
 
     const exitBtn = this.pauseModalEl.querySelector('#pjmc-pause-exit');
     exitBtn.addEventListener('click', () => this.callbacks.onExitExplore?.());
@@ -363,10 +369,14 @@ export class FlightHUD {
 
   show() {
     this.root.style.display = 'block';
+    this.root.classList.add('active');
+    this.root.classList.remove('hidden');
   }
 
   hide() {
     this.root.style.display = 'none';
+    this.root.classList.remove('active');
+    this.root.classList.add('hidden');
     this.closeMissionModal();
     this.hidePauseModal();
     this.hideVictoryModal();

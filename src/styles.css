@@ -558,15 +558,23 @@ body {
 
 /* ---------- Launch Cinematic Overlay ---------- */
 .pjmc-launch-overlay {
+  display: none !important;
   position: fixed;
   inset: 0;
   z-index: 150;
-  display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   pointer-events: none;
   font-family: var(--mono);
+}
+
+.pjmc-launch-overlay.active {
+  display: flex !important;
+}
+
+.pjmc-launch-overlay.hidden {
+  display: none !important;
 }
 
 .pjmc-countdown-box {
@@ -630,6 +638,7 @@ body {
 
 /* ---------- Flight HUD & Telemetry Header ---------- */
 .pjmc-explorer-ui {
+  display: none !important;
   position: fixed;
   inset: 0;
   z-index: 80;
@@ -637,6 +646,10 @@ body {
   font-family: var(--mono);
   user-select: none;
   -webkit-user-select: none;
+}
+
+.pjmc-explorer-ui.active {
+  display: block !important;
 }
 
 .pjmc-telemetry-bar {
@@ -914,96 +927,352 @@ body {
   text-shadow: 0 0 6px rgba(0, 240, 255, 0.4);
 }
 
-/* ---------- Touch Flight Controls (Mobile First) ---------- */
+/* ---------- Touch Flight Controls (Mobile Landscape Optimized) ---------- */
 .pjmc-controls-root {
+  display: none !important;
   position: fixed;
   inset: 0;
   pointer-events: none;
-  z-index: 100;
+  z-index: 150;
   user-select: none;
   -webkit-user-select: none;
   touch-action: none;
 }
 
+.pjmc-controls-root.active {
+  display: block !important;
+}
+
+.pjmc-controls-root.hidden {
+  display: none !important;
+}
+
+.pjmc-modal.hidden, .hidden {
+  display: none !important;
+  pointer-events: none !important;
+}
+
+/* Southpaw (Lefty) Layout Switch */
+.pjmc-controls-root.southpaw .pjmc-joystick-zone {
+  left: auto;
+  right: 24px;
+}
+.pjmc-controls-root.southpaw .pjmc-actions-zone {
+  right: auto;
+  left: 24px;
+  flex-direction: row-reverse;
+}
+
+/* 1. LEFT THUMB — Directional Flight Stick (AAGE, PICHE, LEFT, RIGHT) */
 .pjmc-joystick-zone {
   position: fixed;
   bottom: 24px;
   left: 24px;
-  width: 140px;
-  height: 140px;
+  width: 152px;
+  height: 152px;
   pointer-events: auto;
   display: flex;
   align-items: center;
   justify-content: center;
   touch-action: none;
+  z-index: 155;
 }
 
 .pjmc-joystick-base {
-  width: 120px;
-  height: 120px;
-  background: radial-gradient(circle, rgba(12, 28, 48, 0.8) 0%, rgba(6, 16, 28, 0.6) 80%);
-  border: 2px solid rgba(0, 220, 255, 0.4);
-  box-shadow: 0 0 18px rgba(0, 200, 255, 0.2), inset 0 0 20px rgba(0, 220, 255, 0.1);
+  width: 144px;
+  height: 144px;
+  background: radial-gradient(circle, rgba(14, 28, 48, 0.94) 0%, rgba(6, 16, 28, 0.96) 70%, rgba(2, 6, 12, 0.98) 100%);
+  border: 2px solid rgba(0, 240, 255, 0.5);
+  box-shadow: 0 0 24px rgba(0, 200, 255, 0.28), inset 0 0 25px rgba(0, 240, 255, 0.14);
   border-radius: 50%;
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
+  will-change: transform;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.pjmc-joystick-base.active {
+  border-color: rgba(0, 240, 255, 0.9);
+  box-shadow: 0 0 35px rgba(0, 240, 255, 0.5), inset 0 0 30px rgba(0, 240, 255, 0.25);
+}
+
+.pjmc-joy-grid {
+  position: absolute;
+  inset: 12px;
+  border-radius: 50%;
+  border: 1px dashed rgba(0, 240, 255, 0.32);
+  pointer-events: none;
+}
+
+.pjmc-joy-center-ring {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 240, 255, 0.4);
+  pointer-events: none;
+}
+
+.pjmc-joy-dir {
+  position: absolute;
+  font-family: var(--mono);
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  color: rgba(0, 240, 255, 0.85);
+  pointer-events: none;
+  text-shadow: 0 0 8px rgba(0, 240, 255, 0.7);
+  user-select: none;
+}
+
+.pjmc-joy-dir.dir-aage, .pjmc-joy-dir.dir-up {
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.pjmc-joy-dir.dir-piche, .pjmc-joy-dir.dir-down {
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.pjmc-joy-dir.dir-left {
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.pjmc-joy-dir.dir-right {
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
 }
 
 .pjmc-joystick-knob {
-  width: 50px;
-  height: 50px;
-  background: radial-gradient(circle, #00f0ff 0%, #0077b6 100%);
-  border: 2px solid #ffffff;
+  width: 56px;
+  height: 56px;
+  background: radial-gradient(circle, #00f0ff 0%, #0077b6 65%, #022538 100%);
+  border: 2.5px solid #ffffff;
   border-radius: 50%;
-  box-shadow: 0 0 16px rgba(0, 240, 255, 0.8);
+  box-shadow: 0 0 22px rgba(0, 240, 255, 0.95), inset 0 0 10px rgba(255, 255, 255, 0.7);
   pointer-events: none;
   position: absolute;
   top: 50%;
   left: 50%;
-  margin-top: -25px;
-  margin-left: -25px;
+  transform: translate(-50%, -50%);
   will-change: transform;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
+.pjmc-knob-core {
+  width: 14px;
+  height: 14px;
+  background: #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 0 10px #00f0ff;
+}
+
+.pjmc-knob-pip {
+  position: absolute;
+  top: 4px;
+  width: 4px;
+  height: 4px;
+  background: #00ffcc;
+  border-radius: 50%;
+  box-shadow: 0 0 6px #00ffcc;
+}
+
+/* 2. RIGHT THUMB — Vertical Altitude/Pitch Lever (Liver) & Action Cluster */
 .pjmc-actions-zone {
   position: fixed;
   bottom: 24px;
   right: 24px;
   pointer-events: auto;
   display: flex;
+  flex-direction: row;
+  align-items: flex-end;
+  gap: 16px;
+  touch-action: none;
+  z-index: 155;
+}
+
+/* Vertical Action Column (Boost, Cam, Pause, Settings) */
+.pjmc-action-col {
+  display: flex;
   flex-direction: column;
-  gap: 12px;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Vertical Lever (Liver / थ्रॉटल-पिच लीवर) */
+.pjmc-lever-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.pjmc-lever-base {
+  width: 62px;
+  height: 172px;
+  background: radial-gradient(circle at 50% 50%, rgba(14, 28, 48, 0.94) 0%, rgba(6, 16, 28, 0.98) 100%);
+  border: 2px solid rgba(0, 240, 255, 0.5);
+  border-radius: 31px;
+  box-shadow: 0 0 22px rgba(0, 200, 255, 0.28), inset 0 0 16px rgba(0, 240, 255, 0.12);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  position: relative;
+  touch-action: none;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.pjmc-lever-base.active {
+  border-color: rgba(0, 240, 255, 0.9);
+  box-shadow: 0 0 32px rgba(0, 240, 255, 0.5), inset 0 0 24px rgba(0, 240, 255, 0.25);
+}
+
+.pjmc-lever-dir {
+  font-family: var(--mono);
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  color: #00f0ff;
+  text-shadow: 0 0 8px rgba(0, 240, 255, 0.8);
+  pointer-events: none;
+  user-select: none;
+}
+
+.pjmc-lever-dir.dir-uper {
+  margin-top: 2px;
+}
+
+.pjmc-lever-dir.dir-niche {
+  margin-bottom: 2px;
+}
+
+.pjmc-lever-track {
+  width: 100%;
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   touch-action: none;
 }
 
-.pjmc-action-row {
-  display: flex;
-  gap: 12px;
-  justify-content: flex-end;
+.pjmc-lever-slot {
+  width: 8px;
+  height: 90%;
+  background: rgba(2, 8, 16, 0.95);
+  border: 1px solid rgba(0, 240, 255, 0.35);
+  border-radius: 4px;
+  box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.9);
 }
 
-.pjmc-action-btn {
-  min-width: 54px;
-  min-height: 54px;
-  border-radius: 50%;
-  background: rgba(10, 24, 42, 0.85);
-  border: 1.5px solid rgba(0, 220, 255, 0.45);
-  color: #cceeff;
-  font-family: var(--mono);
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
+.pjmc-lever-ticks {
+  position: absolute;
+  left: 6px;
+  top: 10%;
+  bottom: 10%;
   display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  color: rgba(0, 240, 255, 0.4);
+  font-size: 7px;
+  pointer-events: none;
+  font-family: var(--mono);
+}
+
+.pjmc-lever-center-mark {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-family: var(--mono);
+  font-size: 7px;
+  letter-spacing: 0.12em;
+  color: rgba(0, 240, 255, 0.7);
+  text-shadow: 0 0 6px rgba(0, 240, 255, 0.5);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+/* Draggable Lever Handle (Liver Grip) */
+.pjmc-lever-handle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 52px;
+  height: 34px;
+  background: linear-gradient(180deg, #1f4260 0%, #0d2338 50%, #061524 100%);
+  border: 2px solid #00f0ff;
+  border-radius: 8px;
+  box-shadow: 0 0 16px rgba(0, 240, 255, 0.65), inset 0 0 8px rgba(255, 255, 255, 0.2);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  cursor: grab;
+  will-change: transform;
+}
+
+.pjmc-handle-ribs {
+  width: 28px;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.4);
+  box-shadow: 0 4px 0 rgba(255, 255, 255, 0.4), 0 -4px 0 rgba(255, 255, 255, 0.4);
+}
+
+.pjmc-handle-lamp {
+  width: 18px;
+  height: 3px;
+  background: #00ffcc;
+  box-shadow: 0 0 8px #00ffcc;
+  border-radius: 2px;
+  margin-top: 4px;
+}
+
+.pjmc-lever-base.active .pjmc-lever-handle {
+  border-color: #ffffff;
+  box-shadow: 0 0 25px rgba(0, 240, 255, 0.95), inset 0 0 12px #ffffff;
+}
+
+.pjmc-lever-base.active .pjmc-handle-lamp {
+  background: #ffffff;
+  box-shadow: 0 0 12px #ffffff, 0 0 20px #00ffcc;
+}
+
+/* Action Buttons */
+.pjmc-action-btn {
+  border-radius: 50%;
+  background: rgba(12, 26, 44, 0.92);
+  border: 1.5px solid rgba(0, 220, 255, 0.45);
+  color: #d0f0ff;
+  font-family: var(--mono);
+  font-weight: 800;
+  display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   box-shadow: 0 0 14px rgba(0, 180, 255, 0.25);
-  transition: transform 0.1s ease, background 0.15s ease, box-shadow 0.15s ease;
+  transition: transform 0.08s ease, background 0.15s ease, box-shadow 0.15s ease;
   user-select: none;
   -webkit-user-select: none;
   touch-action: none;
+  position: relative;
 }
 
 .pjmc-action-btn:active, .pjmc-action-btn.active {
@@ -1011,21 +1280,191 @@ body {
   background: rgba(0, 220, 255, 0.35);
   border-color: #00ffff;
   color: #ffffff;
-  box-shadow: 0 0 22px rgba(0, 240, 255, 0.8);
+  box-shadow: 0 0 26px rgba(0, 240, 255, 0.85);
 }
 
+.pjmc-action-btn .action-icon {
+  line-height: 1;
+}
+
+.pjmc-action-btn .action-label {
+  font-size: 8px;
+  letter-spacing: 0.06em;
+  margin-top: 2px;
+}
+
+/* BOOST Button (Large, Amber/Orange Fire Theme) */
 .pjmc-action-btn.boost-btn {
-  background: linear-gradient(135deg, rgba(255, 120, 0, 0.35), rgba(255, 60, 0, 0.2));
-  border-color: rgba(255, 140, 0, 0.7);
-  color: #ffddaa;
-  box-shadow: 0 0 16px rgba(255, 120, 0, 0.35);
+  width: 72px;
+  height: 72px;
+  background: radial-gradient(circle, rgba(255, 130, 0, 0.5) 0%, rgba(200, 60, 0, 0.3) 60%, rgba(20, 10, 5, 0.95) 100%);
+  border: 2.5px solid #ff9900;
+  color: #fff2dd;
+  box-shadow: 0 0 24px rgba(255, 140, 0, 0.6), inset 0 0 14px rgba(255, 160, 0, 0.3);
+}
+
+.pjmc-action-btn.boost-btn .action-icon {
+  font-size: 22px;
+}
+
+.pjmc-action-btn.boost-btn .action-label {
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
 }
 
 .pjmc-action-btn.boost-btn:active, .pjmc-action-btn.boost-btn.active {
-  background: linear-gradient(135deg, rgba(255, 140, 0, 0.7), rgba(255, 60, 0, 0.5));
-  border-color: #ffaa00;
+  transform: scale(0.93);
+  background: radial-gradient(circle, rgba(255, 160, 0, 0.88) 0%, rgba(255, 80, 0, 0.75) 70%, rgba(30, 10, 5, 0.98) 100%);
+  border-color: #ffffff;
   color: #ffffff;
-  box-shadow: 0 0 28px rgba(255, 140, 0, 0.9);
+  box-shadow: 0 0 36px rgba(255, 160, 0, 0.95), inset 0 0 20px #ffffff;
+}
+
+/* CAM & PAUSE & SETTINGS */
+.pjmc-action-btn.cam-btn {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(12, 28, 48, 0.92);
+  border: 1.5px solid rgba(0, 220, 255, 0.5);
+  color: #00f0ff;
+  box-shadow: 0 0 14px rgba(0, 200, 255, 0.25);
+  cursor: pointer;
+}
+
+.pjmc-action-btn.cam-btn .action-icon {
+  font-size: 16px;
+}
+
+.pjmc-action-btn.pause-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(12, 28, 48, 0.92);
+  border: 1.5px solid rgba(0, 220, 255, 0.5);
+  color: #00f0ff;
+  box-shadow: 0 0 12px rgba(0, 200, 255, 0.25);
+  cursor: pointer;
+}
+
+.pjmc-action-btn.pause-btn .action-icon {
+  font-size: 14px;
+}
+
+.pjmc-action-btn.settings-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(10, 22, 38, 0.88);
+  border: 1px solid rgba(0, 240, 255, 0.35);
+  color: #a0d8ef;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+/* 3. Quick Flight Settings Modal */
+.flight-settings-box {
+  max-width: 460px;
+  width: 90%;
+  padding: 24px;
+  border: 1px solid rgba(0, 240, 255, 0.45);
+  background: rgba(6, 16, 28, 0.95);
+  box-shadow: 0 0 35px rgba(0, 200, 255, 0.25);
+}
+
+.flight-settings-content {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin: 16px 0;
+}
+
+.flight-setting-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background: rgba(14, 28, 48, 0.65);
+  border: 1px solid rgba(0, 240, 255, 0.25);
+  border-radius: 8px;
+  gap: 12px;
+}
+
+.setting-desc {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.setting-desc strong {
+  color: #ffffff;
+  font-size: 12px;
+  letter-spacing: 0.05em;
+}
+
+.setting-hint {
+  font-size: 10px;
+  color: #88c8e8;
+}
+
+.flight-setting-toggle {
+  background: rgba(0, 180, 255, 0.15);
+  border: 1.5px solid rgba(0, 240, 255, 0.5);
+  color: #00f0ff;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 800;
+  padding: 6px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.flight-setting-toggle:hover, .flight-setting-toggle.active {
+  background: rgba(0, 240, 255, 0.35);
+  border-color: #00ffff;
+  color: #ffffff;
+  box-shadow: 0 0 14px rgba(0, 240, 255, 0.6);
+}
+
+.flight-settings-keys {
+  background: rgba(4, 12, 22, 0.8);
+  border: 1px solid rgba(0, 240, 255, 0.2);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 16px;
+}
+
+.key-help-title {
+  font-size: 10px;
+  font-weight: 800;
+  color: #00f0ff;
+  letter-spacing: 0.08em;
+  margin-bottom: 8px;
+}
+
+.key-help-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  font-size: 10px;
+  color: #cceeff;
+}
+
+.pjmc-settings-close-btn {
+  background: transparent;
+  border: none;
+  color: #88c8e8;
+  font-size: 18px;
+  font-weight: 800;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+
+.pjmc-settings-close-btn:hover {
+  color: #ffffff;
 }
 
 /* ---------- Modals (Mission Select, Pause, Victory) ---------- */
@@ -1442,31 +1881,50 @@ body {
   .pjmc-nav-info { gap: 6px; font-size: 9px; }
 
   .pjmc-joystick-zone {
-    bottom: 16px;
-    left: 16px;
-    width: 110px;
-    height: 110px;
+    bottom: 14px;
+    left: 14px;
+    width: 124px;
+    height: 124px;
   }
   .pjmc-joystick-base {
-    width: 100px;
-    height: 100px;
+    width: 116px;
+    height: 116px;
   }
   .pjmc-joystick-knob {
-    width: 44px;
-    height: 44px;
-    margin-top: -22px;
-    margin-left: -22px;
+    width: 46px;
+    height: 46px;
+    margin: 0;
+  }
+  .pjmc-joy-dir {
+    font-size: 7px;
   }
 
   .pjmc-actions-zone {
-    bottom: 16px;
-    right: 16px;
+    bottom: 14px;
+    right: 14px;
     gap: 8px;
   }
-  .pjmc-action-btn {
-    min-width: 48px;
-    min-height: 48px;
-    font-size: 9px;
+  .pjmc-action-cluster {
+    gap: 8px;
+  }
+  .pjmc-action-cluster.main {
+    gap: 12px;
+  }
+  .pjmc-action-btn.boost-btn {
+    width: 66px;
+    height: 66px;
+  }
+  .pjmc-action-btn.brake-btn {
+    width: 54px;
+    height: 54px;
+  }
+  .pjmc-action-btn.cam-btn, .pjmc-action-btn.pause-btn {
+    width: 42px;
+    height: 42px;
+  }
+  .pjmc-action-btn.settings-btn {
+    width: 38px;
+    height: 38px;
   }
 
   .pjmc-modal-window {

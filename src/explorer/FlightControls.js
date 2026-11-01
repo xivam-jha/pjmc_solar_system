@@ -1,176 +1,528 @@
 /**
  * PJMC Space Explorer — FlightControls.
- * Mobile-first virtual joystick and touch action buttons (BOOST, BRAKE,
- * CAMERA, PAUSE), combined with responsive desktop keyboard controls.
- * Pointer-event isolated, multitouch-safe, zero scroll interference.
+ *
+ * Professional Mobile Game Spacecraft Control System:
+ * - Left Thumb: 4-Way Directional Flight Stick
+ *   - ▲ AAGE (Forward Thrust / Accelerate)
+ *   - ▼ PICHE (Brake / Decelerate)
+ *   - ◄ LEFT (Turn Left with visual banking)
+ *   - RIGHT ► (Turn Right with visual banking)
+ * - Right Thumb: Vertical Altitude & Pitch Lever (Liver)
+ *   - ▲ UPER (Nose Up / Ascend)
+ *   - ▼ NICHE (Nose Down / Descend)
+ *   - Center Spring-Return to level flight
+ * - Right Action Cluster:
+ *   - ⚡ BOOST: Hold for maximum warp thruster speed
+ *   - 👁 CAM: Toggle 3rd-person chase / 1st-person cockpit
+ *   - ⏸ PAUSE: Pause flight & open mission menu
+ *   - ⚙ CONFIG: In-flight sensitivity and layout options
+ * - Desktop Keyboard Bindings:
+ *   - W / ArrowUp: Aage (Forward)
+ *   - S / ArrowDown: Piche (Brake)
+ *   - A / ArrowLeft: Left
+ *   - D / ArrowRight: Right
+ *   - R / PageUp: Uper (Pitch Up)
+ *   - F / PageDown: Niche (Pitch Down)
+ *   - Space / Shift: Boost
+ *   - C: Camera
+ *   - Esc: Pause
  */
 
 export class FlightControls {
-  constructor(containerOrCallbacks, maybeCallbacks = {}) {
-    if (typeof containerOrCallbacks === 'object' && containerOrCallbacks instanceof Element) {
-      this.container = containerOrCallbacks;
-      this.callbacks = maybeCallbacks || {};
-    } else {
-      this.container = document.body;
-      this.callbacks = containerOrCallbacks || {};
-    }
+  constructor(callbacks = {}) {
+    this.callbacks = callbacks;
 
+    // Load persisted settings
+    this.settings = {
+      sensitivity: 1.0,
+      invertPitch: false,
+      autoBank: true,
+      layout: 'standard', // 'standard' or 'southpaw'
+    };
+    this.#loadSettings();
+
+    // Raw input states (-1 to +1, or boolean)
     this.input = {
-      forward: false,
-      pitch: 0,
-      yaw: 0,
+      thrust: 0, // -1.0 (Piche/Brake) to +1.0 (Aage/Forward)
+      yaw: 0,    // -1.0 (Left) to +1.0 (Right)
+      pitch: 0,  // -1.0 (Niche/Down) to +1.0 (Uper/Up) from the Lever
+      roll: 0,   // -1.0 to +1.0
       boost: false,
       brake: false,
     };
 
     this.enabled = false;
     this.keys = new Set();
+
+    // Left Thumb Joystick tracking
     this.joystickPointerId = null;
-    this.joystickOrigin = { x: 0, y: 0 };
-    this.joystickDelta = { x: 0, y: 0 };
-    this.maxJoystickRadius = 55;
+    this.maxJoystickRadius = 56; // pixels
+    this.joystickDeadzone = 5.5; // ~10%
+
+    // Right Thumb Vertical Lever tracking
+    this.leverPointerId = null;
+    this.maxLeverTravel = 52; // pixels up/down
+    this.leverDeadzone = 4.0;
 
     this.#buildDOM();
     this.#bindEvents();
+    this.applyLayout();
+  }
+
+  #loadSettings() {
+    try {
+      const saved = localStorage.getItem('pjmc_flight_settings_v2');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (typeof parsed.sensitivity === 'number') this.settings.sensitivity = parsed.sensitivity;
+        if (typeof parsed.invertPitch === 'boolean') this.settings.invertPitch = parsed.invertPitch;
+        if (typeof parsed.autoBank === 'boolean') this.settings.autoBank = parsed.autoBank;
+        if (parsed.layout === 'standard' || parsed.layout === 'southpaw') this.settings.layout = parsed.layout;
+      }
+    } catch (_) {}
+  }
+
+  saveSettings() {
+    try {
+      localStorage.setItem('pjmc_flight_settings_v2', JSON.stringify(this.settings));
+    } catch (_) {}
   }
 
   #buildDOM() {
     this.root = document.createElement('div');
     this.root.className = 'pjmc-controls-root hidden';
+    this.root.id = 'pjmc-flight-controls-root';
+    this.root.style.display = 'none'; // NEVER show on initial Solar System load
 
-    // Left Area: Virtual Touch Joystick
+    // -------------------------------------------------------------
+    // 1. LEFT THUMB — Directional Joystick (Aage, Piche, Left, Right)
+    // -------------------------------------------------------------
     this.joystickZone = document.createElement('div');
     this.joystickZone.className = 'pjmc-joystick-zone';
+    this.joystickZone.setAttribute('aria-label', 'Directional Flight Stick');
 
     this.joystickBase = document.createElement('div');
     this.joystickBase.className = 'pjmc-joystick-base';
 
+    // Clear Hindi / English directional labels
+    this.joystickBase.innerHTML = `
+      <div class="pjmc-joy-grid"></div>
+      <div class="pjmc-joy-dir dir-aage">▲ AAGE</div>
+      <div class="pjmc-joy-dir dir-piche">▼ PICHE</div>
+      <div class="pjmc-joy-dir dir-left">◄ LEFT</div>
+      <div class="pjmc-joy-dir dir-right">RIGHT ►</div>
+      <div class="pjmc-joy-center-ring"></div>
+    `;
+
     this.joystickKnob = document.createElement('div');
     this.joystickKnob.className = 'pjmc-joystick-knob';
+    this.joystickKnob.innerHTML = `
+      <div class="pjmc-knob-core"></div>
+      <div class="pjmc-knob-pip"></div>
+    `;
 
-    this.joystickBase.append(this.joystickKnob);
-    this.joystickZone.append(this.joystickBase);
+    this.joystickBase.appendChild(this.joystickKnob);
+    this.joystickZone.appendChild(this.joystickBase);
 
-    // Right Area: Action Buttons
+    // -------------------------------------------------------------
+    // 2. RIGHT THUMB — Vertical Altitude / Pitch Lever (Liver)
+    // -------------------------------------------------------------
+    this.leverZone = document.createElement('div');
+    this.leverZone.className = 'pjmc-lever-zone';
+    this.leverZone.setAttribute('aria-label', 'Vertical Pitch and Altitude Lever');
+
+    this.leverBase = document.createElement('div');
+    this.leverBase.className = 'pjmc-lever-base';
+
+    this.leverBase.innerHTML = `
+      <div class="pjmc-lever-dir dir-uper">▲ UPER</div>
+      <div class="pjmc-lever-track">
+        <div class="pjmc-lever-slot"></div>
+        <div class="pjmc-lever-ticks">
+          <span>+</span><span>-</span><span>+</span><span>-</span><span>+</span>
+        </div>
+        <div class="pjmc-lever-center-mark">— LEVEL —</div>
+      </div>
+      <div class="pjmc-lever-dir dir-niche">▼ NICHE</div>
+    `;
+
+    // Slidable lever knob
+    this.leverHandle = document.createElement('div');
+    this.leverHandle.className = 'pjmc-lever-handle';
+    this.leverHandle.innerHTML = `
+      <div class="pjmc-handle-ribs"></div>
+      <div class="pjmc-handle-lamp"></div>
+    `;
+
+    this.leverBase.querySelector('.pjmc-lever-track').appendChild(this.leverHandle);
+    this.leverZone.appendChild(this.leverBase);
+
+    // -------------------------------------------------------------
+    // 3. RIGHT THUMB — Action Button Cluster
+    // -------------------------------------------------------------
     this.actionsZone = document.createElement('div');
     this.actionsZone.className = 'pjmc-actions-zone';
 
-    // Boost Button
+    // Boost Button (Large glowing orange turbo button)
     this.boostBtn = document.createElement('button');
+    this.boostBtn.type = 'button';
     this.boostBtn.className = 'pjmc-action-btn boost-btn';
-    this.boostBtn.setAttribute('aria-label', 'Boost Thruster');
-    this.boostBtn.innerHTML = '<span class="action-icon">⚡</span><span class="action-label">BOOST</span>';
+    this.boostBtn.setAttribute('aria-label', 'Turbo Boost');
+    this.boostBtn.innerHTML = `
+      <span class="action-icon">⚡</span>
+      <span class="action-label">BOOST</span>
+    `;
 
-    // Brake Button
-    this.brakeBtn = document.createElement('button');
-    this.brakeBtn.className = 'pjmc-action-btn brake-btn';
-    this.brakeBtn.setAttribute('aria-label', 'Reverse Brake');
-    this.brakeBtn.innerHTML = '<span class="action-icon">⏹</span><span class="action-label">BRAKE</span>';
-
-    // Camera Switch Button
+    // Camera Switch Button (Chase / Cockpit)
     this.camBtn = document.createElement('button');
+    this.camBtn.type = 'button';
     this.camBtn.className = 'pjmc-action-btn cam-btn';
     this.camBtn.setAttribute('aria-label', 'Toggle Camera');
-    this.camBtn.innerHTML = '<span class="action-icon">👁</span><span class="action-label">CAM</span>';
+    this.camBtn.innerHTML = `
+      <span class="action-icon">👁</span>
+      <span class="action-label">CAM</span>
+    `;
 
     // Pause Button
     this.pauseBtn = document.createElement('button');
+    this.pauseBtn.type = 'button';
     this.pauseBtn.className = 'pjmc-action-btn pause-btn';
     this.pauseBtn.setAttribute('aria-label', 'Pause Game');
-    this.pauseBtn.innerHTML = '<span class="action-icon">⏸</span>';
+    this.pauseBtn.innerHTML = `
+      <span class="action-icon">⏸</span>
+      <span class="action-label">PAUSE</span>
+    `;
 
-    this.actionsZone.append(this.camBtn, this.brakeBtn, this.boostBtn, this.pauseBtn);
-    this.root.append(this.joystickZone, this.actionsZone);
-    this.container.append(this.root);
+    // Settings Button
+    this.settingsBtn = document.createElement('button');
+    this.settingsBtn.type = 'button';
+    this.settingsBtn.className = 'pjmc-action-btn settings-btn';
+    this.settingsBtn.setAttribute('aria-label', 'Flight Settings');
+    this.settingsBtn.innerHTML = `<span class="action-icon">⚙</span>`;
+
+    // Clustered arrangement
+    const actionCol = document.createElement('div');
+    actionCol.className = 'pjmc-action-col';
+    actionCol.append(this.settingsBtn, this.pauseBtn, this.camBtn, this.boostBtn);
+
+    this.actionsZone.append(actionCol, this.leverZone);
+
+    // -------------------------------------------------------------
+    // 4. Quick Flight Settings Modal
+    // -------------------------------------------------------------
+    this.settingsModal = document.createElement('div');
+    this.settingsModal.className = 'pjmc-modal pjmc-flight-settings-modal hidden';
+    this.settingsModal.style.display = 'none';
+    this.settingsModal.innerHTML = `
+      <div class="pjmc-modal-backdrop"></div>
+      <div class="pjmc-modal-window flight-settings-box">
+        <div class="pjmc-modal-header">
+          <h2 class="pjmc-modal-title">FLIGHT CONTROLS CONFIG</h2>
+          <button type="button" class="pjmc-settings-close-btn" id="pjmc-set-close">✕</button>
+        </div>
+        <div class="flight-settings-content">
+          <div class="flight-setting-item">
+            <div class="setting-desc">
+              <strong>UPER / NICHE LEVER DIRECTION</strong>
+              <span class="setting-hint">Slide lever UP: Rocket pitches nose upward</span>
+            </div>
+            <button type="button" class="flight-setting-toggle" id="pjmc-toggle-invert">
+              ${this.settings.invertPitch ? 'INVERTED' : 'NORMAL'}
+            </button>
+          </div>
+
+          <div class="flight-setting-item">
+            <div class="setting-desc">
+              <strong>STEERING SENSITIVITY</strong>
+              <span class="setting-hint">Turn responsiveness</span>
+            </div>
+            <button type="button" class="flight-setting-toggle" id="pjmc-toggle-sens">
+              ${this.settings.sensitivity < 0.9 ? 'LOW (0.7x)' : this.settings.sensitivity > 1.2 ? 'HIGH (1.4x)' : 'NORMAL (1.0x)'}
+            </button>
+          </div>
+
+          <div class="flight-setting-item">
+            <div class="setting-desc">
+              <strong>AUTO-BANKING</strong>
+              <span class="setting-hint">Natural aircraft tilt during horizontal turns</span>
+            </div>
+            <button type="button" class="flight-setting-toggle ${this.settings.autoBank ? 'active' : ''}" id="pjmc-toggle-bank">
+              ${this.settings.autoBank ? 'ON' : 'OFF'}
+            </button>
+          </div>
+
+          <div class="flight-setting-item">
+            <div class="setting-desc">
+              <strong>CONTROLS LAYOUT</strong>
+              <span class="setting-hint">Joystick left / Lever right vs Swapped</span>
+            </div>
+            <button type="button" class="flight-setting-toggle" id="pjmc-toggle-layout">
+              ${this.settings.layout === 'southpaw' ? 'SOUTHPAW (SWAPPED)' : 'STANDARD (DEFAULT)'}
+            </button>
+          </div>
+        </div>
+
+        <div class="flight-settings-keys">
+          <div class="key-help-title">DESKTOP KEYBOARD CONTROLS:</div>
+          <div class="key-help-grid">
+            <span><strong>W / S:</strong> Aage (Forward) / Piche (Brake)</span>
+            <span><strong>A / D:</strong> Left / Right Turn</span>
+            <span><strong>R / F:</strong> Uper (Up) / Niche (Down)</span>
+            <span><strong>SPACE:</strong> Turbo Boost</span>
+            <span><strong>C:</strong> Camera Mode</span>
+            <span><strong>ESC:</strong> Pause</span>
+          </div>
+        </div>
+
+        <div class="flight-settings-actions">
+          <button type="button" class="pjmc-btn-primary" id="pjmc-set-done">SAVE & RESUME</button>
+        </div>
+      </div>
+    `;
+
+    this.root.append(this.joystickZone, this.actionsZone, this.settingsModal);
+    document.body.append(this.root);
+
+    this.#bindSettingsEvents();
+  }
+
+  applyLayout() {
+    if (this.settings.layout === 'southpaw') {
+      this.root.classList.add('southpaw');
+    } else {
+      this.root.classList.remove('southpaw');
+    }
   }
 
   #bindEvents() {
-    // 1. Mobile Virtual Joystick Touch Handling
-    this.joystickZone.addEventListener('pointerdown', (e) => {
-      if (!this.enabled || this.joystickPointerId !== null) return;
-      this.joystickPointerId = e.pointerId;
-      this.joystickZone.setPointerCapture(e.pointerId);
+    // -------------------------------------------------------------
+    // 1. LEFT THUMB: Directional Stick (Aage / Piche / Left / Right)
+    // -------------------------------------------------------------
+    const updateJoystickFromPointer = (clientX, clientY) => {
+      const rect = this.joystickBase.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
 
-      const rect = this.joystickZone.getBoundingClientRect();
-      const localX = e.clientX - rect.left;
-      const localY = e.clientY - rect.top;
-
-      this.joystickOrigin = { x: localX, y: localY };
-      this.joystickBase.style.left = `${localX}px`;
-      this.joystickBase.style.top = `${localY}px`;
-      this.joystickBase.classList.add('active');
-      this.joystickKnob.style.transform = 'translate(-50%, -50%)';
-    });
-
-    this.joystickZone.addEventListener('pointermove', (e) => {
-      if (!this.enabled || e.pointerId !== this.joystickPointerId) return;
-
-      const rect = this.joystickZone.getBoundingClientRect();
-      const currentX = e.clientX - rect.left;
-      const currentY = e.clientY - rect.top;
-
-      let dx = currentX - this.joystickOrigin.x;
-      let dy = currentY - this.joystickOrigin.y;
+      let dx = clientX - centerX;
+      let dy = clientY - centerY;
       const dist = Math.hypot(dx, dy);
 
+      // Clamp knob movement to circular boundary
+      let clampedX = dx;
+      let clampedY = dy;
       if (dist > this.maxJoystickRadius) {
-        dx = (dx / dist) * this.maxJoystickRadius;
-        dy = (dy / dist) * this.maxJoystickRadius;
+        clampedX = (dx / dist) * this.maxJoystickRadius;
+        clampedY = (dy / dist) * this.maxJoystickRadius;
       }
 
-      this.joystickKnob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+      this.joystickKnob.style.transition = 'none';
+      this.joystickKnob.style.transform = `translate(calc(-50% + ${clampedX}px), calc(-50% + ${clampedY}px))`;
 
-      // Deadzone & Normalization (-1 to 1)
-      const deadzone = 8;
-      this.input.yaw = Math.abs(dx) > deadzone ? dx / this.maxJoystickRadius : 0;
-      this.input.pitch = Math.abs(dy) > deadzone ? dy / this.maxJoystickRadius : 0;
-    });
+      if (dist <= this.joystickDeadzone) {
+        this.input.yaw = 0;
+        this.input.thrust = 0;
+        return;
+      }
 
-    const releaseJoystick = (e) => {
+      const normDist = Math.min(1.0, (dist - this.joystickDeadzone) / (this.maxJoystickRadius - this.joystickDeadzone));
+      const factor = normDist * 0.8 + Math.pow(normDist, 2) * 0.2;
+
+      const normX = (dx / dist) * factor;
+      const normY = (dy / dist) * factor;
+
+      // Mapping:
+      // Horizontal (X): Turn Left (-1.0) / Right (+1.0)
+      this.input.yaw = normX;
+
+      // Vertical (Y):
+      // Drag UP (dy < 0) = AAGE (Forward thrust +1.0)
+      // Drag DOWN (dy > 0) = PICHE (Brake thrust -1.0)
+      this.input.thrust = -normY;
+    };
+
+    const handleJoystickDown = (e) => {
+      if (!this.enabled || this.joystickPointerId !== null) return;
+      e.preventDefault();
+      this.joystickPointerId = e.pointerId;
+      try {
+        this.joystickZone.setPointerCapture(e.pointerId);
+      } catch (_) {}
+
+      this.joystickBase.classList.add('active');
+      updateJoystickFromPointer(e.clientX, e.clientY);
+    };
+
+    const handleJoystickMove = (e) => {
+      if (!this.enabled || e.pointerId !== this.joystickPointerId) return;
+      e.preventDefault();
+      updateJoystickFromPointer(e.clientX, e.clientY);
+    };
+
+    const handleJoystickUp = (e) => {
       if (e && e.pointerId !== this.joystickPointerId) return;
       this.joystickPointerId = null;
+
       this.input.yaw = 0;
-      this.input.pitch = 0;
+      this.input.thrust = 0;
       this.joystickBase.classList.remove('active');
+
+      // Spring return to center
+      this.joystickKnob.style.transition = 'transform 0.18s cubic-bezier(0.18, 0.89, 0.32, 1.28)';
       this.joystickKnob.style.transform = 'translate(-50%, -50%)';
     };
 
-    this.joystickZone.addEventListener('pointerup', releaseJoystick);
-    this.joystickZone.addEventListener('pointercancel', releaseJoystick);
+    this.joystickZone.addEventListener('pointerdown', handleJoystickDown, { passive: false });
+    window.addEventListener('pointermove', handleJoystickMove, { passive: false });
+    window.addEventListener('pointerup', handleJoystickUp, { passive: false });
+    window.addEventListener('pointercancel', handleJoystickUp, { passive: false });
 
-    // 2. Mobile Action Buttons
-    const bindPressButton = (element, onDown, onUp) => {
-      element.addEventListener('pointerdown', (e) => {
-        if (!this.enabled) return;
-        e.preventDefault();
-        element.setPointerCapture(e.pointerId);
-        element.classList.add('pressed');
-        onDown();
-      });
-      const end = (e) => {
-        element.classList.remove('pressed');
-        onUp();
-      };
-      element.addEventListener('pointerup', end);
-      element.addEventListener('pointercancel', end);
+    // -------------------------------------------------------------
+    // 2. RIGHT THUMB: Altitude & Pitch Lever (Uper / Niche)
+    // -------------------------------------------------------------
+    const updateLeverFromPointer = (clientY) => {
+      const track = this.leverBase.querySelector('.pjmc-lever-track');
+      const rect = track.getBoundingClientRect();
+      const centerY = rect.top + rect.height / 2;
+
+      let dy = clientY - centerY;
+      // Clamp vertical travel between -maxLeverTravel and +maxLeverTravel
+      let clampedY = Math.max(-this.maxLeverTravel, Math.min(this.maxLeverTravel, dy));
+
+      this.leverHandle.style.transition = 'none';
+      this.leverHandle.style.transform = `translate(-50%, calc(-50% + ${clampedY}px))`;
+
+      const dist = Math.abs(clampedY);
+      if (dist <= this.leverDeadzone) {
+        this.input.pitch = 0;
+        return;
+      }
+
+      const normTravel = Math.min(1.0, (dist - this.leverDeadzone) / (this.maxLeverTravel - this.leverDeadzone));
+      const factor = normTravel * 0.85 + Math.pow(normTravel, 2) * 0.15;
+
+      // Sliding UP (clampedY < 0) = UPER (+1.0 Nose Up / Ascend)
+      // Sliding DOWN (clampedY > 0) = NICHE (-1.0 Nose Down / Descend)
+      const rawPitch = -(clampedY / dist) * factor;
+      this.input.pitch = this.settings.invertPitch ? -rawPitch : rawPitch;
     };
 
-    bindPressButton(this.boostBtn, () => { this.input.boost = true; }, () => { this.input.boost = false; });
-    bindPressButton(this.brakeBtn, () => { this.input.brake = true; }, () => { this.input.brake = false; });
+    const handleLeverDown = (e) => {
+      if (!this.enabled || this.leverPointerId !== null) return;
+      e.preventDefault();
+      this.leverPointerId = e.pointerId;
+      try {
+        this.leverZone.setPointerCapture(e.pointerId);
+      } catch (_) {}
 
-    this.camBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      if (this.enabled) this.callbacks.onCameraToggle?.();
-    });
+      this.leverBase.classList.add('active');
+      updateLeverFromPointer(e.clientY);
+    };
 
-    this.pauseBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      if (this.enabled) this.callbacks.onPauseToggle?.();
-    });
+    const handleLeverMove = (e) => {
+      if (!this.enabled || e.pointerId !== this.leverPointerId) return;
+      e.preventDefault();
+      updateLeverFromPointer(e.clientY);
+    };
 
-    // 3. Desktop Keyboard Event Listeners
+    const handleLeverUp = (e) => {
+      if (e && e.pointerId !== this.leverPointerId) return;
+      this.leverPointerId = null;
+
+      this.input.pitch = 0;
+      this.leverBase.classList.remove('active');
+
+      // Spring return to center
+      this.leverHandle.style.transition = 'transform 0.18s cubic-bezier(0.18, 0.89, 0.32, 1.28)';
+      this.leverHandle.style.transform = 'translate(-50%, -50%)';
+    };
+
+    this.leverZone.addEventListener('pointerdown', handleLeverDown, { passive: false });
+    window.addEventListener('pointermove', handleLeverMove, { passive: false });
+    window.addEventListener('pointerup', handleLeverUp, { passive: false });
+    window.addEventListener('pointercancel', handleLeverUp, { passive: false });
+
+    // -------------------------------------------------------------
+    // 3. Action Buttons (Boost, Cam, Pause, Settings)
+    // -------------------------------------------------------------
+    const bindHoldButton = (btn, onDown, onUp) => {
+      let activePointer = null;
+
+      const down = (e) => {
+        if (!this.enabled) return;
+        e.preventDefault();
+        e.stopPropagation();
+        activePointer = e.pointerId;
+        try {
+          btn.setPointerCapture(e.pointerId);
+        } catch (_) {}
+        btn.classList.add('active');
+        onDown();
+      };
+
+      const up = (e) => {
+        if (activePointer === null || (e && e.pointerId !== activePointer)) return;
+        activePointer = null;
+        btn.classList.remove('active');
+        onUp();
+      };
+
+      btn.addEventListener('pointerdown', down, { passive: false });
+      window.addEventListener('pointerup', up, { passive: false });
+      window.addEventListener('pointercancel', up, { passive: false });
+    };
+
+    // BOOST: Hold for turbo speed
+    bindHoldButton(
+      this.boostBtn,
+      () => {
+        this.input.boost = true;
+        this.callbacks.onBoostChange?.(true);
+      },
+      () => {
+        this.input.boost = false;
+        this.callbacks.onBoostChange?.(false);
+      }
+    );
+
+    const bindTapButton = (btn, onTap) => {
+      let started = false;
+      btn.addEventListener('pointerdown', (e) => {
+        if (!this.enabled) return;
+        e.preventDefault();
+        e.stopPropagation();
+        started = true;
+        btn.classList.add('active');
+      }, { passive: false });
+
+      btn.addEventListener('pointerup', (e) => {
+        if (!started) return;
+        started = false;
+        btn.classList.remove('active');
+        if (this.enabled) onTap();
+      }, { passive: false });
+
+      btn.addEventListener('pointercancel', () => {
+        started = false;
+        btn.classList.remove('active');
+      }, { passive: false });
+    };
+
+    // CAM: Toggle View
+    bindTapButton(this.camBtn, () => this.callbacks.onCameraToggle?.());
+
+    // PAUSE: Pause flight
+    bindTapButton(this.pauseBtn, () => this.callbacks.onPauseToggle?.());
+
+    // SETTINGS: Open quick drawer
+    bindTapButton(this.settingsBtn, () => this.openSettingsModal());
+
+    // -------------------------------------------------------------
+    // 4. Desktop Keyboard Bindings
+    // -------------------------------------------------------------
     window.addEventListener('keydown', (e) => {
       if (!this.enabled) return;
+      if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
+
       this.keys.add(e.code);
 
       if (e.code === 'KeyC') {
@@ -187,63 +539,118 @@ export class FlightControls {
 
     window.addEventListener('blur', () => {
       this.keys.clear();
-      releaseJoystick();
+      handleJoystickUp();
+      handleLeverUp();
+      this.input.boost = false;
+      this.input.brake = false;
     });
   }
 
-  /** Poll inputs every frame */
-  getInput() {
-    // If keyboard is used on desktop, blend with joystick
-    let keyPitch = 0;
-    let keyYaw = 0;
-    let keyForward = false;
-    let keyBoost = false;
-    let keyBrake = false;
+  #bindSettingsEvents() {
+    const invertBtn = this.settingsModal.querySelector('#pjmc-toggle-invert');
+    invertBtn.addEventListener('click', () => {
+      this.settings.invertPitch = !this.settings.invertPitch;
+      invertBtn.textContent = this.settings.invertPitch ? 'INVERTED' : 'NORMAL';
+      this.saveSettings();
+    });
 
-    if (this.keys.has('KeyW') || this.keys.has('ArrowUp')) {
-      keyPitch += 1.0;
-      keyForward = true;
-    }
-    if (this.keys.has('KeyS') || this.keys.has('ArrowDown')) {
-      keyPitch -= 1.0;
-      keyBrake = true;
-    }
+    const sensBtn = this.settingsModal.querySelector('#pjmc-toggle-sens');
+    sensBtn.addEventListener('click', () => {
+      if (this.settings.sensitivity < 0.9) {
+        this.settings.sensitivity = 1.0;
+        sensBtn.textContent = 'NORMAL (1.0x)';
+      } else if (this.settings.sensitivity < 1.2) {
+        this.settings.sensitivity = 1.4;
+        sensBtn.textContent = 'HIGH (1.4x)';
+      } else {
+        this.settings.sensitivity = 0.7;
+        sensBtn.textContent = 'LOW (0.7x)';
+      }
+      this.saveSettings();
+    });
+
+    const bankBtn = this.settingsModal.querySelector('#pjmc-toggle-bank');
+    bankBtn.addEventListener('click', () => {
+      this.settings.autoBank = !this.settings.autoBank;
+      bankBtn.textContent = this.settings.autoBank ? 'ON' : 'OFF';
+      bankBtn.classList.toggle('active', this.settings.autoBank);
+      this.saveSettings();
+    });
+
+    const layoutBtn = this.settingsModal.querySelector('#pjmc-toggle-layout');
+    layoutBtn.addEventListener('click', () => {
+      this.settings.layout = this.settings.layout === 'standard' ? 'southpaw' : 'standard';
+      layoutBtn.textContent = this.settings.layout === 'southpaw' ? 'SOUTHPAW (SWAPPED)' : 'STANDARD (DEFAULT)';
+      this.applyLayout();
+      this.saveSettings();
+    });
+
+    const closeBtn = this.settingsModal.querySelector('#pjmc-set-close');
+    const doneBtn = this.settingsModal.querySelector('#pjmc-set-done');
+    const close = () => {
+      this.closeSettingsModal();
+    };
+    closeBtn.addEventListener('click', close);
+    doneBtn.addEventListener('click', close);
+  }
+
+  openSettingsModal() {
+    this.settingsModal.style.display = 'flex';
+    this.settingsModal.classList.remove('hidden');
+  }
+
+  closeSettingsModal() {
+    this.settingsModal.style.display = 'none';
+    this.settingsModal.classList.add('hidden');
+  }
+
+  /**
+   * Sample all inputs (joystick + lever + keyboard) for this physics frame.
+   * Returns:
+   * - thrust: -1.0 (Piche/Brake) to +1.0 (Aage/Forward)
+   * - yaw: -1.0 (Left) to +1.0 (Right)
+   * - pitch: -1.0 (Niche/Down) to +1.0 (Uper/Up)
+   * - boost: boolean
+   * - brake: boolean
+   */
+  getInput() {
+    let keyThrust = 0;
+    let keyYaw = 0;
+    let keyPitch = 0;
+    let keyBoost = false;
+
+    // Desktop W/S or Arrow Up/Down -> Aage (Forward) / Piche (Brake)
+    if (this.keys.has('KeyW') || this.keys.has('ArrowUp')) keyThrust += 1.0;
+    if (this.keys.has('KeyS') || this.keys.has('ArrowDown')) keyThrust -= 1.0;
+
+    // Desktop A/D or Arrow Left/Right -> Left / Right Turn
     if (this.keys.has('KeyA') || this.keys.has('ArrowLeft')) keyYaw -= 1.0;
     if (this.keys.has('KeyD') || this.keys.has('ArrowRight')) keyYaw += 1.0;
-    if (this.keys.has('Space')) keyBoost = true;
-    if (this.keys.has('ShiftLeft') || this.keys.has('ShiftRight')) keyBrake = true;
+
+    // Desktop R/F or PageUp/PageDown -> Uper (Pitch Up) / Niche (Pitch Down)
+    if (this.keys.has('KeyR') || this.keys.has('PageUp')) keyPitch += 1.0;
+    if (this.keys.has('KeyF') || this.keys.has('PageDown')) keyPitch -= 1.0;
+
+    // Boost keys: Space or Shift
+    if (this.keys.has('Space') || this.keys.has('ShiftLeft') || this.keys.has('ShiftRight')) keyBoost = true;
+
+    // Blend touch and keyboard
+    const finalThrust = Math.abs(this.input.thrust) > 0.02 ? this.input.thrust : keyThrust;
+    const finalYaw = Math.abs(this.input.yaw) > 0.02 ? this.input.yaw : keyYaw;
+    const finalPitch = Math.abs(this.input.pitch) > 0.02 ? this.input.pitch : keyPitch;
+    const finalBoost = this.input.boost || keyBoost;
+
+    const sens = this.settings.sensitivity;
 
     return {
-      pitch: Math.abs(this.input.pitch) > 0.05 ? this.input.pitch : keyPitch,
-      yaw: Math.abs(this.input.yaw) > 0.05 ? this.input.yaw : keyYaw,
-      forward: keyForward || this.input.pitch < -0.1,
-      boost: this.input.boost || keyBoost,
-      brake: this.input.brake || keyBrake,
+      thrust: Math.max(-1.0, Math.min(1.0, finalThrust)),
+      yaw: Math.max(-1.0, Math.min(1.0, finalYaw)) * sens,
+      pitch: Math.max(-1.0, Math.min(1.0, finalPitch)) * sens,
+      roll: 0,
+      boost: finalBoost,
+      brake: finalThrust < -0.15,
+      forward: true,
     };
-  }
-
-  enable() {
-    this.enabled = true;
-    this.root.classList.remove('hidden');
-  }
-
-  show() {
-    this.enable();
-  }
-
-  disable() {
-    this.enabled = false;
-    this.keys.clear();
-    this.input.boost = false;
-    this.input.brake = false;
-    this.input.pitch = 0;
-    this.input.yaw = 0;
-    this.root.classList.add('hidden');
-    this.joystickBase.classList.remove('active');
-  }
-
-  hide() {
-    this.disable();
   }
 
   getSteer() {
@@ -257,6 +664,41 @@ export class FlightControls {
 
   isBraking() {
     return this.getInput().brake;
+  }
+
+  enable() {
+    this.enabled = true;
+    this.root.style.display = 'block';
+    this.root.classList.remove('hidden');
+    this.root.classList.add('active');
+  }
+
+  show() {
+    this.enable();
+  }
+
+  disable() {
+    this.enabled = false;
+    this.keys.clear();
+    this.input.boost = false;
+    this.input.brake = false;
+    this.input.pitch = 0;
+    this.input.yaw = 0;
+    this.input.thrust = 0;
+    this.joystickPointerId = null;
+    this.leverPointerId = null;
+    this.root.style.display = 'none';
+    this.root.classList.add('hidden');
+    this.root.classList.remove('active');
+    this.joystickBase.classList.remove('active');
+    this.leverBase.classList.remove('active');
+    this.joystickKnob.style.transform = 'translate(-50%, -50%)';
+    this.leverHandle.style.transform = 'translate(-50%, -50%)';
+    this.closeSettingsModal();
+  }
+
+  hide() {
+    this.disable();
   }
 
   destroy() {
