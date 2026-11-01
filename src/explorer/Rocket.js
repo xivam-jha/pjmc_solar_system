@@ -65,8 +65,9 @@ const FLAME_FRAGMENT = /* glsl */ `
 /* ------------------------------------------------------------------ */
 
 /**
- * 1. Fuselage Left/Right Side Banner Decal (2048 x 512 HD)
- * Large bold PJMC, subtitle PAWAN JHA MATHEMATICS CLASSES, identity PJMC-01.
+ * 1. Fuselage Left/Right Side Banner Decal (2048 x 512 Ultra-HD)
+ * GIANT BOLD "PJMC" branding across the entire fuselage side flank.
+ * Subtitle: PAWAN JHA MATHEMATICS CLASSES, Identity: PJMC-01.
  */
 function createFuselageSideTexture() {
   const canvas = document.createElement('canvas');
@@ -76,137 +77,143 @@ function createFuselageSideTexture() {
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // Carbon-composite panel plate background
+  // Carbon-titanium aerospace armor panel
   const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
-  grad.addColorStop(0, 'rgba(4, 14, 28, 0.92)');
-  grad.addColorStop(0.5, 'rgba(8, 22, 44, 0.94)');
-  grad.addColorStop(1, 'rgba(4, 14, 28, 0.92)');
+  grad.addColorStop(0, 'rgba(4, 14, 28, 0.96)');
+  grad.addColorStop(0.5, 'rgba(8, 24, 48, 0.98)');
+  grad.addColorStop(1, 'rgba(4, 14, 28, 0.96)');
 
   ctx.fillStyle = grad;
   ctx.beginPath();
-  ctx.roundRect(16, 16, canvas.width - 32, canvas.height - 32, 24);
+  ctx.roundRect(12, 12, canvas.width - 24, canvas.height - 24, 28);
   ctx.fill();
 
-  // Electric cyan glowing border & tech accents
-  ctx.strokeStyle = 'rgba(0, 240, 255, 0.95)';
-  ctx.lineWidth = 6;
+  // Vibrant Electric Cyan Glowing Perimeter Frame
+  ctx.strokeStyle = '#00f0ff';
+  ctx.lineWidth = 8;
   ctx.stroke();
 
-  // Dual supersonic racing stripes
+  // Dual supersonic racing aero-stripes (top and bottom)
   ctx.fillStyle = '#00f0ff';
-  ctx.fillRect(24, 70, canvas.width - 48, 8);
-  ctx.fillRect(24, canvas.height - 78, canvas.width - 48, 8);
+  ctx.fillRect(20, 52, canvas.width - 40, 10);
+  ctx.fillRect(20, canvas.height - 62, canvas.width - 40, 10);
 
   ctx.fillStyle = '#0077b6';
-  ctx.fillRect(24, 82, canvas.width - 48, 4);
-  ctx.fillRect(24, canvas.height - 86, canvas.width - 48, 4);
+  ctx.fillRect(20, 66, canvas.width - 40, 5);
+  ctx.fillRect(20, canvas.height - 71, canvas.width - 40, 5);
 
-  // Corner tech bracket ticks
-  ctx.strokeStyle = '#ffffff';
-  ctx.lineWidth = 4;
+  // Corner tech bracket bolts
   const corners = [
-    [32, 32], [canvas.width - 32, 32],
-    [32, canvas.height - 32], [canvas.width - 32, canvas.height - 32]
+    [28, 28], [canvas.width - 28, 28],
+    [28, canvas.height - 28], [canvas.width - 28, canvas.height - 28]
   ];
   for (const [cx, cy] of corners) {
     ctx.beginPath();
-    ctx.arc(cx, cy, 6, 0, Math.PI * 2);
+    ctx.arc(cx, cy, 7, 0, Math.PI * 2);
     ctx.fillStyle = '#00f0ff';
     ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#ffffff';
+    ctx.stroke();
   }
 
-  // Left Section: Mission Patch Emblem
+  // Left Section: Mission Patch Crest
   ctx.save();
-  ctx.translate(220, 256);
+  ctx.translate(170, 256);
 
-  // Outer orbital ring
   ctx.beginPath();
-  ctx.arc(0, 0, 110, 0, Math.PI * 2);
-  ctx.strokeStyle = 'rgba(0, 240, 255, 0.6)';
+  ctx.arc(0, 0, 100, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(0, 240, 255, 0.8)';
   ctx.lineWidth = 5;
   ctx.stroke();
 
-  // Tilted orbital ellipse
   ctx.beginPath();
-  ctx.ellipse(0, 0, 140, 50, Math.PI / 4, 0, Math.PI * 2);
+  ctx.ellipse(0, 0, 125, 45, Math.PI / 4, 0, Math.PI * 2);
   ctx.strokeStyle = '#00f0ff';
   ctx.lineWidth = 3;
   ctx.stroke();
 
-  // Center crest star
   ctx.fillStyle = '#ffffff';
-  ctx.font = '900 64px "Arial Black", sans-serif';
+  ctx.font = '900 62px "Arial Black", sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText('✦', 0, 0);
 
-  ctx.font = '800 20px "Arial Black", sans-serif';
+  ctx.font = '900 22px "Arial Black", sans-serif';
   ctx.fillStyle = '#00f0ff';
-  ctx.fillText('PJMC', 0, 68);
+  ctx.fillText('PJMC', 0, 62);
   ctx.restore();
 
-  // Center Section: Primary Brand "PJMC"
+  // MAIN CENTER SECTION: GIANT BOLD "PJMC" BRANDING
   ctx.save();
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'alphabetic';
+  ctx.font = '900 270px "Arial Black", "Montserrat", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
 
-  // "PJMC" Big Bold Lettering
-  ctx.font = '900 160px "Arial Black", "Montserrat", sans-serif';
-  ctx.shadowColor = 'rgba(0, 240, 255, 0.9)';
-  ctx.shadowBlur = 24;
+  // Intense electric cyan neon drop glow
+  ctx.shadowColor = 'rgba(0, 240, 255, 1.0)';
+  ctx.shadowBlur = 36;
 
-  const textGrad = ctx.createLinearGradient(420, 160, 420, 320);
+  // Multi-stop metallic white-cyan gradient
+  const textGrad = ctx.createLinearGradient(0, 90, 0, 330);
   textGrad.addColorStop(0, '#ffffff');
-  textGrad.addColorStop(0.5, '#e0f8ff');
-  textGrad.addColorStop(1, '#00e5ff');
+  textGrad.addColorStop(0.35, '#e0f8ff');
+  textGrad.addColorStop(0.7, '#00e5ff');
+  textGrad.addColorStop(1, '#0088cc');
 
   ctx.fillStyle = textGrad;
-  ctx.fillText('PJMC', 420, 275);
+  ctx.fillText('PJMC', 960, 215);
 
+  // Outer bold contrasting stroke
   ctx.shadowBlur = 0;
-  ctx.strokeStyle = 'rgba(0, 240, 255, 0.7)';
-  ctx.lineWidth = 4;
-  ctx.strokeText('PJMC', 420, 275);
-
-  // Spacecraft Identity Badge [ PJMC-01 ]
-  ctx.fillStyle = 'rgba(0, 240, 255, 0.15)';
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 5;
+  ctx.strokeText('PJMC', 960, 215);
   ctx.strokeStyle = '#00f0ff';
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.roundRect(1020, 165, 340, 80, 12);
-  ctx.fill();
-  ctx.stroke();
+  ctx.lineWidth = 14;
+  ctx.strokeText('PJMC', 960, 215);
+  ctx.fillText('PJMC', 960, 215); // Re-fill core
 
-  ctx.font = '900 52px "Arial Black", sans-serif';
+  // Subtitle Banner: "★ PAWAN JHA MATHEMATICS CLASSES ★"
+  ctx.font = '900 48px "Arial Black", "Montserrat", sans-serif';
+  ctx.shadowColor = 'rgba(0, 240, 255, 0.9)';
+  ctx.shadowBlur = 16;
   ctx.fillStyle = '#ffffff';
-  ctx.textAlign = 'center';
-  ctx.fillText('PJMC-01', 1190, 226);
+  ctx.fillText('★ PAWAN JHA MATHEMATICS CLASSES ★', 960, 368);
 
-  // Subtitle: "PAWAN JHA MATHEMATICS CLASSES"
-  ctx.textAlign = 'left';
-  ctx.font = '900 42px "Arial Black", "Montserrat", sans-serif';
-  ctx.shadowColor = 'rgba(0, 240, 255, 0.7)';
-  ctx.shadowBlur = 12;
-  ctx.fillStyle = '#ffffff';
-  ctx.fillText('PAWAN JHA MATHEMATICS CLASSES', 425, 350);
-
-  // Aerospace Tech Details Line
+  // Aerospace Tech Details Subline
   ctx.shadowBlur = 0;
   ctx.font = '700 24px monospace';
   ctx.fillStyle = '#00f0ff';
-  ctx.fillText('DEEP SPACE EXPLORER  •  ORBITAL CLASS  •  AEROSPACE DIVISION', 425, 400);
+  ctx.fillText('AEROSPACE DIVISION  •  DEEP SPACE EXPLORER  •  ORBITAL CLASS', 960, 420);
 
-  // Right Side Speed Chevrons
+  // Right Section: Rocket Identity Tag [ PJMC-01 ]
+  ctx.fillStyle = 'rgba(0, 240, 255, 0.18)';
+  ctx.strokeStyle = '#00f0ff';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.roundRect(1620, 160, 370, 95, 14);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.font = '900 62px "Arial Black", sans-serif';
+  ctx.fillStyle = '#ffffff';
+  ctx.shadowColor = 'rgba(0, 240, 255, 0.9)';
+  ctx.shadowBlur = 14;
+  ctx.fillText('PJMC-01', 1805, 222);
+
+  // Supersonic forward chevrons
+  ctx.shadowBlur = 0;
   ctx.fillStyle = '#00f0ff';
   for (let i = 0; i < 4; i++) {
-    const x = 1880 + i * 28;
+    const x = 1710 + i * 36;
     ctx.beginPath();
-    ctx.moveTo(x, 210);
-    ctx.lineTo(x + 18, 256);
-    ctx.lineTo(x, 302);
-    ctx.lineTo(x + 8, 302);
-    ctx.lineTo(x + 26, 256);
-    ctx.lineTo(x + 8, 210);
+    ctx.moveTo(x, 290);
+    ctx.lineTo(x + 22, 320);
+    ctx.lineTo(x, 350);
+    ctx.lineTo(x + 10, 350);
+    ctx.lineTo(x + 32, 320);
+    ctx.lineTo(x + 10, 290);
     ctx.closePath();
     ctx.fill();
   }
@@ -275,7 +282,7 @@ function createSpineDecalTexture() {
 }
 
 /**
- * 3. Tail Fin & Wings Decal (512 x 256)
+ * 3. Tail Fin Decal (512 x 256)
  */
 function createFinDecalTexture() {
   const canvas = document.createElement('canvas');
@@ -285,37 +292,117 @@ function createFinDecalTexture() {
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  ctx.fillStyle = 'rgba(4, 18, 38, 0.9)';
+  ctx.fillStyle = 'rgba(4, 18, 38, 0.94)';
   ctx.beginPath();
-  ctx.roundRect(10, 10, canvas.width - 20, canvas.height - 20, 14);
+  ctx.roundRect(8, 8, canvas.width - 16, canvas.height - 16, 16);
   ctx.fill();
 
   ctx.strokeStyle = '#00f0ff';
-  ctx.lineWidth = 4;
+  ctx.lineWidth = 5;
   ctx.stroke();
 
-  // Primary text
-  ctx.font = '900 78px "Arial Black", sans-serif';
+  // Primary text: BOLD "PJMC"
+  ctx.font = '900 96px "Arial Black", sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.shadowColor = '#00f0ff';
-  ctx.shadowBlur = 14;
+  ctx.shadowBlur = 18;
   ctx.fillStyle = '#ffffff';
-  ctx.fillText('PJMC', canvas.width / 2, 90);
+  ctx.fillText('PJMC', canvas.width / 2, 85);
 
   // Subtitle
   ctx.shadowBlur = 0;
-  ctx.font = '900 22px "Arial Black", sans-serif';
+  ctx.font = '900 24px "Arial Black", sans-serif';
   ctx.fillStyle = '#00f0ff';
   ctx.fillText('PAWAN JHA MATHS', canvas.width / 2, 160);
 
-  ctx.font = '700 18px monospace';
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-  ctx.fillText('PJMC-01', canvas.width / 2, 205);
+  ctx.font = '800 20px monospace';
+  ctx.fillStyle = '#ffffff';
+  ctx.fillText('★ PJMC-01 ★', canvas.width / 2, 208);
 
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.generateMipmaps = true;
+  return tex;
+}
+
+/**
+ * 3B. Side Delta Wing Surface Banner Decal (1024 x 512 HD)
+ * GIANT BOLD "PJMC" branding across both side wings.
+ */
+function createWingDecalTexture() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 1024;
+  canvas.height = 512;
+  const ctx = canvas.getContext('2d');
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Aerodynamic carbon armor backing plate
+  const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  grad.addColorStop(0, 'rgba(4, 16, 32, 0.95)');
+  grad.addColorStop(0.5, 'rgba(6, 22, 44, 0.98)');
+  grad.addColorStop(1, 'rgba(4, 16, 32, 0.95)');
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.roundRect(14, 14, canvas.width - 28, canvas.height - 28, 24);
+  ctx.fill();
+
+  // Glowing neon cyan border
+  ctx.strokeStyle = '#00f0ff';
+  ctx.lineWidth = 8;
+  ctx.stroke();
+
+  // Supersonic racing stripes
+  ctx.fillStyle = '#00f0ff';
+  ctx.fillRect(20, 50, canvas.width - 40, 8);
+  ctx.fillRect(20, canvas.height - 58, canvas.width - 40, 8);
+
+  // GIANT BOLD "PJMC" BRANDING
+  ctx.save();
+  ctx.font = '900 210px "Arial Black", "Montserrat", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.shadowColor = 'rgba(0, 240, 255, 1.0)';
+  ctx.shadowBlur = 32;
+
+  const textGrad = ctx.createLinearGradient(0, 70, 0, 270);
+  textGrad.addColorStop(0, '#ffffff');
+  textGrad.addColorStop(0.4, '#e0f8ff');
+  textGrad.addColorStop(0.8, '#00e5ff');
+  textGrad.addColorStop(1, '#0088cc');
+
+  ctx.fillStyle = textGrad;
+  ctx.fillText('PJMC', canvas.width / 2, 180);
+
+  ctx.shadowBlur = 0;
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 4;
+  ctx.strokeText('PJMC', canvas.width / 2, 180);
+  ctx.strokeStyle = '#00f0ff';
+  ctx.lineWidth = 12;
+  ctx.strokeText('PJMC', canvas.width / 2, 180);
+  ctx.fillText('PJMC', canvas.width / 2, 180);
+
+  // Subtitle
+  ctx.font = '900 46px "Arial Black", sans-serif';
+  ctx.shadowColor = 'rgba(0, 240, 255, 0.9)';
+  ctx.shadowBlur = 14;
+  ctx.fillStyle = '#ffffff';
+  ctx.fillText('PAWAN JHA MATHS CLASSES', canvas.width / 2, 330);
+
+  // Identity line
+  ctx.shadowBlur = 0;
+  ctx.font = '900 36px monospace';
+  ctx.fillStyle = '#00f0ff';
+  ctx.fillText('★ PJMC-01  •  AEROSPACE WING ★', canvas.width / 2, 400);
+  ctx.restore();
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.generateMipmaps = true;
+  tex.minFilter = THREE.LinearMipmapLinearFilter;
+  tex.magFilter = THREE.LinearFilter;
   return tex;
 }
 
@@ -394,11 +481,14 @@ function createNoseEmblemTexture() {
  * - side === 'top'   : mounted on spine (+Y)
  */
 function createCurvedFuselageDecalGeo(side = 'right') {
-  const zSegments = 24;
-  const phiSegments = 10;
-  const zMin = -1.6;
-  const zMax = 1.7;
-  const phiHalf = 0.38; // ~22 degrees arc
+  const zSegments = 28;
+  const phiSegments = 12;
+
+  // Giant fuselage side coverage for left and right flanks
+  const isSideFlank = side === 'right' || side === 'left';
+  const zMin = isSideFlank ? -2.25 : -1.6;
+  const zMax = isSideFlank ? 2.15 : 1.7;
+  const phiHalf = isSideFlank ? 0.52 : 0.38; // ~30 degrees arc for giant side text
 
   const positions = [];
   const uvs = [];
@@ -420,8 +510,8 @@ function createCurvedFuselageDecalGeo(side = 'right') {
         z = zMin + u * (zMax - zMin);
       }
 
-      // Conical fuselage radius at Z
-      const r = 0.905 - 0.02 * (z / 2.5) + 0.012; // +0.012 offset outside metal
+      // Conical fuselage radius at Z (+0.016 offset cleanly above fuselage metal)
+      const r = 0.905 - 0.02 * (z / 2.5) + 0.016;
 
       let x, y;
       if (side === 'right') {
@@ -756,20 +846,40 @@ export class Rocket {
     leftFinDecal.position.set(-0.068, 1.45, -1.35);
     this.model.add(leftFinDecal);
 
-    // E. Delta Wing Tops Decals
-    const wingDecalGeo = new THREE.PlaneGeometry(1.5, 0.7);
+    // E. Giant Delta Wing Surface Branding Decals (Left & Right Wings)
+    const wingTex = createWingDecalTexture();
+    const wingDecalMat = new THREE.MeshStandardMaterial({
+      ...decalMatConfig,
+      map: wingTex,
+    });
+    const wingDecalGeo = new THREE.PlaneGeometry(2.4, 1.15);
 
-    const rightWingDecal = new THREE.Mesh(wingDecalGeo, finDecalMat);
+    // Right wing top surface (Large PJMC branding)
+    const rightWingDecal = new THREE.Mesh(wingDecalGeo, wingDecalMat);
     rightWingDecal.rotation.x = -Math.PI / 2;
     rightWingDecal.rotation.z = -0.45;
-    rightWingDecal.position.set(2.0, -0.06, -1.0);
+    rightWingDecal.position.set(2.05, -0.05, -1.05);
     this.model.add(rightWingDecal);
 
-    const leftWingDecal = new THREE.Mesh(wingDecalGeo, finDecalMat);
+    // Left wing top surface (Large PJMC branding)
+    const leftWingDecal = new THREE.Mesh(wingDecalGeo, wingDecalMat);
     leftWingDecal.rotation.x = -Math.PI / 2;
     leftWingDecal.rotation.z = 0.45;
-    leftWingDecal.position.set(-2.0, -0.06, -1.0);
+    leftWingDecal.position.set(-2.05, -0.05, -1.05);
     this.model.add(leftWingDecal);
+
+    // E2. Outer Wingtip Stabilizer Side Decals (Extreme Left & Right side flanks)
+    const tipFinDecalGeo = new THREE.PlaneGeometry(1.15, 0.58);
+
+    const rightTipDecal = new THREE.Mesh(tipFinDecalGeo, finDecalMat);
+    rightTipDecal.rotation.y = Math.PI / 2;
+    rightTipDecal.position.set(3.57, 0.25, -1.8);
+    this.model.add(rightTipDecal);
+
+    const leftTipDecal = new THREE.Mesh(tipFinDecalGeo, finDecalMat);
+    leftTipDecal.rotation.y = -Math.PI / 2;
+    leftTipDecal.position.set(-3.57, 0.25, -1.8);
+    this.model.add(leftTipDecal);
 
     // F. Nosecone Mission Insignia Crest
     const noseEmblemTex = createNoseEmblemTexture();
