@@ -90,11 +90,11 @@ export class ExplorerGame {
 
     // Flight physics & dynamics variables
     this.velocity = new THREE.Vector3();
-    this.flightSpeed = 20.0;
-    this.cruiseSpeed = 20.0;
-    this.maxCruiseSpeed = 36.0;
-    this.boostSpeed = 52.0;
-    this.brakeSpeed = 3.5;
+    this.flightSpeed = 0.0; // Stationary on start! Only moves when lever is pushed
+    this.cruiseSpeed = 0.0;
+    this.maxCruiseSpeed = 38.0; // Max speed when lever pushed to AAGE
+    this.boostSpeed = 54.0;
+    this.brakeSpeed = 0.0;
     this.boostEnergy = 100.0;
     this.maxBoostEnergy = 100.0;
     this.boostDrainRate = 28.0;
@@ -159,6 +159,11 @@ export class ExplorerGame {
   updateWarpParticles(dt) {
     if (!this.warpPoints || !this.warpPoints.visible) return;
 
+    if (this.flightSpeed < 0.2 && !this.isBoosting) {
+      this.warpPoints.material.opacity = 0.0;
+      return;
+    }
+
     const posAttr = this.warpPoints.geometry.attributes.position;
     const posArr = posAttr.array;
     const rocketPos = this.rocket.position;
@@ -187,7 +192,7 @@ export class ExplorerGame {
     }
 
     posAttr.needsUpdate = true;
-    this.warpPoints.material.opacity = this.isBoosting ? 0.95 : 0.65;
+    this.warpPoints.material.opacity = this.isBoosting ? 0.95 : Math.min(0.85, 0.25 + (this.flightSpeed / this.maxCruiseSpeed) * 0.55);
     this.warpPoints.material.size = this.isBoosting ? 2.4 : 1.5;
   }
 
@@ -253,14 +258,14 @@ export class ExplorerGame {
     }
     this.rocket.setVisible(true);
 
-    // Initial forward momentum (Nose is at +Z)
-    this.flightSpeed = this.cruiseSpeed;
+    // Initial momentum is 0 (Stationary in orbit until player pushes the lever forward!)
+    this.flightSpeed = 0.0;
     this.pitchRate = 0;
     this.yawRate = 0;
     this.rollRate = 0;
     this.visualBank = 0;
     this.rocket.setVisualBank(0);
-    this.rocket.getForwardVector(this.velocity).multiplyScalar(this.flightSpeed);
+    this.velocity.set(0, 0, 0);
 
     // Setup initial chase camera behind rocket (looking forward toward space)
     const offset = new THREE.Vector3(0, 2.4, -9.5).applyQuaternion(this.rocket.quaternion);
@@ -422,22 +427,38 @@ export class ExplorerGame {
       }
     }
 
-    // 2. Realistic Spacecraft Forward Speed
-    let targetSpeed = this.cruiseSpeed;
+    // 2. Spacecraft Forward Speed
+    // CRITICAL: Stationary on start! Only moves forward when lever is pushed up towards AAGE.
+    // When lever is released (input.thrust == 0), the jet gradually glides to a stop ("dhire dhire ruk jae")!
+    let targetSpeed = 0.0;
     if (this.isBoosting) {
       targetSpeed = this.boostSpeed;
-    } else if (input.thrust > 0.04) {
-      // Pushing AAGE on stick increases speed smoothly up to maxCruiseSpeed
-      targetSpeed = this.cruiseSpeed + input.thrust * (this.maxCruiseSpeed - this.cruiseSpeed);
-    } else if (input.thrust < -0.04 || input.brake) {
-      // Pulling PICHE on stick or brake decelerates down to brakeSpeed
-      const brakeNorm = Math.min(1.0, Math.abs(input.thrust));
-      targetSpeed = this.cruiseSpeed - brakeNorm * (this.cruiseSpeed - this.brakeSpeed);
+    } else if (input.thrust > 0.02) {
+      // Pushing AAGE on lever accelerates up to maxCruiseSpeed (38.0)
+      targetSpeed = input.thrust * this.maxCruiseSpeed;
+    } else if (input.thrust < -0.05 || input.brake) {
+      // Pulling PICHE on lever or brake decelerates quickly to full stop (0)
+      targetSpeed = 0.0;
     }
 
-    // Smooth acceleration / deceleration
-    const speedDamp = this.isBoosting ? 5.0 : (input.thrust < -0.04 ? 6.0 : 4.0);
+    // Smooth acceleration / gradual stopping damping:
+    // Accelerating: damp 3.8
+    // Gliding to a stop when lever is released: damp 2.2 (natural smooth glide to stop)
+    // Active braking: damp 5.5
+    const speedDamp = this.isBoosting
+      ? 5.0
+      : targetSpeed > this.flightSpeed
+        ? 3.8
+        : (input.thrust < -0.05 || input.brake)
+          ? 5.5
+          : 2.2;
+
     this.flightSpeed = THREE.MathUtils.damp(this.flightSpeed, targetSpeed, speedDamp, dt);
+
+    // If nearly stopped and no throttle is applied, snap to absolute zero
+    if (this.flightSpeed < 0.1 && targetSpeed === 0.0) {
+      this.flightSpeed = 0.0;
+    }
 
     // 3. Angular velocity with responsive damping
     const targetPitchRate = input.pitch * this.maxTurnRate;
@@ -449,11 +470,8 @@ export class ExplorerGame {
     this.rollRate = THREE.MathUtils.damp(this.rollRate, targetRollRate, 8.0, dt);
 
     // Apply rotation around spacecraft's local axes via pure quaternion operations
-    // Sliding Lever UP (pitch > 0) -> Nose tilts UP around local -X
-    // Sliding Lever DOWN (pitch < 0) -> Nose tilts DOWN around local +X
-    // Steering Joystick RIGHT (yaw > 0) -> Nose turns RIGHT around local +Y
-    // Steering Joystick LEFT (yaw < 0) -> Nose turns LEFT around local -Y
-    // Roll RIGHT (roll > 0) -> Rolls clockwise around local -Z
+    // Pitch: Uper (+1.0) -> Nose tilts UP, Niche (-1.0) -> Nose tilts DOWN
+    // Yaw: Left (-1.0) -> Nose turns LEFT, Right (+1.0) -> Nose turns RIGHT
     const pitchDelta = -this.pitchRate * dt;
     const yawDelta = this.yawRate * dt;
     const rollDelta = -this.rollRate * dt;
@@ -468,15 +486,19 @@ export class ExplorerGame {
     }
     this.rocket.setVisualBank(this.visualBank);
 
-    // 5. Forward movement along actual facing vector (+Z)
-    const forward = this.rocket.getForwardVector(this.tempV1);
-    this.velocity.copy(forward).multiplyScalar(this.flightSpeed);
-    this.rocket.position.addScaledVector(this.velocity, dt);
+    // 5. Forward movement along actual facing vector (+Z) ONLY when flightSpeed > 0
+    if (this.flightSpeed > 0.001) {
+      const forward = this.rocket.getForwardVector(this.tempV1);
+      this.velocity.copy(forward).multiplyScalar(this.flightSpeed);
+      this.rocket.position.addScaledVector(this.velocity, dt);
+    } else {
+      this.velocity.set(0, 0, 0);
+    }
 
     // 6. Update Space Warp Particles
     this.updateWarpParticles(dt);
 
-    // 6. Soft celestial boundaries: prevent flying beyond radius 260
+    // Soft celestial boundaries: prevent flying beyond radius 260
     const distFromOrigin = this.rocket.position.length();
     if (distFromOrigin > 250) {
       const pull = this.tempV2.copy(this.rocket.position).normalize().negate();
@@ -484,11 +506,15 @@ export class ExplorerGame {
     }
 
     // 7. Update rocket flame animation and boost intensity
-    const throttleNorm = (this.flightSpeed - this.brakeSpeed) / (this.boostSpeed - this.brakeSpeed);
-    this.rocket.update(dt, Math.max(0.12, Math.min(1.0, throttleNorm)), this.isBoosting);
+    const throttleNorm = this.isBoosting ? 1.0 : (this.flightSpeed / this.maxCruiseSpeed);
+    this.rocket.update(dt, Math.max(0.0, Math.min(1.0, throttleNorm)), this.isBoosting);
 
     // 8. Modulate engine audio
-    this.audio.playEngineThrottle(throttleNorm, this.isBoosting);
+    if (this.flightSpeed > 0.05 || this.isBoosting) {
+      this.audio.playEngineThrottle(throttleNorm, this.isBoosting);
+    } else {
+      this.audio.playEngineThrottle(0.0, false);
+    }
   }
 
   updateCamera(dt) {

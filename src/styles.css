@@ -1027,13 +1027,13 @@ body {
   user-select: none;
 }
 
-.pjmc-joy-dir.dir-aage, .pjmc-joy-dir.dir-up {
+.pjmc-joy-dir.dir-aage, .pjmc-joy-dir.dir-up, .pjmc-joy-dir.dir-uper {
   top: 8px;
   left: 50%;
   transform: translateX(-50%);
 }
 
-.pjmc-joy-dir.dir-piche, .pjmc-joy-dir.dir-down {
+.pjmc-joy-dir.dir-piche, .pjmc-joy-dir.dir-down, .pjmc-joy-dir.dir-niche {
   bottom: 8px;
   left: 50%;
   transform: translateX(-50%);
@@ -1152,12 +1152,12 @@ body {
   user-select: none;
 }
 
-.pjmc-lever-dir.dir-uper {
-  margin-top: 2px;
+.pjmc-lever-dir.dir-uper, .pjmc-lever-dir.dir-aage {
+  margin-top: 4px;
 }
 
-.pjmc-lever-dir.dir-niche {
-  margin-bottom: 2px;
+.pjmc-lever-dir.dir-niche, .pjmc-lever-dir.dir-piche {
+  margin-bottom: 4px;
 }
 
 .pjmc-lever-track {

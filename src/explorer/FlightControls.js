@@ -38,14 +38,15 @@ export class FlightControls {
       invertPitch: false,
       autoBank: true,
       layout: 'standard', // 'standard' or 'southpaw'
+      leverRole: 'throttle', // 'throttle' (default: Lever=Aage/Piche) or 'pitch' (Lever=Uper/Niche)
     };
     this.#loadSettings();
 
     // Raw input states (-1 to +1, or boolean)
     this.input = {
-      thrust: 0, // -1.0 (Piche/Brake) to +1.0 (Aage/Forward)
+      thrust: 0, // 0.0 (Idle Stop) to +1.0 (Aage) or -1.0 (Piche/Brake)
       yaw: 0,    // -1.0 (Left) to +1.0 (Right)
-      pitch: 0,  // -1.0 (Niche/Down) to +1.0 (Uper/Up) from the Lever
+      pitch: 0,  // -1.0 (Niche/Down) to +1.0 (Uper/Up)
       roll: 0,   // -1.0 to +1.0
       boost: false,
       brake: false,
@@ -67,6 +68,7 @@ export class FlightControls {
     this.#buildDOM();
     this.#bindEvents();
     this.applyLayout();
+    this.applyControlLabels();
   }
 
   #loadSettings() {
@@ -78,6 +80,7 @@ export class FlightControls {
         if (typeof parsed.invertPitch === 'boolean') this.settings.invertPitch = parsed.invertPitch;
         if (typeof parsed.autoBank === 'boolean') this.settings.autoBank = parsed.autoBank;
         if (parsed.layout === 'standard' || parsed.layout === 'southpaw') this.settings.layout = parsed.layout;
+        if (parsed.leverRole === 'throttle' || parsed.leverRole === 'pitch') this.settings.leverRole = parsed.leverRole;
       }
     } catch (_) {}
   }
@@ -104,11 +107,11 @@ export class FlightControls {
     this.joystickBase = document.createElement('div');
     this.joystickBase.className = 'pjmc-joystick-base';
 
-    // Clear Hindi / English directional labels
+    // Clear Hindi / English directional labels (Yaw + Pitch steering yoke)
     this.joystickBase.innerHTML = `
       <div class="pjmc-joy-grid"></div>
-      <div class="pjmc-joy-dir dir-aage">▲ AAGE</div>
-      <div class="pjmc-joy-dir dir-piche">▼ PICHE</div>
+      <div class="pjmc-joy-dir dir-uper" id="pjmc-joy-label-up">▲ UPER</div>
+      <div class="pjmc-joy-dir dir-niche" id="pjmc-joy-label-down">▼ NICHE</div>
       <div class="pjmc-joy-dir dir-left">◄ LEFT</div>
       <div class="pjmc-joy-dir dir-right">RIGHT ►</div>
       <div class="pjmc-joy-center-ring"></div>
@@ -125,25 +128,25 @@ export class FlightControls {
     this.joystickZone.appendChild(this.joystickBase);
 
     // -------------------------------------------------------------
-    // 2. RIGHT THUMB — Vertical Altitude / Pitch Lever (Liver)
+    // 2. RIGHT THUMB — Vertical Throttle Accelerator Lever (Liver)
     // -------------------------------------------------------------
     this.leverZone = document.createElement('div');
     this.leverZone.className = 'pjmc-lever-zone';
-    this.leverZone.setAttribute('aria-label', 'Vertical Pitch and Altitude Lever');
+    this.leverZone.setAttribute('aria-label', 'Flight Throttle Accelerator Lever');
 
     this.leverBase = document.createElement('div');
     this.leverBase.className = 'pjmc-lever-base';
 
     this.leverBase.innerHTML = `
-      <div class="pjmc-lever-dir dir-uper">▲ UPER</div>
+      <div class="pjmc-lever-dir dir-aage" id="pjmc-lever-label-top">▲ AAGE</div>
       <div class="pjmc-lever-track">
         <div class="pjmc-lever-slot"></div>
         <div class="pjmc-lever-ticks">
-          <span>+</span><span>-</span><span>+</span><span>-</span><span>+</span>
+          <span>MAX</span><span>75%</span><span>50%</span><span>25%</span><span>0</span>
         </div>
-        <div class="pjmc-lever-center-mark">— LEVEL —</div>
+        <div class="pjmc-lever-center-mark" id="pjmc-lever-center-text">— 0 STOP —</div>
       </div>
-      <div class="pjmc-lever-dir dir-niche">▼ NICHE</div>
+      <div class="pjmc-lever-dir dir-piche" id="pjmc-lever-label-bottom">▼ PICHE</div>
     `;
 
     // Slidable lever knob
@@ -260,6 +263,16 @@ export class FlightControls {
               ${this.settings.layout === 'southpaw' ? 'SOUTHPAW (SWAPPED)' : 'STANDARD (DEFAULT)'}
             </button>
           </div>
+
+          <div class="flight-setting-item">
+            <div class="setting-desc">
+              <strong>RIGHT LEVER FUNCTION</strong>
+              <span class="setting-hint">Lever controls AAGE/PICHE speed vs UPER/NICHE pitch</span>
+            </div>
+            <button type="button" class="flight-setting-toggle" id="pjmc-toggle-lever-role">
+              ${this.settings.leverRole === 'pitch' ? 'ALTITUDE (UPER/NICHE)' : 'THROTTLE (AAGE/PICHE)'}
+            </button>
+          </div>
         </div>
 
         <div class="flight-settings-keys">
@@ -294,6 +307,28 @@ export class FlightControls {
     }
   }
 
+  applyControlLabels() {
+    const joyUp = this.joystickBase.querySelector('#pjmc-joy-label-up');
+    const joyDown = this.joystickBase.querySelector('#pjmc-joy-label-down');
+    const levTop = this.leverBase.querySelector('#pjmc-lever-label-top');
+    const levBottom = this.leverBase.querySelector('#pjmc-lever-label-bottom');
+    const levCenter = this.leverBase.querySelector('#pjmc-lever-center-text');
+
+    if (this.settings.leverRole === 'throttle') {
+      if (joyUp) { joyUp.textContent = '▲ UPER'; joyUp.className = 'pjmc-joy-dir dir-uper'; }
+      if (joyDown) { joyDown.textContent = '▼ NICHE'; joyDown.className = 'pjmc-joy-dir dir-niche'; }
+      if (levTop) { levTop.textContent = '▲ AAGE'; levTop.className = 'pjmc-lever-dir dir-aage'; }
+      if (levBottom) { levBottom.textContent = '▼ PICHE'; levBottom.className = 'pjmc-lever-dir dir-piche'; }
+      if (levCenter) levCenter.textContent = '— 0 STOP —';
+    } else {
+      if (joyUp) { joyUp.textContent = '▲ AAGE'; joyUp.className = 'pjmc-joy-dir dir-aage'; }
+      if (joyDown) { joyDown.textContent = '▼ PICHE'; joyDown.className = 'pjmc-joy-dir dir-piche'; }
+      if (levTop) { levTop.textContent = '▲ UPER'; levTop.className = 'pjmc-lever-dir dir-uper'; }
+      if (levBottom) { levBottom.textContent = '▼ NICHE'; levBottom.className = 'pjmc-lever-dir dir-niche'; }
+      if (levCenter) levCenter.textContent = '— LEVEL —';
+    }
+  }
+
   #bindEvents() {
     // -------------------------------------------------------------
     // 1. LEFT THUMB: Directional Stick (Aage / Piche / Left / Right)
@@ -320,7 +355,11 @@ export class FlightControls {
 
       if (dist <= this.joystickDeadzone) {
         this.input.yaw = 0;
-        this.input.thrust = 0;
+        if (this.settings.leverRole === 'throttle') {
+          this.input.pitch = 0;
+        } else {
+          this.input.thrust = 0;
+        }
         return;
       }
 
@@ -330,14 +369,18 @@ export class FlightControls {
       const normX = (dx / dist) * factor;
       const normY = (dy / dist) * factor;
 
-      // Mapping:
-      // Horizontal (X): Turn Left (-1.0) / Right (+1.0)
+      // Horizontal (X): Turn Left (-1.0) / Right (+1.0) with Banking
       this.input.yaw = normX;
 
-      // Vertical (Y):
-      // Drag UP (dy < 0) = AAGE (Forward thrust +1.0)
-      // Drag DOWN (dy > 0) = PICHE (Brake thrust -1.0)
-      this.input.thrust = -normY;
+      // Vertical (Y)
+      if (this.settings.leverRole === 'throttle') {
+        // Stick controls Pitch: Drag UP = UPER (+1.0 Nose Up), Drag DOWN = NICHE (-1.0 Nose Down)
+        const rawPitch = -normY;
+        this.input.pitch = this.settings.invertPitch ? -rawPitch : rawPitch;
+      } else {
+        // Stick controls Thrust: Drag UP = AAGE (+1.0), Drag DOWN = PICHE (-1.0)
+        this.input.thrust = -normY;
+      }
     };
 
     const handleJoystickDown = (e) => {
@@ -363,7 +406,11 @@ export class FlightControls {
       this.joystickPointerId = null;
 
       this.input.yaw = 0;
-      this.input.thrust = 0;
+      if (this.settings.leverRole === 'throttle') {
+        this.input.pitch = 0;
+      } else {
+        this.input.thrust = 0;
+      }
       this.joystickBase.classList.remove('active');
 
       // Spring return to center
@@ -377,7 +424,7 @@ export class FlightControls {
     window.addEventListener('pointercancel', handleJoystickUp, { passive: false });
 
     // -------------------------------------------------------------
-    // 2. RIGHT THUMB: Altitude & Pitch Lever (Uper / Niche)
+    // 2. RIGHT THUMB: Throttle Accelerator Lever (Aage / Piche)
     // -------------------------------------------------------------
     const updateLeverFromPointer = (clientY) => {
       const track = this.leverBase.querySelector('.pjmc-lever-track');
@@ -393,17 +440,26 @@ export class FlightControls {
 
       const dist = Math.abs(clampedY);
       if (dist <= this.leverDeadzone) {
-        this.input.pitch = 0;
+        if (this.settings.leverRole === 'throttle') {
+          this.input.thrust = 0;
+        } else {
+          this.input.pitch = 0;
+        }
         return;
       }
 
       const normTravel = Math.min(1.0, (dist - this.leverDeadzone) / (this.maxLeverTravel - this.leverDeadzone));
       const factor = normTravel * 0.85 + Math.pow(normTravel, 2) * 0.15;
 
-      // Sliding UP (clampedY < 0) = UPER (+1.0 Nose Up / Ascend)
-      // Sliding DOWN (clampedY > 0) = NICHE (-1.0 Nose Down / Descend)
-      const rawPitch = -(clampedY / dist) * factor;
-      this.input.pitch = this.settings.invertPitch ? -rawPitch : rawPitch;
+      if (this.settings.leverRole === 'throttle') {
+        // Sliding UP (clampedY < 0) = AAGE (Forward throttle 0.0 to +1.0)
+        // Sliding DOWN (clampedY > 0) = PICHE / BRAKE (0.0 to -1.0)
+        this.input.thrust = -(clampedY / dist) * factor;
+      } else {
+        // Sliding UP = UPER, Sliding DOWN = NICHE
+        const rawPitch = -(clampedY / dist) * factor;
+        this.input.pitch = this.settings.invertPitch ? -rawPitch : rawPitch;
+      }
     };
 
     const handleLeverDown = (e) => {
@@ -428,11 +484,16 @@ export class FlightControls {
       if (e && e.pointerId !== this.leverPointerId) return;
       this.leverPointerId = null;
 
-      this.input.pitch = 0;
+      // Lever released: reset throttle/pitch to 0 so jet comes to a gradual stop ("dhire dhire ruk jae")
+      if (this.settings.leverRole === 'throttle') {
+        this.input.thrust = 0;
+      } else {
+        this.input.pitch = 0;
+      }
       this.leverBase.classList.remove('active');
 
       // Spring return to center
-      this.leverHandle.style.transition = 'transform 0.18s cubic-bezier(0.18, 0.89, 0.32, 1.28)';
+      this.leverHandle.style.transition = 'transform 0.22s cubic-bezier(0.18, 0.89, 0.32, 1.28)';
       this.leverHandle.style.transform = 'translate(-50%, -50%)';
     };
 
@@ -582,6 +643,14 @@ export class FlightControls {
       this.settings.layout = this.settings.layout === 'standard' ? 'southpaw' : 'standard';
       layoutBtn.textContent = this.settings.layout === 'southpaw' ? 'SOUTHPAW (SWAPPED)' : 'STANDARD (DEFAULT)';
       this.applyLayout();
+      this.saveSettings();
+    });
+
+    const leverRoleBtn = this.settingsModal.querySelector('#pjmc-toggle-lever-role');
+    leverRoleBtn?.addEventListener('click', () => {
+      this.settings.leverRole = this.settings.leverRole === 'throttle' ? 'pitch' : 'throttle';
+      leverRoleBtn.textContent = this.settings.leverRole === 'pitch' ? 'ALTITUDE (UPER/NICHE)' : 'THROTTLE (AAGE/PICHE)';
+      this.applyControlLabels();
       this.saveSettings();
     });
 
