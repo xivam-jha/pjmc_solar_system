@@ -136,8 +136,8 @@ async function init() {
   controls.minDistance = 0.01;
 
   /* ---------- lighting ---------- */
-  // High-intensity sunlight with soft space ambient light
-  scene.add(new THREE.PointLight(0xfffaed, 2.6, 0, 0));
+  // Softened sunlight (50% down as requested) with space ambient light
+  scene.add(new THREE.PointLight(0xfffaed, 1.3, 0, 0));
   scene.add(new THREE.AmbientLight(0x40556e, 0.42));
 
   /* ---------- post-processing (graceful fallback) ---------- */
@@ -156,9 +156,9 @@ async function init() {
     composer.addPass(new RenderPass(scene, camera));
     bloomPass = new UnrealBloomPass(
       new THREE.Vector2(window.innerWidth, window.innerHeight),
-      0.65, // strength
+      0.35, // strength (softened from 0.65)
       0.4, // radius
-      0.95, // threshold — mainly the Sun blooms
+      0.98, // threshold — mainly the Sun blooms gently
     );
     composer.addPass(bloomPass);
     composer.addPass(new OutputPass());

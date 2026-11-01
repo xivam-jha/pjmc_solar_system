@@ -44,15 +44,15 @@ const FRAGMENT = /* glsl */ `
     // Dynamic solar flares and granulation highlights
     float lum = dot(photoColor, vec3(0.299, 0.587, 0.114));
     vec3 fiery = mix(vec3(1.0, 0.38, 0.02), vec3(1.0, 0.95, 0.72), smoothstep(0.18, 0.88, lum));
-    vec3 col = mix(photoColor * 1.3, fiery, 0.45);
+    vec3 col = mix(photoColor * 1.0, fiery, 0.35);
 
-    // Flare spots above threshold for UnrealBloom pass
-    col += vec3(1.0, 0.85, 0.5) * pow(max(lum - 0.7, 0.0) * 3.2, 2.0);
+    // Flare spots above threshold for UnrealBloom pass (softened by 50%)
+    col += vec3(1.0, 0.85, 0.5) * pow(max(lum - 0.7, 0.0) * 1.8, 2.0);
 
     // Limb darkening for spherical depth
     float ndv = clamp(dot(normalize(vNormalV), normalize(vViewV)), 0.0, 1.0);
     col *= mix(0.45, 1.1, pow(ndv, 0.55));
-    gl_FragColor = vec4(col * 1.35, 1.0);
+    gl_FragColor = vec4(col * 0.68, 1.0);
   }
 `;
 
@@ -155,7 +155,7 @@ const PROMINENCE_FRAGMENT = /* glsl */ `
     vec3 col = mix(vec3(1.0, 0.22, 0.02), vec3(1.0, 0.72, 0.1), smoothstep(0.15, 0.75, flame));
     col = mix(col, vec3(1.0, 0.98, 0.8), smoothstep(0.75, 1.8, flame));
 
-    gl_FragColor = vec4(col * 2.0, clamp(flame * 0.95, 0.0, 1.0));
+    gl_FragColor = vec4(col * 1.0, clamp(flame * 0.55, 0.0, 1.0));
   }
 `;
 
@@ -265,7 +265,7 @@ export class Sun {
         map: loopTex,
         color: 0xffaa44,
         transparent: true,
-        opacity: 0.75 + Math.random() * 0.25,
+        opacity: 0.38 + Math.random() * 0.15,
         blending: THREE.AdditiveBlending,
         depthWrite: false,
       });
@@ -284,11 +284,11 @@ export class Sun {
       this.prominenceLoops.push(sprite);
     }
 
-    // 4. Layered corona sprites (Atmospheric glow)
+    // 4. Layered corona sprites (Atmospheric glow softened by 50%)
     const coronaLayers = [
-      { scale: 2.3, color: 0xffdfaa, opacity: 0.6 },
-      { scale: 3.3, color: 0xff9933, opacity: 0.22 },
-      { scale: 5.2, color: 0xff5511, opacity: 0.09 },
+      { scale: 2.3, color: 0xffdfaa, opacity: 0.30 },
+      { scale: 3.3, color: 0xff9933, opacity: 0.11 },
+      { scale: 5.2, color: 0xff5511, opacity: 0.045 },
     ];
     for (const layer of coronaLayers) {
       const mat = new THREE.SpriteMaterial({
@@ -329,7 +329,7 @@ export class Sun {
     for (const loop of this.prominenceLoops) {
       const s = loop.userData.baseScale * (1.0 + 0.16 * Math.sin(t * loop.userData.speed + loop.userData.phase));
       loop.scale.set(s, s, 1);
-      loop.material.opacity = 0.65 + 0.3 * Math.sin(t * loop.userData.speed * 1.3 + loop.userData.phase);
+      loop.material.opacity = 0.32 + 0.15 * Math.sin(t * loop.userData.speed * 1.3 + loop.userData.phase);
     }
   }
 }
