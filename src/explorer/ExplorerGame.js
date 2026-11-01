@@ -127,6 +127,14 @@ export class ExplorerGame {
 
     // Space warp speed particles
     this.#buildWarpParticles();
+
+    // 360-degree free-look touch orbit camera with smooth auto-centering
+    this.freeLookYaw = 0.0;
+    this.freeLookPitch = 0.0;
+    this.targetFreeLookYaw = 0.0;
+    this.targetFreeLookPitch = 0.0;
+    this.isFreeLooking = false;
+    this.#bindFreeLookEvents();
   }
 
   #buildWarpParticles() {
@@ -194,6 +202,64 @@ export class ExplorerGame {
     posAttr.needsUpdate = true;
     this.warpPoints.material.opacity = this.isBoosting ? 0.95 : Math.min(0.85, 0.25 + (this.flightSpeed / this.maxCruiseSpeed) * 0.55);
     this.warpPoints.material.size = this.isBoosting ? 2.4 : 1.5;
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* 360° Free-Look Touch Orbit Camera (Auto-centers on release)         */
+  /* ------------------------------------------------------------------ */
+
+  #bindFreeLookEvents() {
+    this.freeLookPointerId = null;
+    this.freeLookPrevX = 0;
+    this.freeLookPrevY = 0;
+
+    const onPointerDown = (e) => {
+      if (this.state !== GAME_STATE.FLYING) return;
+      if (this.freeLookPointerId !== null) return;
+
+      // Ignore touches on HUD buttons, joystick, lever, settings modal, etc.
+      if (e.target && e.target.closest) {
+        if (e.target.closest('.pjmc-joystick-zone, .pjmc-actions-zone, .pjmc-hud-pause-btn, .pjmc-modal, .pjmc-controls-root button, .pjmc-lever-zone, .pjmc-skip-intro-btn')) {
+          return;
+        }
+      }
+
+      this.freeLookPointerId = e.pointerId;
+      this.freeLookPrevX = e.clientX;
+      this.freeLookPrevY = e.clientY;
+      this.isFreeLooking = true;
+    };
+
+    const onPointerMove = (e) => {
+      if (!this.isFreeLooking || e.pointerId !== this.freeLookPointerId) return;
+
+      const dx = e.clientX - this.freeLookPrevX;
+      const dy = e.clientY - this.freeLookPrevY;
+      this.freeLookPrevX = e.clientX;
+      this.freeLookPrevY = e.clientY;
+
+      // Orbit sensitivity
+      const sens = 0.0055;
+      this.targetFreeLookYaw += dx * sens;
+
+      // Clamp vertical tilt angle between -1.25 rad (-72 deg) and +1.25 rad (+72 deg)
+      this.targetFreeLookPitch = Math.max(-1.25, Math.min(1.25, this.targetFreeLookPitch + dy * sens));
+    };
+
+    const onPointerUp = (e) => {
+      if (e && this.freeLookPointerId !== null && e.pointerId !== this.freeLookPointerId) return;
+      this.freeLookPointerId = null;
+      this.isFreeLooking = false;
+
+      // Finger released: smoothly auto-glide back to forward chase view ("auto aage set ho jae")
+      this.targetFreeLookYaw = 0;
+      this.targetFreeLookPitch = 0;
+    };
+
+    window.addEventListener('pointerdown', onPointerDown, { passive: true });
+    window.addEventListener('pointermove', onPointerMove, { passive: true });
+    window.addEventListener('pointerup', onPointerUp, { passive: true });
+    window.addEventListener('pointercancel', onPointerUp, { passive: true });
   }
 
   /* ------------------------------------------------------------------ */
@@ -267,6 +333,13 @@ export class ExplorerGame {
     this.rocket.setVisualBank(0);
     this.velocity.set(0, 0, 0);
 
+    // Reset free-look orbit camera
+    this.freeLookYaw = 0.0;
+    this.freeLookPitch = 0.0;
+    this.targetFreeLookYaw = 0.0;
+    this.targetFreeLookPitch = 0.0;
+    this.isFreeLooking = false;
+
     // Setup initial chase camera behind rocket (looking forward toward space)
     const offset = new THREE.Vector3(0, 2.4, -9.5).applyQuaternion(this.rocket.quaternion);
     this.camera.position.copy(this.rocket.position).add(offset);
@@ -335,6 +408,13 @@ export class ExplorerGame {
     this.missions.clearCheckpoints();
     this.controls.hide();
     this.hud.hide();
+
+    // Reset free-look orbit state
+    this.isFreeLooking = false;
+    this.freeLookYaw = 0.0;
+    this.freeLookPitch = 0.0;
+    this.targetFreeLookYaw = 0.0;
+    this.targetFreeLookPitch = 0.0;
 
     // Restore OrbitControls
     this.orbitControls.enabled = true;
@@ -518,25 +598,54 @@ export class ExplorerGame {
   }
 
   updateCamera(dt) {
+    // 1. Smoothly interpolate free-look orbit angles
+    // When actively dragging: fast responsive tracking (18.0)
+    // When released: smoothly glides back to forward view (4.5) ("chhodne par auto aage set ho jae")
+    const returnSpeed = this.isFreeLooking ? 18.0 : 4.5;
+    this.freeLookYaw = THREE.MathUtils.damp(this.freeLookYaw, this.targetFreeLookYaw, returnSpeed, dt);
+    this.freeLookPitch = THREE.MathUtils.damp(this.freeLookPitch, this.targetFreeLookPitch, returnSpeed, dt);
+
+    if (!this.isFreeLooking && Math.abs(this.freeLookYaw) < 0.0005 && Math.abs(this.freeLookPitch) < 0.0005) {
+      this.freeLookYaw = 0;
+      this.freeLookPitch = 0;
+    }
+
+    // Free-look rotation quaternion in spacecraft local space
+    // Yaw rotates around rocket local UP (0, 1, 0)
+    // Pitch rotates around rocket local RIGHT (1, 0, 0)
+    const qFreeYaw = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), -this.freeLookYaw);
+    const qFreePitch = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), this.freeLookPitch);
+    const qFree = qFreeYaw.multiply(qFreePitch);
+
     if (this.isCockpit) {
-      // First-Person Cockpit View (Facing forward +Z)
+      // First-Person Cockpit View (Looking out canopy with free-look pilot head rotation)
       const cockpitWorldPos = this.rocket.getCockpitWorldPosition(this.tempV1);
       this.camera.position.copy(cockpitWorldPos);
-      this.camera.quaternion.copy(this.rocket.quaternion);
+      this.camera.quaternion.copy(this.rocket.quaternion).multiply(qFree);
     } else {
-      // Third-Person Smooth Chase Camera (Positioned behind engines, looking forward past nose)
-      const offset = this.tempV1.set(0, 2.4, -9.5).applyQuaternion(this.rocket.quaternion);
-      this.camTargetPos.copy(this.rocket.position).add(offset);
+      // Third-Person 360° Orbit Chase Camera
+      // Base local offset: elevated behind engines (0, 2.4, -9.8)
+      // When free-look is active, rotate baseOffset around the rocket center
+      const baseLocalOffset = new THREE.Vector3(0, 2.4, -9.8).applyQuaternion(qFree);
+      const worldOffset = baseLocalOffset.applyQuaternion(this.rocket.quaternion);
+      this.camTargetPos.copy(this.rocket.position).add(worldOffset);
 
-      // Smooth interpolation for camera position
-      this.camCurrentPos.lerp(this.camTargetPos, Math.min(1.0, dt * 7.5));
+      // Smooth camera position interpolation
+      const posLerpSpeed = this.isFreeLooking ? 18.0 : 7.5;
+      this.camCurrentPos.lerp(this.camTargetPos, Math.min(1.0, dt * posLerpSpeed));
       this.camera.position.copy(this.camCurrentPos);
 
-      // Camera looks forward past the rocket nose
-      const lookAhead = this.tempV2.set(0, 0.4, 8.0).applyQuaternion(this.rocket.quaternion);
-      this.camLookTarget.copy(this.rocket.position).add(lookAhead);
+      // Camera look target:
+      // When looking straight forward (freeLook ~ 0): look ahead into space past rocket nose (+Z)
+      // When orbiting to look around planets or backwards: camera points toward rocket center
+      const freeMag = Math.min(1.0, Math.hypot(this.freeLookYaw, this.freeLookPitch) * 1.5);
+      const lookZ = THREE.MathUtils.lerp(8.0, 1.2, freeMag);
+      const localLook = new THREE.Vector3(0, 0.4, lookZ)
+        .applyQuaternion(qFree)
+        .applyQuaternion(this.rocket.quaternion);
+      this.camLookTarget.copy(this.rocket.position).add(localLook);
 
-      // Interpolate camera UP vector with rocket local UP (prevents flips during loops or steep pitch)
+      // Camera UP vector aligns with rocket local UP to prevent flipping
       const targetUp = this.rocket.getUpVector(this.tempV3);
       this.camUp.lerp(targetUp, Math.min(1.0, dt * 6.0)).normalize();
       this.camera.up.copy(this.camUp);
