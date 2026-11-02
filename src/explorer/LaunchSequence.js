@@ -27,47 +27,47 @@ export class LaunchSequence {
   #buildPlatform() {
     this.gantryGroup = new THREE.Group();
 
-    // 1. Hexagonal Launch Base
-    const baseGeo = new THREE.CylinderGeometry(8, 9, 1.2, 6);
+    // 1. Proportional High-Tech Launch Base (calibrated to planet curvature)
+    const baseGeo = new THREE.CylinderGeometry(0.55, 0.65, 0.12, 8);
     const baseMat = new THREE.MeshStandardMaterial({
-      color: 0x222831,
-      metalness: 0.85,
-      roughness: 0.35,
+      color: 0x1f242d,
+      metalness: 0.88,
+      roughness: 0.28,
     });
     const base = new THREE.Mesh(baseGeo, baseMat);
-    base.position.y = -0.6;
+    base.position.y = -0.06;
     this.gantryGroup.add(base);
 
     // Launch ring with blue neon perimeter lights
-    const ringGeo = new THREE.TorusGeometry(7.2, 0.2, 8, 32);
+    const ringGeo = new THREE.TorusGeometry(0.58, 0.02, 6, 24);
     ringGeo.rotateX(Math.PI / 2);
     const ringMat = new THREE.MeshBasicMaterial({ color: 0x00e5ff });
     const ring = new THREE.Mesh(ringGeo, ringMat);
     this.gantryGroup.add(ring);
 
     // 2. Launch Tower Support Towers
-    const towerGeo = new THREE.BoxGeometry(0.8, 12, 0.8);
+    const towerGeo = new THREE.BoxGeometry(0.08, 1.4, 0.08);
     const towerMat = new THREE.MeshStandardMaterial({
-      color: 0x393e46,
+      color: 0x2d323b,
       metalness: 0.9,
-      roughness: 0.4,
+      roughness: 0.35,
     });
 
     const tower1 = new THREE.Mesh(towerGeo, towerMat);
-    tower1.position.set(-4.5, 6, -3);
+    tower1.position.set(-0.35, 0.7, -0.2);
     const tower2 = new THREE.Mesh(towerGeo, towerMat);
-    tower2.position.set(-4.5, 6, 3);
+    tower2.position.set(-0.35, 0.7, 0.2);
     this.gantryGroup.add(tower1, tower2);
 
     // Gantry walkbridge
-    const bridgeGeo = new THREE.BoxGeometry(3.5, 0.4, 1.4);
+    const bridgeGeo = new THREE.BoxGeometry(0.28, 0.04, 0.1);
     const bridge = new THREE.Mesh(bridgeGeo, towerMat);
-    bridge.position.set(-2.5, 8.5, 0);
+    bridge.position.set(-0.18, 1.05, 0);
     this.gantryGroup.add(bridge);
 
     // 3. Launchpad Floodlights
-    const floodlight = new THREE.PointLight(0x00d4ff, 2.5, 30);
-    floodlight.position.set(0, 1.5, 5);
+    const floodlight = new THREE.PointLight(0x00d4ff, 1.8, 8);
+    floodlight.position.set(0, 0.4, 0.8);
     this.gantryGroup.add(floodlight);
 
     // Hidden initially
@@ -109,33 +109,55 @@ export class LaunchSequence {
     this.stage = 0;
     this.countdownSeconds = 5;
 
-    let earthRadius = 1.2;
+    let earthRadius = 2.16; // Explore mode Earth radius
     if (typeof onCompleteOrRadius === 'function') {
       this.onComplete = onCompleteOrRadius;
       this.onSkip = maybeSkip;
     } else if (typeof onCompleteOrRadius === 'number') {
-      earthRadius = onCompleteOrRadius;
+      earthRadius = Math.max(onCompleteOrRadius, 2.0);
       if (typeof maybeSkip === 'function') this.onComplete = maybeSkip;
     }
+    this.earthRadius = earthRadius;
 
-    // Position launchpad on sunlit surface of Earth
+    // 1. Position launchpad on the SUNLIT surface of Earth
     this.earthPos = earthPosition ? earthPosition.clone() : new THREE.Vector3(0, 0, 0);
-    this.launchPos = this.earthPos.clone().add(new THREE.Vector3(0, earthRadius + 0.1, 0));
+    const sunDir = new THREE.Vector3().subVectors(new THREE.Vector3(0, 0, 0), this.earthPos).normalize();
+    if (sunDir.lengthSq() < 0.1) sunDir.set(1, 0, 0);
 
+    // Sunlit launch site with ~25 deg latitude for beautiful horizon perspective
+    this.surfaceNormal = sunDir.clone()
+      .applyAxisAngle(new THREE.Vector3(0, 1, 0), 0.35)
+      .add(new THREE.Vector3(0, 0.42, 0))
+      .normalize();
+
+    this.launchPos = this.earthPos.clone().addScaledVector(this.surfaceNormal, earthRadius);
+
+    // Surface tangents for smooth circular camera orbit
+    this.tangentX = new THREE.Vector3().crossVectors(this.surfaceNormal, new THREE.Vector3(0, 1, 0)).normalize();
+    if (this.tangentX.lengthSq() < 0.05) this.tangentX.set(1, 0, 0);
+    this.tangentZ = new THREE.Vector3().crossVectors(this.surfaceNormal, this.tangentX).normalize();
+
+    // Orient gantry cradle to sit naturally on Earth's spherical curve
     this.gantryGroup.position.copy(this.launchPos);
+    this.gantryGroup.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), this.surfaceNormal);
     this.gantryGroup.visible = true;
 
-    // Place rocket upright on launchpad (+Y vertical launch)
+    // Place rocket upright in launch cradle on Earth (+normal launch)
     if (this.rocket) {
       this.rocket.setVisible(true);
+      const rocketLaunchPos = this.launchPos.clone().addScaledVector(this.surfaceNormal, 0.42);
       this.rocket.teleport(
-        this.launchPos.clone().add(new THREE.Vector3(0, 2.8, 0)),
-        this.launchPos.clone().add(new THREE.Vector3(0, 50, 0)) // nose pointed UP
+        rocketLaunchPos,
+        rocketLaunchPos.clone().addScaledVector(this.surfaceNormal, 10) // nose pointed out to space
       );
     }
 
-    // Position camera for cinematic hero angle looking up at the rocket
-    this.camera.position.copy(this.launchPos).add(new THREE.Vector3(12, 4.5, 14));
+    // Initial cinematic camera angle looking up at the rocket with Earth curving below
+    const initCam = this.launchPos.clone()
+      .addScaledVector(this.tangentX, 2.4)
+      .addScaledVector(this.tangentZ, 1.5)
+      .addScaledVector(this.surfaceNormal, 0.85);
+    this.camera.position.copy(initCam);
     if (this.rocket) {
       this.camera.lookAt(this.rocket.root.position);
     } else {
@@ -155,7 +177,7 @@ export class LaunchSequence {
     if (!this.active) return;
     this.elapsed += dt;
 
-    // Stage 0: 5-second countdown
+    // Stage 0: 5-second countdown with orbital camera sweep
     if (this.stage === 0) {
       const remaining = Math.max(0, Math.ceil(5 - this.elapsed));
       if (remaining !== this.countdownSeconds && remaining > 0) {
@@ -167,14 +189,16 @@ export class LaunchSequence {
         audioSystem.playBeep(880, 0.18);
       }
 
-      // Camera gentle orbit during countdown
-      const angle = this.elapsed * 0.35;
-      this.camera.position.set(
-        this.launchPos.x + Math.cos(angle) * 16,
-        this.launchPos.y + 4.5 + Math.sin(this.elapsed * 0.5) * 1.5,
-        this.launchPos.z + Math.sin(angle) * 16
-      );
-      this.camera.lookAt(this.rocket.root.position);
+      // Camera gentle orbit around the rocket showing the sunlit Earth below
+      const angle = this.elapsed * 0.45;
+      const camPos = this.launchPos.clone()
+        .addScaledVector(this.tangentX, Math.cos(angle) * 3.0)
+        .addScaledVector(this.tangentZ, Math.sin(angle) * 3.0)
+        .addScaledVector(this.surfaceNormal, 0.85);
+      this.camera.position.copy(camPos);
+      if (this.rocket) {
+        this.camera.lookAt(this.rocket.root.position);
+      }
 
       if (this.elapsed >= 5.0) {
         // LIFTOFF!
@@ -187,21 +211,28 @@ export class LaunchSequence {
         audioSystem.setEngineThrottle(1.0, true);
       }
     }
-    // Stage 1: Vertical Ascent into Orbit (duration ~4.5s)
+    // Stage 1: Vertical Ascent into Orbit (duration ~4.0s)
     else if (this.stage === 1) {
       const ascentTime = this.elapsed - 5.0;
-      const verticalSpeed = Math.min(ascentTime * 14 + (ascentTime ** 2) * 4.5, 65);
+      const verticalSpeed = Math.min(ascentTime * 3.5 + (ascentTime ** 2) * 1.5, 18);
 
-      this.rocket.root.position.y += verticalSpeed * dt;
-      this.rocket.throttle = 1.0;
-      this.rocket.isBoosting = true;
-      this.rocket.update(dt, { pitch: 0, yaw: 0, forward: true, boost: true, brake: false });
+      // Rocket ascends upward along surface normal into space
+      if (this.rocket) {
+        this.rocket.root.position.addScaledVector(this.surfaceNormal, verticalSpeed * dt);
+        this.rocket.throttle = 1.0;
+        this.rocket.isBoosting = true;
+        this.rocket.update(dt, 1.0, true);
+      }
 
-      // Camera smoothly flies up behind the rocket
-      const rocketPos = this.rocket.root.position;
-      const targetCamPos = rocketPos.clone().add(new THREE.Vector3(0, -3.5, -14));
-      this.camera.position.lerp(targetCamPos, dt * 2.8);
-      this.camera.lookAt(rocketPos.clone().add(new THREE.Vector3(0, 10, 0)));
+      // Camera smoothly tracks behind rocket showing Earth receding below
+      if (this.rocket) {
+        const rocketPos = this.rocket.root.position;
+        const targetCamPos = rocketPos.clone()
+          .addScaledVector(this.surfaceNormal, -1.5)
+          .addScaledVector(this.tangentX, 1.0);
+        this.camera.position.lerp(targetCamPos, dt * 3.2);
+        this.camera.lookAt(rocketPos.clone().addScaledVector(this.surfaceNormal, 2.5));
+      }
 
       if (ascentTime >= 4.0) {
         this.finish();
@@ -230,17 +261,18 @@ export class LaunchSequence {
   finish() {
     this.stop();
 
-    // Position rocket ready for space flight heading toward orbit
-    const orbitPos = this.launchPos.clone().add(new THREE.Vector3(0, 24, 18));
+    // Position rocket ready in Low Earth Orbit (LEO) cruising over sunlit Earth
+    const earthR = this.earthRadius || 2.16;
+    const orbitPos = this.earthPos.clone().addScaledVector(this.surfaceNormal, earthR * 1.5);
+    const forwardDir = this.tangentX.clone().applyAxisAngle(this.surfaceNormal, 0.15).normalize();
+    const lookTarget = orbitPos.clone().addScaledVector(forwardDir, 10);
+
     if (this.rocket) {
-      this.rocket.teleport(
-        orbitPos,
-        orbitPos.clone().add(new THREE.Vector3(0, 5, 20)) // forward into space
-      );
+      this.rocket.teleport(orbitPos, lookTarget);
     }
 
     audioSystem.startEngine();
-    audioSystem.setEngineThrottle(0.5, false);
+    audioSystem.setEngineThrottle(0.0, false);
 
     this.onComplete?.(
       this.rocket ? this.rocket.root.position : orbitPos,

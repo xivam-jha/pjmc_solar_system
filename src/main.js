@@ -45,13 +45,21 @@ const trueRadiusOf = (data) => data.diameterKm * 0.5 * KM_TO_UNIT;
 const scaleState = { mix: 0 }; // 0 = visualization, 1 = true scale
 const lerp = (a, b, t) => a + (b - a) * t;
 
+let explorerModeActive = false;
+
 const scaleAPI = {
   bodyRadius(p) {
-    return lerp(vizRadiusOf(p.data, p.isMoon), trueRadiusOf(p.data), scaleState.mix);
+    const base = lerp(vizRadiusOf(p.data, p.isMoon), trueRadiusOf(p.data), scaleState.mix);
+    if (explorerModeActive) {
+      // In Explore Flight Mode, planets scale up to 2.4x so Earth, Mars, Jupiter, Saturn
+      // feel like colossal, realistic celestial worlds next to the spacecraft!
+      return base * (p.isMoon ? 1.8 : 2.4);
+    }
+    return base;
   },
   orbitRadius(p) {
     if (p.isMoon) {
-      const viz = vizRadiusOf(p.parent.data, false) * p.data.vizDistanceFactor;
+      const viz = vizRadiusOf(p.parent.data, false) * p.data.vizDistanceFactor * (explorerModeActive ? 1.6 : 1.0);
       return lerp(viz, p.data.distanceKm * KM_TO_UNIT, scaleState.mix);
     }
     if (!p.data.distanceAU) return 0;
@@ -405,6 +413,7 @@ async function init() {
         if (!explorerGame) return;
         releaseFocus();
         if (scaleMode !== 'viz') setScaleMode('viz');
+        explorerModeActive = true;
         hud.setVisible(false);
         labels.setEnabled(false);
         explorerGame.openMenu();
@@ -429,6 +438,7 @@ async function init() {
     const origExitExplore = explorerGame.exitToSolarSystem.bind(explorerGame);
     explorerGame.exitToSolarSystem = () => {
       origExitExplore();
+      explorerModeActive = false;
       hud.setVisible(true);
       labels.setEnabled(labelsEnabled);
     };

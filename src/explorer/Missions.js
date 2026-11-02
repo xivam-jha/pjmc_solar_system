@@ -128,9 +128,9 @@ export class MissionManager {
     this.onWaypointComplete = null;
     this.onMissionComplete = null;
 
-    // Shared geometry for checkpoint rings (optimized)
-    this.ringGeom = new THREE.TorusGeometry(1.6, 0.08, 12, 36);
-    this.outerRingGeom = new THREE.TorusGeometry(1.85, 0.03, 8, 36);
+    // Shared geometry for checkpoint rings (optimized for 0.28 scale rocket)
+    this.ringGeom = new THREE.TorusGeometry(0.85, 0.045, 12, 36);
+    this.outerRingGeom = new THREE.TorusGeometry(0.98, 0.02, 8, 36);
 
     // Active & inactive ring materials
     this.activeMat = new THREE.MeshBasicMaterial({
@@ -285,9 +285,13 @@ export class MissionManager {
     const mId = this.activeMission.id;
 
     if (mId === 'mission_01') {
-      // Earth Orbit: offsets relative to Earth
+      // Earth Orbit: smooth circular orbit path encircling Earth at realistic LEO altitude
       this.getPlanetWorldPos('earth', out);
-      out.add(wp.offset);
+      const angle = (index / 5) * Math.PI * 1.8 + 0.35;
+      const r = 3.5;
+      out.x += Math.cos(angle) * r;
+      out.y += Math.sin(angle * 2) * 0.45;
+      out.z += Math.sin(angle) * r;
     } else if (mId === 'mission_02') {
       // Interplanetary Mars: line from Earth to Mars
       const pEarth = this.tempV1;
@@ -372,9 +376,9 @@ export class MissionManager {
         mesh.userData.outer.material = this.activeOuterMat;
         mesh.userData.light.intensity = 2.0;
 
-        // Check if rocket entered checkpoint radius (radius ~ 2.4)
+        // Check if rocket entered checkpoint radius (radius ~ 1.35)
         const dist = rocketPos.distanceTo(pos);
-        if (dist < 2.4) {
+        if (dist < 1.35) {
           this.triggerBurst(pos);
           this.advanceCheckpoint();
         }

@@ -568,6 +568,8 @@ export class Rocket {
     this.root = new THREE.Group();
     this.group = this.root; // alias for scene addition
     this.model = new THREE.Group();
+    // Balanced aerospace scale (length 1.4 units) so planets appear colossal and realistic!
+    this.model.scale.setScalar(0.28);
     this.root.add(this.model);
 
     // Physics & State
@@ -768,18 +770,18 @@ export class Rocket {
     this.model.add(this.leftFlame);
 
     // Dynamic Engine Blue Glow Light
-    this.engineLight = new THREE.PointLight(0x00d4ff, 2.2, 22);
-    this.engineLight.position.set(0, 0, -4.0);
-    this.model.add(this.engineLight);
+    this.engineLight = new THREE.PointLight(0x00d4ff, 1.8, 8);
+    this.engineLight.position.set(0, 0, -1.2);
+    this.root.add(this.engineLight);
 
-    // Cockpit camera mount point (attached to root to decouple from visual banking)
+    // Cockpit camera mount point (proportional to 0.28 scale)
     this.cockpitMount = new THREE.Group();
-    this.cockpitMount.position.set(0, 0.88, 1.2);
+    this.cockpitMount.position.set(0, 0.25, 0.35);
     this.root.add(this.cockpitMount);
 
-    // Third-person camera mount point (attached to root)
+    // Third-person camera mount point (proportional to 0.28 scale)
     this.chaseTarget = new THREE.Group();
-    this.chaseTarget.position.set(0, 2.2, -8.2);
+    this.chaseTarget.position.set(0, 0.65, -2.5);
     this.root.add(this.chaseTarget);
 
     /* ------------------------------------------------------------------ */

@@ -301,10 +301,8 @@ export class ExplorerGame {
         this.startSpaceFlight(rocketPos, rocketRot);
       },
       () => {
-        // Skip intro clicked: place spacecraft directly in orbital space
-        const orbitPos = earthPos.clone().add(new THREE.Vector3(0, 24, 18));
-        this.rocket.teleport(orbitPos, orbitPos.clone().add(new THREE.Vector3(0, 5, 20)));
-        this.startSpaceFlight(orbitPos, this.rocket.quaternion);
+        // Skip intro clicked: place spacecraft directly in realistic Low Earth Orbit
+        this.launchSeq.finish();
       }
     );
   }
@@ -340,12 +338,12 @@ export class ExplorerGame {
     this.targetFreeLookPitch = 0.0;
     this.isFreeLooking = false;
 
-    // Setup initial chase camera behind rocket (looking forward toward space)
-    const offset = new THREE.Vector3(0, 2.4, -9.5).applyQuaternion(this.rocket.quaternion);
+    // Setup initial chase camera behind rocket (scaled proportionally to sleek rocket)
+    const offset = new THREE.Vector3(0, 0.85, -3.2).applyQuaternion(this.rocket.quaternion);
     this.camera.position.copy(this.rocket.position).add(offset);
     this.camCurrentPos.copy(this.camera.position);
 
-    const lookTarget = new THREE.Vector3(0, 0.4, 8.0).applyQuaternion(this.rocket.quaternion);
+    const lookTarget = new THREE.Vector3(0, 0.15, 3.5).applyQuaternion(this.rocket.quaternion);
     this.camLookTarget.copy(this.rocket.position).add(lookTarget);
 
     const rocketUp = this.rocket.getUpVector(this.tempV2);
@@ -585,6 +583,24 @@ export class ExplorerGame {
       this.rocket.position.addScaledVector(pull, (distFromOrigin - 250) * dt * 2.0);
     }
 
+    // Soft planetary atmospheric barrier: prevent clipping inside planets
+    for (const [id, entry] of this.planetRegistry) {
+      if (id === 'sun') continue;
+      const pPos = this.tempV1;
+      this.missions.getPlanetWorldPos(id, pPos);
+      const dist = this.rocket.position.distanceTo(pPos);
+      const baseR = entry.data.diameterKm ? (entry.data.diameterKm / 12742) ** 0.45 * 0.9 * 2.4 : 2.16;
+      const minAltitude = baseR + 0.35;
+      if (dist < minAltitude && dist > 0.01) {
+        const pushDir = this.tempV2.subVectors(this.rocket.position, pPos).normalize();
+        this.rocket.position.copy(pPos).addScaledVector(pushDir, minAltitude);
+        const vDot = this.velocity.dot(pushDir);
+        if (vDot < 0) {
+          this.velocity.subScaledVector(pushDir, vDot);
+        }
+      }
+    }
+
     // 7. Update rocket flame animation and boost intensity
     const throttleNorm = this.isBoosting ? 1.0 : (this.flightSpeed / this.maxCruiseSpeed);
     this.rocket.update(dt, Math.max(0.0, Math.min(1.0, throttleNorm)), this.isBoosting);
@@ -623,10 +639,8 @@ export class ExplorerGame {
       this.camera.position.copy(cockpitWorldPos);
       this.camera.quaternion.copy(this.rocket.quaternion).multiply(qFree);
     } else {
-      // Third-Person 360° Orbit Chase Camera
-      // Base local offset: elevated behind engines (0, 2.4, -9.8)
-      // When free-look is active, rotate baseOffset around the rocket center
-      const baseLocalOffset = new THREE.Vector3(0, 2.4, -9.8).applyQuaternion(qFree);
+      // Third-Person 360° Orbit Chase Camera (proportional to 0.28 sleek rocket)
+      const baseLocalOffset = new THREE.Vector3(0, 0.85, -3.2).applyQuaternion(qFree);
       const worldOffset = baseLocalOffset.applyQuaternion(this.rocket.quaternion);
       this.camTargetPos.copy(this.rocket.position).add(worldOffset);
 
@@ -636,11 +650,11 @@ export class ExplorerGame {
       this.camera.position.copy(this.camCurrentPos);
 
       // Camera look target:
-      // When looking straight forward (freeLook ~ 0): look ahead into space past rocket nose (+Z)
+      // When looking straight forward: look ahead into space past rocket nose (+Z)
       // When orbiting to look around planets or backwards: camera points toward rocket center
       const freeMag = Math.min(1.0, Math.hypot(this.freeLookYaw, this.freeLookPitch) * 1.5);
-      const lookZ = THREE.MathUtils.lerp(8.0, 1.2, freeMag);
-      const localLook = new THREE.Vector3(0, 0.4, lookZ)
+      const lookZ = THREE.MathUtils.lerp(3.5, 0.6, freeMag);
+      const localLook = new THREE.Vector3(0, 0.15, lookZ)
         .applyQuaternion(qFree)
         .applyQuaternion(this.rocket.quaternion);
       this.camLookTarget.copy(this.rocket.position).add(localLook);
