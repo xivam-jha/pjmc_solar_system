@@ -1,41 +1,38 @@
 /**
- * Reusable Planet class — also used for moons (recursively) and Pluto.
+ * Planet.js — Ultra Photorealistic Planetary Rendering Engine
+ * PJMC STUDENT — SOLAR SYSTEM EXPLORER
+ * Pawan Jha Mathematics Classes
  *
- * Scene-graph layout per body:
- *
- *   root (Group, orbital-plane inclination)
- *   ├── orbitLine (unit circle, scaled to the current orbit radius)
- *   └── bodyGroup (Group, positioned on the orbit; never scaled)
- *       └── tiltGroup (Group, axial tilt)
- *           ├── spinGroup (Group, daily rotation; scale = display radius)
- *           │   ├── surface mesh (unit sphere)
- *           │   ├── cloud shell  (optional, drifts relative to surface)
- *           │   ├── atmosphere shell (optional fresnel glow)
- *           │   └── rings (optional; spin is invisible on a radial texture)
- *           └── moon roots (orbit in the parent's equatorial plane)
- *
- * Sizes and orbit radii are *not* baked into geometry: every frame they are
- * resolved through the scale API, which blends "visualization" and "true"
- * scale — this is what makes the animated scale toggle cheap.
+ * Reusable Planet class used for all 8 major planets, the Moon, major satellites, and Pluto.
+ * Features:
+ * - Genuine scientific equirectangular 2K PBR materials (roughness, metalness, bump, specular).
+ * - Smooth Day/Night terminator blending with warm twilight Rayleigh shift and night-side city lights.
+ * - Physically inspired sun-facing atmospheric scattering without cartoon night-side glow.
+ * - Dynamic differential cloud shell with separate rotation speed.
+ * - Real Cassini alpha ring textures with dual shadows (ring on planet & planet on ring).
+ * - Interactive Venus Radar Topography vs. Cloud Atmosphere toggle.
+ * - Adaptive geometry tiers (up to 192x96 segments) with sphere caching.
  */
 
 import * as THREE from 'three';
 import { createRings } from './Rings.js';
+import { adaptiveQuality } from '../renderer/AdaptiveQuality.js';
 
 const TWO_PI = Math.PI * 2;
 const _v = new THREE.Vector3();
 const _q = new THREE.Quaternion();
 
-/* Shared unit-sphere geometries, keyed by segment count. */
+/* Shared unit-sphere geometries, keyed by widthSegments_heightSegments */
 const sphereCache = new Map();
-export function getSphereGeometry(segments) {
-  if (!sphereCache.has(segments)) {
-    sphereCache.set(segments, new THREE.SphereGeometry(1, segments, segments / 2));
+export function getSphereGeometry(widthSegments, heightSegments = Math.round(widthSegments / 2)) {
+  const key = `${widthSegments}_${heightSegments}`;
+  if (!sphereCache.has(key)) {
+    sphereCache.set(key, new THREE.SphereGeometry(1, widthSegments, heightSegments));
   }
-  return sphereCache.get(segments);
+  return sphereCache.get(key);
 }
 
-/* Shared unit-circle line geometry for orbit paths. */
+/* Shared unit-circle line geometry for orbit paths */
 let circleGeometry = null;
 function getCircleGeometry() {
   if (!circleGeometry) {
@@ -50,7 +47,7 @@ function getCircleGeometry() {
 }
 
 /* ------------------------------------------------------------------ */
-/* Atmosphere (fresnel rim glow) shader                                */
+/* Physically Inspired Atmospheric Scattering Shader                  */
 /* ------------------------------------------------------------------ */
 
 const ATMO_VERTEX = /* glsl */ `
@@ -76,6 +73,7 @@ const ATMO_FRAGMENT = /* glsl */ `
   uniform vec3 uColor;
   uniform float uPower;
   uniform float uIntensity;
+  uniform vec3 uTwilightColor;
   varying vec3 vNormalV;
   varying vec3 vViewV;
   varying vec3 vWorldNormal;
@@ -84,20 +82,49 @@ const ATMO_FRAGMENT = /* glsl */ `
   #include <logdepthbuf_pars_fragment>
   void main() {
     #include <logdepthbuf_fragment>
-    float fres = pow(1.0 - abs(dot(normalize(vNormalV), normalize(vViewV))), uPower);
-    // Stronger glow on the day side (the Sun is at the world origin).
+    
+    // View angle rim glow (limb brightening)
+    float viewDot = abs(dot(normalize(vNormalV), normalize(vViewV)));
+    float fresnel = pow(clamp(1.0 - viewDot, 0.0, 1.0), uPower);
+    
+    // Sun direction: the Sun is located at the world origin (0, 0, 0)
     vec3 sunDir = normalize(-vWorldPos);
-    float day = 0.25 + 0.75 * smoothstep(-0.35, 0.35, dot(normalize(vWorldNormal), sunDir));
-    gl_FragColor = vec4(uColor * fres * day * uIntensity, 1.0);
+    float sunDot = dot(normalize(vWorldNormal), sunDir);
+    
+    // Physically authentic day illumination:
+    // Full brightness on day hemisphere, tapering smoothly across terminator.
+    // Strictly ZERO emission on the dark night side to eliminate artificial halos.
+    float dayFactor = smoothstep(-0.06, 0.28, sunDot);
+    
+    if (dayFactor <= 0.001) {
+      discard;
+    }
+    
+    // Rayleigh twilight reddening near the terminator (-0.05 to 0.15)
+    float twilightFactor = smoothstep(0.25, -0.05, sunDot) * smoothstep(-0.08, 0.04, sunDot);
+    vec3 atmoColor = mix(uColor, uTwilightColor, twilightFactor * 0.75);
+    
+    // Subtle limb-darkening profile
+    float limb = mix(0.85, 1.25, fresnel);
+    
+    vec3 finalRgb = atmoColor * (fresnel * dayFactor * uIntensity * limb);
+    gl_FragColor = vec4(finalRgb, fresnel * dayFactor);
   }
 `;
 
-function createAtmosphere(spec) {
+function createAtmosphere(spec, segments = 64) {
+  // Twilight warm shift color (sunset orange/amber for Earth, deeper gold for Venus, warm rust for Mars)
+  let twilightHex = 0xff8c42;
+  if (spec.color === 0xe8d9a0) twilightHex = 0xffb366; // Venus
+  else if (spec.color === 0xd8a080) twilightHex = 0xcc5533; // Mars
+  else if (spec.color === 0xd89040) twilightHex = 0xe07020; // Titan
+
   const material = new THREE.ShaderMaterial({
     uniforms: {
       uColor: { value: new THREE.Color(spec.color) },
-      uPower: { value: spec.power },
-      uIntensity: { value: spec.intensity },
+      uTwilightColor: { value: new THREE.Color(twilightHex) },
+      uPower: { value: spec.power ?? 3.2 },
+      uIntensity: { value: spec.intensity ?? 0.8 },
     },
     vertexShader: ATMO_VERTEX,
     fragmentShader: ATMO_FRAGMENT,
@@ -106,28 +133,35 @@ function createAtmosphere(spec) {
     blending: THREE.AdditiveBlending,
     depthWrite: false,
   });
-  const mesh = new THREE.Mesh(getSphereGeometry(48), material);
-  mesh.scale.setScalar(1.07);
-  return mesh;
+
+  const mesh = new THREE.Mesh(getSphereGeometry(segments), material);
+  mesh.scale.setScalar(1.025);
+  return { mesh, material };
 }
 
 /* ------------------------------------------------------------------ */
-/* Planet                                                              */
+/* Planet Class                                                        */
 /* ------------------------------------------------------------------ */
 
 export class Planet {
   /**
    * @param {object} data     entry from data/celestialBodies.js
-   * @param {object} textures procedural texture set
+   * @param {object} textures texture set
    * @param {object} opts     { isMoon, parent (Planet) }
    */
   constructor(data, textures, { isMoon = false, parent = null } = {}) {
     this.data = data;
+    this.textures = textures;
     this.isMoon = isMoon;
     this.parent = parent;
     this._radius = 1;
     this.spinOffset = ((data.phaseDeg ?? 0) * Math.PI) / 180;
-    this.ringShadowShader = null; // set by onBeforeCompile when applicable
+    this.ringShadowShader = null;
+    this.isVenusRadarMode = false;
+
+    // Quality preset settings
+    const preset = adaptiveQuality.getPreset();
+    this.currentSegments = isMoon ? preset.moonSegments : preset.primarySegments;
 
     // -- groups -----------------------------------------------------
     this.root = new THREE.Group();
@@ -142,78 +176,67 @@ export class Planet {
     this.tiltGroup.add(this.spinGroup);
     this.root.add(this.bodyGroup);
 
-    // -- surface ----------------------------------------------------
-    const segments = isMoon ? 36 : 64;
-    const matConfig = {
-      map: textures[data.texture],
-      roughness: 0.8,
-      metalness: 0.05,
-    };
+    // -- surface PBR material ---------------------------------------
+    this.#setupSurfaceMaterial(textures);
 
-    const bumpKey = data.texture + '_bump';
-    if (textures[bumpKey]) {
-      matConfig.bumpMap = textures[bumpKey];
-      matConfig.bumpScale = isMoon ? 0.02 : 0.038;
-    }
-
-    if (data.id === 'earth') {
-      matConfig.roughness = 0.55;
-      matConfig.metalness = 0.05;
-      if (textures.earth_specular) {
-        matConfig.roughnessMap = textures.earth_specular;
-      }
-      if (textures.earth_bump) {
-        matConfig.bumpMap = textures.earth_bump;
-        matConfig.bumpScale = 0.042;
-      }
-    } else if (data.type === 'Gas Giant' || data.type === 'Ice Giant') {
-      matConfig.roughness = 0.65;
-      matConfig.metalness = 0.0;
-    }
-
-    this.surfaceMaterial = new THREE.MeshStandardMaterial(matConfig);
-    if (data.id === 'earth' && textures.earth_night) {
-      this.#injectEarthNightLights(textures.earth_night);
-    }
-    this.surfaceMesh = new THREE.Mesh(getSphereGeometry(segments), this.surfaceMaterial);
+    // -- surface mesh -----------------------------------------------
+    this.surfaceMesh = new THREE.Mesh(
+      getSphereGeometry(this.currentSegments),
+      this.surfaceMaterial
+    );
     this.surfaceMesh.userData.bodyId = data.id;
     this.spinGroup.add(this.surfaceMesh);
 
-    // -- cloud layer (Earth) -----------------------------------------
+    // -- cloud layer (Earth) ----------------------------------------
     this.cloudMesh = null;
-    if (data.clouds) {
-      this.cloudMesh = new THREE.Mesh(
-        getSphereGeometry(segments),
-        new THREE.MeshStandardMaterial({
-          map: textures[data.clouds],
+    this.cloudMaterial = null;
+    if (data.clouds || data.id === 'earth') {
+      const cloudTex = textures.earth_clouds || textures[data.clouds] || textures.earthClouds;
+      if (cloudTex) {
+        this.cloudMaterial = new THREE.MeshStandardMaterial({
+          map: cloudTex,
           transparent: true,
-          opacity: 0.88,
+          opacity: 0.86,
           roughness: 0.95,
           metalness: 0.0,
           depthWrite: false,
-        }),
-      );
-      this.cloudMesh.scale.setScalar(1.02);
-      this.spinGroup.add(this.cloudMesh);
-    }
-
-    // -- atmosphere glow ---------------------------------------------
-    if (data.atmosphere) {
-      this.spinGroup.add(createAtmosphere(data.atmosphere));
-    }
-
-    // -- rings --------------------------------------------------------
-    this.ringMaterial = null;
-    if (data.rings) {
-      const { mesh, material } = createRings(data.rings, textures[data.rings.texture]);
-      this.ringMaterial = material;
-      this.spinGroup.add(mesh);
-      if (data.rings.castOnPlanet) {
-        this.#injectRingShadow(textures[data.rings.texture]);
+        });
+        this.cloudMesh = new THREE.Mesh(
+          getSphereGeometry(preset.cloudSegments),
+          this.cloudMaterial
+        );
+        this.cloudMesh.scale.setScalar(1.018);
+        this.spinGroup.add(this.cloudMesh);
       }
     }
 
-    // -- orbit line ----------------------------------------------------
+    // -- atmosphere glow --------------------------------------------
+    this.atmosphereMesh = null;
+    this.atmosphereMaterial = null;
+    if (data.atmosphere) {
+      const { mesh, material } = createAtmosphere(data.atmosphere, preset.atmosphereSegments);
+      this.atmosphereMesh = mesh;
+      this.atmosphereMaterial = material;
+      this.spinGroup.add(this.atmosphereMesh);
+    }
+
+    // -- rings ------------------------------------------------------
+    this.ringMesh = null;
+    this.ringMaterial = null;
+    if (data.rings) {
+      // Prioritize high-resolution alpha ring texture
+      const ringTex = textures.saturn_ring_alpha || textures[data.rings.texture];
+      const { mesh, material } = createRings(data.rings, ringTex);
+      this.ringMesh = mesh;
+      this.ringMaterial = material;
+      this.spinGroup.add(mesh);
+
+      if (data.rings.castOnPlanet) {
+        this.#injectRingShadow(ringTex);
+      }
+    }
+
+    // -- orbit line -------------------------------------------------
     this.orbitLine = new THREE.LineLoop(
       getCircleGeometry(),
       new THREE.LineBasicMaterial({
@@ -224,18 +247,130 @@ export class Planet {
     );
     this.root.add(this.orbitLine);
 
-    // -- moons ----------------------------------------------------------
-    // Moon roots live inside tiltGroup so satellite systems orbit in the
-    // planet's equatorial plane (matching ring planes — notably Uranus).
+    // -- moons ------------------------------------------------------
     this.moons = (data.moons ?? []).map((moonData) => {
       const moon = new Planet(moonData, textures, { isMoon: true, parent: this });
       this.tiltGroup.add(moon.root);
       return moon;
     });
+
+    // Subscribe to dynamic adaptive quality updates
+    this.unsubscribeQuality = adaptiveQuality.onQualityChange((newPreset) => {
+      this.applyQualityPreset(newPreset);
+    });
   }
 
   /**
-   * Inject glowing city lights onto the night side of Earth.
+   * Configure scientifically calibrated PBR materials per planetary body.
+   */
+  #setupSurfaceMaterial(textures) {
+    const data = this.data;
+    const isMoon = this.isMoon;
+
+    const matConfig = {
+      map: textures[data.texture] || textures[data.id],
+      roughness: 0.8,
+      metalness: 0.05,
+    };
+
+    // Body-specific scientific PBR parameter calibrations
+    switch (data.id) {
+      case 'mercury':
+        matConfig.roughness = 0.88;
+        matConfig.metalness = 0.08;
+        if (textures.mercury_bump) {
+          matConfig.bumpMap = textures.mercury_bump;
+          matConfig.bumpScale = 0.055;
+        }
+        break;
+
+      case 'venus':
+        // Default: Cloud tops
+        matConfig.roughness = 0.55;
+        matConfig.metalness = 0.02;
+        break;
+
+      case 'earth':
+        matConfig.map = textures.earth || textures[data.texture];
+        matConfig.roughness = 0.50;
+        matConfig.metalness = 0.04;
+        if (textures.earth_specular) {
+          matConfig.roughnessMap = textures.earth_specular;
+        }
+        if (textures.earth_bump) {
+          matConfig.bumpMap = textures.earth_bump;
+          matConfig.bumpScale = 0.045;
+        }
+        break;
+
+      case 'moon':
+        matConfig.roughness = 0.92;
+        matConfig.metalness = 0.04;
+        if (textures.moon_bump) {
+          matConfig.bumpMap = textures.moon_bump;
+          matConfig.bumpScale = 0.058;
+        }
+        break;
+
+      case 'mars':
+        matConfig.roughness = 0.78;
+        matConfig.metalness = 0.10;
+        if (textures.mars_bump) {
+          matConfig.bumpMap = textures.mars_bump;
+          matConfig.bumpScale = 0.062;
+        }
+        break;
+
+      case 'jupiter':
+        matConfig.roughness = 0.48;
+        matConfig.metalness = 0.0;
+        break;
+
+      case 'saturn':
+        matConfig.roughness = 0.52;
+        matConfig.metalness = 0.0;
+        break;
+
+      case 'uranus':
+        matConfig.roughness = 0.44;
+        matConfig.metalness = 0.0;
+        break;
+
+      case 'neptune':
+        matConfig.roughness = 0.40;
+        matConfig.metalness = 0.0;
+        break;
+
+      case 'pluto':
+        matConfig.roughness = 0.84;
+        matConfig.metalness = 0.05;
+        break;
+
+      default:
+        if (isMoon) {
+          matConfig.roughness = 0.85;
+          matConfig.metalness = 0.05;
+        }
+        break;
+    }
+
+    // Generic bump fallback for moons / terrestrial bodies
+    const bumpKey = data.texture + '_bump';
+    if (!matConfig.bumpMap && textures[bumpKey]) {
+      matConfig.bumpMap = textures[bumpKey];
+      matConfig.bumpScale = isMoon ? 0.025 : 0.04;
+    }
+
+    this.surfaceMaterial = new THREE.MeshStandardMaterial(matConfig);
+
+    // Inject photorealistic Earth day/night blending with city lights
+    if (data.id === 'earth' && (textures.earth_night || textures.earthNight)) {
+      this.#injectEarthNightLights(textures.earth_night || textures.earthNight);
+    }
+  }
+
+  /**
+   * Inject city lights onto the night side of Earth with warm emission.
    */
   #injectEarthNightLights(nightTexture) {
     const mat = this.surfaceMaterial;
@@ -275,22 +410,22 @@ export class Planet {
           {
             vec3 sunDir = normalize(-vEarthWorldPos);
             float dayAmount = dot(normalize(vEarthWorldNormal), sunDir);
-            float nightFactor = smoothstep(0.12, -0.22, dayAmount);
+            // Smooth terminator transition for city illumination
+            float nightFactor = smoothstep(0.08, -0.16, dayAmount);
             if (nightFactor > 0.0) {
               vec3 cityLights = texture2D(uNightMap, vEarthUv).rgb;
-              gl_FragColor.rgb += cityLights * vec3(1.35, 1.18, 0.95) * nightFactor * 1.6;
+              // Warm incandescent glow with slight boost
+              gl_FragColor.rgb += cityLights * vec3(1.35, 1.15, 0.90) * nightFactor * 1.5;
             }
           }`,
         );
     };
-    mat.customProgramCacheKey = () => 'earth-night-lights';
+    mat.customProgramCacheKey = () => 'earth-night-lights-v2';
   }
 
   /**
    * Analytic ring shadow on the planet surface: for each fragment, march
-   * toward the Sun (world origin) and darken if the ray crosses the ring
-   * annulus. Injected into the stock shader so standard lighting
-   * is preserved.
+   * toward the Sun (world origin) and darken if the ray crosses the ring annulus.
    */
   #injectRingShadow(ringTexture) {
     const spec = this.data.rings;
@@ -332,7 +467,7 @@ export class Planet {
                 if (r > uRingInner && r < uRingOuter) {
                   float u = (r - uRingInner) / (uRingOuter - uRingInner);
                   float a = texture2D(uRingMap, vec2(u, 0.5)).a;
-                  gl_FragColor.rgb *= 1.0 - a * 0.8;
+                  gl_FragColor.rgb *= 1.0 - a * 0.85;
                 }
               }
             }
@@ -341,7 +476,61 @@ export class Planet {
         );
       self.ringShadowShader = shader;
     };
-    mat.customProgramCacheKey = () => 'standard-ring-shadow';
+    mat.customProgramCacheKey = () => 'standard-ring-shadow-v2';
+  }
+
+  /**
+   * Toggle Venus view mode between Cloud Tops and Magellan Radar Surface.
+   * @param {boolean} radarMode
+   */
+  setVenusRadarMode(radarMode) {
+    if (this.data.id !== 'venus') return;
+    this.isVenusRadarMode = radarMode;
+
+    if (radarMode) {
+      if (this.textures.venus_surface) {
+        this.surfaceMaterial.map = this.textures.venus_surface;
+        this.surfaceMaterial.roughness = 0.76;
+        this.surfaceMaterial.metalness = 0.06;
+        if (this.textures.venus_bump) {
+          this.surfaceMaterial.bumpMap = this.textures.venus_bump;
+          this.surfaceMaterial.bumpScale = 0.05;
+        }
+        this.surfaceMaterial.needsUpdate = true;
+      }
+      if (this.atmosphereMesh) {
+        this.atmosphereMesh.visible = false;
+      }
+    } else {
+      this.surfaceMaterial.map = this.textures.venus || this.textures[this.data.texture];
+      this.surfaceMaterial.roughness = 0.55;
+      this.surfaceMaterial.metalness = 0.02;
+      this.surfaceMaterial.bumpMap = null;
+      this.surfaceMaterial.needsUpdate = true;
+      if (this.atmosphereMesh) {
+        this.atmosphereMesh.visible = true;
+      }
+    }
+  }
+
+  /**
+   * Apply adaptive quality preset to geometry and shaders.
+   * @param {object} preset
+   */
+  applyQualityPreset(preset) {
+    const segs = this.isMoon ? preset.moonSegments : preset.primarySegments;
+    if (this.surfaceMesh && this.currentSegments !== segs) {
+      this.currentSegments = segs;
+      this.surfaceMesh.geometry = getSphereGeometry(segs);
+    }
+
+    if (this.cloudMesh && preset.cloudSegments) {
+      this.cloudMesh.geometry = getSphereGeometry(preset.cloudSegments);
+    }
+
+    if (this.atmosphereMesh && preset.atmosphereSegments) {
+      this.atmosphereMesh.geometry = getSphereGeometry(preset.atmosphereSegments);
+    }
   }
 
   get radiusWorld() {
@@ -372,9 +561,9 @@ export class Planet {
     this.spinGroup.rotation.y =
       this.spinOffset + (TWO_PI * daysSinceJ2000 * 24) / this.data.rotationPeriodHours;
 
-    // Clouds drift slowly relative to the ground.
+    // Clouds drift with differential velocity relative to the planet surface
     if (this.cloudMesh) {
-      this.cloudMesh.rotation.y = this.spinGroup.rotation.y * 0.07;
+      this.cloudMesh.rotation.y = this.spinGroup.rotation.y * 1.05 + daysSinceJ2000 * 0.12;
     }
 
     // Ring shader uniforms (world-space, scale-aware).
@@ -391,5 +580,11 @@ export class Planet {
     }
 
     for (const moon of this.moons) moon.update(daysSinceJ2000, scale);
+  }
+
+  dispose() {
+    if (this.unsubscribeQuality) {
+      this.unsubscribeQuality();
+    }
   }
 }

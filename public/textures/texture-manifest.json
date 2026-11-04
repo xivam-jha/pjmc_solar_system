@@ -1,0 +1,118 @@
+{
+  "system": "PJMC Student Planetary Texture Engine",
+  "version": "2.0.0",
+  "author": "Pawan Jha Mathematics Classes",
+  "bodies": {
+    "sun": {
+      "name": "Sun",
+      "albedo": "/textures/planets/sun/2k_sun.jpg",
+      "resolution": "2048x1024",
+      "colorSpace": "sRGB",
+      "source": "Solar System Scope / SDO"
+    },
+    "mercury": {
+      "name": "Mercury",
+      "albedo": "/textures/planets/mercury/2k_mercury.jpg",
+      "bump": "/textures/planets/mercury/2k_mercury_bump.jpg",
+      "bumpScale": 0.05,
+      "roughness": 0.85,
+      "metalness": 0.08,
+      "resolution": "2048x1024",
+      "colorSpace": "sRGB",
+      "source": "Solar System Scope / NASA MESSENGER"
+    },
+    "venus": {
+      "name": "Venus",
+      "atmosphere": "/textures/planets/venus/2k_venus_atmosphere.jpg",
+      "surface": "/textures/planets/venus/2k_venus_surface.jpg",
+      "roughness": 0.55,
+      "metalness": 0.02,
+      "resolution": "2048x1024",
+      "colorSpace": "sRGB",
+      "source": "Solar System Scope / Magellan Radar Altimetry"
+    },
+    "earth": {
+      "name": "Earth",
+      "albedo": "/textures/planets/earth/2k_earth_daymap.jpg",
+      "night": "/textures/planets/earth/2k_earth_nightmap.jpg",
+      "clouds": "/textures/planets/earth/2k_earth_clouds.jpg",
+      "bump": "/textures/planets/earth/2k_earth_bump.jpg",
+      "specular": "/textures/planets/earth/2k_earth_specular.jpg",
+      "bumpScale": 0.04,
+      "roughness": 0.45,
+      "metalness": 0.05,
+      "resolution": "2048x1024",
+      "colorSpace": "sRGB",
+      "source": "Solar System Scope / NASA Blue Marble"
+    },
+    "moon": {
+      "name": "Moon",
+      "albedo": "/textures/planets/moon/2k_moon.jpg",
+      "bump": "/textures/planets/moon/2k_moon_bump.jpg",
+      "bumpScale": 0.06,
+      "roughness": 0.90,
+      "metalness": 0.05,
+      "resolution": "2048x1024",
+      "colorSpace": "sRGB",
+      "source": "Solar System Scope / LRO LROC"
+    },
+    "mars": {
+      "name": "Mars",
+      "albedo": "/textures/planets/mars/2k_mars.jpg",
+      "bump": "/textures/planets/mars/2k_mars_bump.jpg",
+      "bumpScale": 0.06,
+      "roughness": 0.78,
+      "metalness": 0.10,
+      "resolution": "2048x1024",
+      "colorSpace": "sRGB",
+      "source": "Solar System Scope / MGS MOLA"
+    },
+    "jupiter": {
+      "name": "Jupiter",
+      "albedo": "/textures/planets/jupiter/2k_jupiter.jpg",
+      "roughness": 0.50,
+      "metalness": 0.0,
+      "resolution": "2048x1024",
+      "colorSpace": "sRGB",
+      "source": "Solar System Scope / Cassini ISS"
+    },
+    "saturn": {
+      "name": "Saturn",
+      "albedo": "/textures/planets/saturn/2k_saturn.jpg",
+      "rings": "/textures/planets/saturn/2k_saturn_ring_alpha.png",
+      "roughness": 0.52,
+      "metalness": 0.0,
+      "resolution": "2048x1024",
+      "colorSpace": "sRGB",
+      "source": "Solar System Scope / Cassini ISS"
+    },
+    "uranus": {
+      "name": "Uranus",
+      "albedo": "/textures/planets/uranus/2k_uranus.jpg",
+      "roughness": 0.45,
+      "metalness": 0.0,
+      "resolution": "2048x1024",
+      "colorSpace": "sRGB",
+      "source": "Solar System Scope / Voyager 2"
+    },
+    "neptune": {
+      "name": "Neptune",
+      "albedo": "/textures/planets/neptune/2k_neptune.jpg",
+      "roughness": 0.42,
+      "metalness": 0.0,
+      "resolution": "2048x1024",
+      "colorSpace": "sRGB",
+      "source": "Solar System Scope / Voyager 2"
+    },
+    "pluto": {
+      "name": "Pluto",
+      "albedo": "/textures/planets/pluto/2k_pluto.jpg",
+      "bumpScale": 0.04,
+      "roughness": 0.82,
+      "metalness": 0.05,
+      "resolution": "2048x1024",
+      "colorSpace": "sRGB",
+      "source": "NASA / JHUAPL / SwRI New Horizons"
+    }
+  }
+}

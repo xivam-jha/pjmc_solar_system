@@ -123,9 +123,15 @@ export function createHUD(app, bodyList) {
     app.onLanguageChange?.(lang);
   });
 
+  let currentQualityMode = 'auto';
+  let currentQualityTier = 'high';
+  const qualityBtn = button('⚡ AUTO (HIGH)', 'action-btn quality-btn', () => {
+    app.onCycleQuality?.();
+  });
+
   const exploreBtn = button('🚀 EXPLORE SPACE', 'explore-btn', () => app.onStartExplore?.());
 
-  viewControls.append(scaleGroup, orbitsBtn, labelsBtn, freeBtn, resetBtn, aboutBtn, langBtn, exploreBtn);
+  viewControls.append(scaleGroup, orbitsBtn, labelsBtn, freeBtn, resetBtn, qualityBtn, aboutBtn, langBtn, exploreBtn);
   top.append(title, viewControls);
   hud.append(top);
 
@@ -238,12 +244,29 @@ export function createHUD(app, bodyList) {
     if (gfTagline) {
       gfTagline.textContent = lang === 'hi' ? BRAND.taglineHi : BRAND.tagline;
     }
+    updateQualityLabel();
     filterBodies();
+  }
+
+  function updateQualityLabel() {
+    const modeUpper = currentQualityMode.toUpperCase();
+    const tierUpper = currentQualityTier.toUpperCase();
+    if (currentQualityMode === 'auto') {
+      qualityBtn.textContent = lang === 'hi' ? `⚡ ऑटो (${tierUpper})` : `⚡ AUTO (${tierUpper})`;
+    } else {
+      qualityBtn.textContent = lang === 'hi' ? `⚡ गुणवत्ता: ${modeUpper}` : `⚡ QUALITY: ${modeUpper}`;
+    }
+    qualityBtn.classList.toggle('active', currentQualityMode === 'ultra');
   }
 
   return {
     setVisible(visible) {
       hud.style.display = visible ? '' : 'none';
+    },
+    setQuality(mode, tier) {
+      currentQualityMode = mode;
+      currentQualityTier = tier;
+      updateQualityLabel();
     },
     setDate(text) {
       dateEl.textContent = text;

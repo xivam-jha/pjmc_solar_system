@@ -26,6 +26,8 @@ import { InfoPanel } from './ui/infoPanel.js';
 import { Labels } from './ui/labels.js';
 import { AboutModal } from './ui/aboutModal.js';
 import { ExplorerGame } from './explorer/ExplorerGame.js';
+import { adaptiveQuality } from './renderer/AdaptiveQuality.js';
+import { planetTextureManager } from './textures/PlanetTextureManager.js';
 import './styles.css';
 
 /* ------------------------------------------------------------------ */
@@ -130,6 +132,7 @@ async function init() {
   renderer.setClearColor(0x000308);
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.05;
+  planetTextureManager.setAnisotropy(renderer.capabilities.getMaxAnisotropy());
   document.getElementById('app').append(renderer.domElement);
 
   const scene = new THREE.Scene();
@@ -145,9 +148,9 @@ async function init() {
   controls.minDistance = 0.01;
 
   /* ---------- lighting ---------- */
-  // Softened sunlight (50% down as requested) with space ambient light
-  scene.add(new THREE.PointLight(0xfffaed, 1.3, 0, 0));
-  scene.add(new THREE.AmbientLight(0x40556e, 0.42));
+  // Scientifically balanced direct sunlight with deep-space ambient light
+  scene.add(new THREE.PointLight(0xfffaed, 1.35, 0, 0));
+  scene.add(new THREE.AmbientLight(0x28384a, 0.22));
 
   /* ---------- post-processing (graceful fallback) ---------- */
   setStatus('SETTING UP POST-PROCESSING…');
@@ -380,7 +383,13 @@ async function init() {
 
   /* ---------- UI ---------- */
   const bodyList = entries.map((e) => ({ id: e.id, name: e.name, isMoon: e.isMoon }));
-  const infoPanel = new InfoPanel(() => releaseFocus());
+  const venusPlanet = planets.find((p) => p.data.id === 'venus');
+  const infoPanel = new InfoPanel(
+    () => releaseFocus(),
+    (radarMode) => {
+      if (venusPlanet) venusPlanet.setVenusRadarMode(radarMode);
+    }
+  );
   const aboutModal = new AboutModal();
   const hud = createHUD(
     {
@@ -391,6 +400,14 @@ async function init() {
         aboutModal.setLanguage(lang);
       },
       onOpenAbout: () => aboutModal.open(),
+      onCycleQuality: () => {
+        const modes = ['auto', 'ultra', 'high', 'balanced', 'low'];
+        const current = adaptiveQuality.getMode();
+        const nextIdx = (modes.indexOf(current) + 1) % modes.length;
+        const nextMode = modes[nextIdx];
+        adaptiveQuality.setMode(nextMode);
+        hud.setQuality(adaptiveQuality.getMode(), adaptiveQuality.getCurrentTier());
+      },
       onTogglePlay: () => {
         playing = !playing;
         hud.setPlaying(playing);
@@ -428,6 +445,10 @@ async function init() {
     },
     bodyList,
   );
+  adaptiveQuality.onQualityChange((preset, tier) => {
+    hud.setQuality(adaptiveQuality.getMode(), tier);
+  });
+  hud.setQuality(adaptiveQuality.getMode(), adaptiveQuality.getCurrentTier());
   let labelsEnabled = true;
   hud.setActiveSpeed(speedIndex);
   hud.setPlaying(playing);
@@ -504,6 +525,7 @@ async function init() {
     timer.update();
     const dt = Math.min(timer.getDelta(), 0.1);
 
+    adaptiveQuality.update(dt);
     updateTweens(dt);
     if (playing) {
       simMs = Math.min(simMs + dt * 1000 * SPEED_PRESETS[speedIndex].mult, MAX_SIM_MS);

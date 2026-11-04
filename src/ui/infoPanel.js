@@ -16,8 +16,10 @@ function el(tag, className, text) {
 }
 
 export class InfoPanel {
-  constructor(onClose) {
+  constructor(onClose, onToggleVenusRadar = null) {
     this.panel = el('div', 'info-panel hidden');
+    this.onToggleVenusRadar = onToggleVenusRadar;
+    this.venusRadarActive = false;
 
     const header = el('div', 'info-header');
     this.nameEl = el('div', 'info-name');
@@ -31,9 +33,10 @@ export class InfoPanel {
 
     this.rows = el('div', 'info-rows');
     this.factEl = el('div', 'info-fact');
+    this.actionArea = el('div', 'info-action-area');
     this.lang = 'en';
     this.currentData = null; this.currentParentName = null;
-    this.panel.append(header, this.rows, this.factEl);
+    this.panel.append(header, this.rows, this.actionArea, this.factEl);
     document.body.append(this.panel);
   }
 
@@ -69,6 +72,20 @@ export class InfoPanel {
     this.rows.append(this.#row(tr('AXIAL TILT'), data.tiltDisplay ?? `${data.axialTiltDeg}°`));
     if (data.moonsDisplay !== undefined) {
       this.rows.append(this.#row(tr('MOONS'), data.moonsDisplay));
+    }
+
+    this.actionArea.replaceChildren();
+    if (data.id === 'venus' && this.onToggleVenusRadar) {
+      const radarBtn = el('button', `info-action-btn ${this.venusRadarActive ? 'active' : ''}`);
+      radarBtn.textContent = this.venusRadarActive 
+        ? (this.lang === 'hi' ? '☁️ शुक्र के बादल देखें' : '☁️ VIEW CLOUD TOPS') 
+        : (this.lang === 'hi' ? '🌋 मैगेलन रडार सतह देखें' : '🌋 VIEW RADAR SURFACE (MAGELLAN)');
+      radarBtn.onclick = () => {
+        this.venusRadarActive = !this.venusRadarActive;
+        this.onToggleVenusRadar(this.venusRadarActive);
+        this.show(this.currentData, this.currentParentName);
+      };
+      this.actionArea.append(radarBtn);
     }
 
     this.factEl.textContent = this.lang === 'hi' ? (FACT_HI[data.id] || data.fact || '') : (data.fact ?? '');

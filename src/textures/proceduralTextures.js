@@ -9,6 +9,7 @@
  */
 
 import * as THREE from 'three';
+import { planetTextureManager } from './PlanetTextureManager.js';
 
 /* ------------------------------------------------------------------ */
 /* Noise primitives                                                    */
@@ -526,7 +527,7 @@ export async function createTextureSet(onProgress = () => {}) {
   const set = {};
 
   await next('THE SUN');
-  const sunImg = await loadRealisticTexture('/textures/sun.jpg');
+  const sunImg = (await planetTextureManager.load('/textures/planets/sun/2k_sun.jpg')) || (await loadRealisticTexture('/textures/sun.jpg'));
   set.sun = sunImg || generateSunTexture();
   set.corona = generateGlowTexture([
     [0.0, 'rgba(255,255,255,1)'],
@@ -542,15 +543,15 @@ export async function createTextureSet(onProgress = () => {}) {
   ]);
 
   await next('MERCURY');
-  const mercuryImg = await loadRealisticTexture('/textures/mercury.jpg');
+  const mercuryImg = (await planetTextureManager.load('/textures/planets/mercury/2k_mercury.jpg')) || (await loadRealisticTexture('/textures/mercury.jpg'));
   set.mercury = mercuryImg || generateCratered({
     seed: 3, dark: 0x4f4a45, base: 0x847d75, light: 0xb3aca2,
     craterCount: 170, craterMax: 26, contrast: 1.1,
   });
-  set.mercury_bump = await loadRealisticTexture('/textures/mercury_bump.jpg', { isLinear: true });
+  set.mercury_bump = (await planetTextureManager.load('/textures/planets/mercury/2k_mercury_bump.jpg', { isDataMap: true })) || (await loadRealisticTexture('/textures/mercury_bump.jpg', { isLinear: true }));
 
-  await next('VENUS');
-  const venusImg = await loadRealisticTexture('/textures/venus.jpg');
+  await next('VENUS (ATMOSPHERE & RADAR)');
+  const venusImg = (await planetTextureManager.load('/textures/planets/venus/2k_venus_atmosphere.jpg')) || (await loadRealisticTexture('/textures/venus.jpg'));
   set.venus = venusImg || generateBanded({
     seed: 9,
     stops: [
@@ -559,31 +560,33 @@ export async function createTextureSet(onProgress = () => {}) {
     ],
     turb: 0.2, streakAmp: 0.05, detailAmp: 0.05,
   });
+  set.venus_surface = (await planetTextureManager.load('/textures/planets/venus/2k_venus_surface.jpg')) || (await loadRealisticTexture('/textures/venus_surface.jpg'));
   set.venus_bump = await loadRealisticTexture('/textures/venus_bump.jpg', { isLinear: true });
 
-  await next('EARTH & ATMOSPHERE');
-  const earthImg = await loadRealisticTexture('/textures/earth.jpg');
+  await next('EARTH & SCIENTIFIC LAYERS');
+  const earthImg = (await planetTextureManager.load('/textures/planets/earth/2k_earth_daymap.jpg')) || (await loadRealisticTexture('/textures/earth.jpg'));
   set.earth = earthImg || generateEarth();
 
-  const earthCloudsImg = await loadRealisticTexture('/textures/earth_clouds.png');
+  const earthCloudsImg = (await planetTextureManager.load('/textures/planets/earth/2k_earth_clouds.jpg')) || (await loadRealisticTexture('/textures/earth_clouds.png'));
   set.earthClouds = earthCloudsImg || generateEarthClouds();
+  set.earth_clouds = set.earthClouds;
 
-  set.earth_bump = await loadRealisticTexture('/textures/earth_bump.jpg', { isLinear: true });
-  set.earth_specular = await loadRealisticTexture('/textures/earth_specular.jpg', { isLinear: true });
-  set.earth_night = await loadRealisticTexture('/textures/earth_night.jpg');
+  set.earth_bump = (await planetTextureManager.load('/textures/planets/earth/2k_earth_bump.jpg', { isDataMap: true })) || (await loadRealisticTexture('/textures/earth_bump.jpg', { isLinear: true }));
+  set.earth_specular = (await planetTextureManager.load('/textures/planets/earth/2k_earth_specular.jpg', { isDataMap: true })) || (await loadRealisticTexture('/textures/earth_specular.jpg', { isLinear: true }));
+  set.earth_night = (await planetTextureManager.load('/textures/planets/earth/2k_earth_nightmap.jpg')) || (await loadRealisticTexture('/textures/earth_night.jpg'));
 
   await next('THE MOON');
-  const moonImg = await loadRealisticTexture('/textures/moon.jpg');
+  const moonImg = (await planetTextureManager.load('/textures/planets/moon/2k_moon.jpg')) || (await loadRealisticTexture('/textures/moon.jpg'));
   set.moon = moonImg || generateCratered({
     seed: 17, dark: 0x5d5b58, base: 0x969390, light: 0xc4c1bd,
     craterCount: 200, craterMax: 22, contrast: 0.95,
   });
-  set.moon_bump = await loadRealisticTexture('/textures/moon_bump.jpg', { isLinear: true });
+  set.moon_bump = (await planetTextureManager.load('/textures/planets/moon/2k_moon_bump.jpg', { isDataMap: true })) || (await loadRealisticTexture('/textures/moon_bump.jpg', { isLinear: true }));
 
   await next('MARS & MOONS');
-  const marsImg = await loadRealisticTexture('/textures/mars.jpg');
+  const marsImg = (await planetTextureManager.load('/textures/planets/mars/2k_mars.jpg')) || (await loadRealisticTexture('/textures/mars.jpg'));
   set.mars = marsImg || generateMars();
-  set.mars_bump = await loadRealisticTexture('/textures/mars_bump.jpg', { isLinear: true });
+  set.mars_bump = (await planetTextureManager.load('/textures/planets/mars/2k_mars_bump.jpg', { isDataMap: true })) || (await loadRealisticTexture('/textures/mars_bump.jpg', { isLinear: true }));
   set.phobos = generateCratered({
     seed: 23, dark: 0x4a423c, base: 0x6f655c, light: 0x948a7e,
     w: 256, h: 128, craterCount: 60, craterMax: 30, contrast: 1.2,
@@ -594,7 +597,7 @@ export async function createTextureSet(onProgress = () => {}) {
   });
 
   await next('JUPITER');
-  const jupiterImg = await loadRealisticTexture('/textures/jupiter.jpg');
+  const jupiterImg = (await planetTextureManager.load('/textures/planets/jupiter/2k_jupiter.jpg')) || (await loadRealisticTexture('/textures/jupiter.jpg'));
   set.jupiter = jupiterImg || generateBanded({
     seed: 1,
     stops: [
@@ -618,8 +621,8 @@ export async function createTextureSet(onProgress = () => {}) {
     craterCount: 220, craterMax: 20, contrast: 1.15,
   });
 
-  await next('SATURN & RINGS');
-  const saturnImg = await loadRealisticTexture('/textures/saturn.jpg');
+  await next('SATURN & CASSINI RINGS');
+  const saturnImg = (await planetTextureManager.load('/textures/planets/saturn/2k_saturn.jpg')) || (await loadRealisticTexture('/textures/saturn.jpg'));
   set.saturn = saturnImg || generateBanded({
     seed: 2,
     stops: [
@@ -628,12 +631,15 @@ export async function createTextureSet(onProgress = () => {}) {
     ],
     turb: 0.025, detailAmp: 0.05,
   });
-  set.saturnRing = generateRingTexture({
+  
+  const saturnRingAlpha = (await planetTextureManager.load('/textures/planets/saturn/2k_saturn_ring_alpha.png', { isDataMap: true })) || (await loadRealisticTexture('/textures/saturn_ring_alpha.png', { isLinear: true }));
+  set.saturn_ring_alpha = saturnRingAlpha;
+  set.saturnRing = saturnRingAlpha || generateRingTexture({
     seed: 4, baseColor: 0xd8c5a0,
     gaps: [
-      { center: 0.62, width: 0.025, depth: 0.95 }, // Cassini division
-      { center: 0.93, width: 0.008, depth: 0.85 }, // Encke gap
-      { center: 0.18, width: 0.05, depth: 0.45 },  // C-ring translucency
+      { center: 0.62, width: 0.025, depth: 0.95 },
+      { center: 0.93, width: 0.008, depth: 0.85 },
+      { center: 0.18, width: 0.05, depth: 0.45 },
     ],
   });
   set.titan = generateBanded({
@@ -642,8 +648,8 @@ export async function createTextureSet(onProgress = () => {}) {
     turb: 0.12, detailAmp: 0.04,
   });
 
-  await next('URANUS');
-  const uranusImg = await loadRealisticTexture('/textures/uranus.jpg');
+  await next('URANUS & RINGS');
+  const uranusImg = (await planetTextureManager.load('/textures/planets/uranus/2k_uranus.jpg')) || (await loadRealisticTexture('/textures/uranus.jpg'));
   set.uranus = uranusImg || generateBanded({
     seed: 6, w: 512, h: 256,
     stops: [[0.0, 0x9fd3da], [0.4, 0xaee1e6], [0.6, 0xa5dce2], [1.0, 0x93cdd6]],
@@ -656,12 +662,12 @@ export async function createTextureSet(onProgress = () => {}) {
       { center: 0.34, width: 0.01, alpha: 0.3 },
       { center: 0.52, width: 0.014, alpha: 0.4 },
       { center: 0.72, width: 0.012, alpha: 0.35 },
-      { center: 0.92, width: 0.025, alpha: 0.6 }, // epsilon ring
+      { center: 0.92, width: 0.025, alpha: 0.6 },
     ],
   });
 
-  await next('NEPTUNE');
-  const neptuneImg = await loadRealisticTexture('/textures/neptune.jpg');
+  await next('NEPTUNE & RINGS');
+  const neptuneImg = (await planetTextureManager.load('/textures/planets/neptune/2k_neptune.jpg')) || (await loadRealisticTexture('/textures/neptune.jpg'));
   set.neptune = neptuneImg || generateBanded({
     seed: 14, w: 512, h: 256,
     stops: [
@@ -676,13 +682,13 @@ export async function createTextureSet(onProgress = () => {}) {
     ringlets: [
       { center: 0.3, width: 0.012, alpha: 0.3 },
       { center: 0.62, width: 0.01, alpha: 0.25 },
-      { center: 0.88, width: 0.015, alpha: 0.4 }, // Adams ring
+      { center: 0.88, width: 0.015, alpha: 0.4 },
     ],
   });
   set.triton = generateTriton();
 
-  await next('PLUTO & DEEP SPACE');
-  const plutoImg = await loadRealisticTexture('/textures/pluto.jpg');
+  await next('PLUTO & NEW HORIZONS MAP');
+  const plutoImg = (await planetTextureManager.load('/textures/planets/pluto/2k_pluto.jpg')) || (await loadRealisticTexture('/textures/pluto.jpg'));
   set.pluto = plutoImg || generatePluto();
   set.charon = generateCratered({
     seed: 83, dark: 0x57504c, base: 0x8a827c, light: 0xb5ada6,

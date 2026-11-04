@@ -515,6 +515,48 @@ body {
   border-top: 1px solid var(--line);
 }
 
+.info-action-area {
+  padding: 8px 14px;
+  border-top: 1px solid var(--line);
+}
+
+.info-action-btn {
+  width: 100%;
+  padding: 8px 12px;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: #48D9FF;
+  background: rgba(72, 217, 255, 0.08);
+  border: 1px solid rgba(72, 217, 255, 0.35);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.info-action-btn:hover {
+  background: rgba(72, 217, 255, 0.18);
+  border-color: #48D9FF;
+  box-shadow: 0 0 12px rgba(72, 217, 255, 0.25);
+}
+
+.info-action-btn.active {
+  background: rgba(255, 170, 60, 0.2);
+  border-color: #FFC36B;
+  color: #FFC36B;
+}
+
+.hud-btn.quality-btn {
+  border-color: rgba(72, 217, 255, 0.4);
+  color: #48D9FF;
+}
+
+.hud-btn.quality-btn.active {
+  background: rgba(72, 217, 255, 0.2);
+  box-shadow: 0 0 10px rgba(72, 217, 255, 0.3);
+}
+
 /* ------------------------------------------------------------------ */
 /* Floating body labels                                                 */
 /* ------------------------------------------------------------------ */
