@@ -190,9 +190,26 @@ function createFuselageSideTexture() {
   ctx.fillText('PJMC', 0, 62);
   ctx.restore();
 
+  // Top Pill: "PJMC STUDENT SPACE PROGRAM"
+  ctx.save();
+  ctx.fillStyle = 'rgba(72, 217, 255, 0.22)';
+  ctx.strokeStyle = '#48D9FF';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.roundRect(660, 56, 600, 48, 12);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.font = '900 24px "Arial Black", sans-serif';
+  ctx.fillStyle = '#FFC36B';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('★ PJMC STUDENT SPACE PROGRAM ★', 960, 80);
+  ctx.restore();
+
   // MAIN CENTER SECTION: GIANT BOLD "PJMC" BRANDING
   ctx.save();
-  ctx.font = '900 270px "Arial Black", "Montserrat", sans-serif';
+  ctx.font = '900 250px "Arial Black", "Montserrat", sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
 
@@ -208,17 +225,17 @@ function createFuselageSideTexture() {
   textGrad.addColorStop(1, '#0088cc');
 
   ctx.fillStyle = textGrad;
-  ctx.fillText('PJMC', 960, 215);
+  ctx.fillText('PJMC', 960, 222);
 
   // Outer bold contrasting stroke
   ctx.shadowBlur = 0;
   ctx.strokeStyle = '#ffffff';
   ctx.lineWidth = 5;
-  ctx.strokeText('PJMC', 960, 215);
+  ctx.strokeText('PJMC', 960, 222);
   ctx.strokeStyle = '#00f0ff';
   ctx.lineWidth = 14;
-  ctx.strokeText('PJMC', 960, 215);
-  ctx.fillText('PJMC', 960, 215); // Re-fill core
+  ctx.strokeText('PJMC', 960, 222);
+  ctx.fillText('PJMC', 960, 222); // Re-fill core
 
   // Subtitle Banner: "★ PAWAN JHA MATHEMATICS CLASSES ★"
   ctx.font = '900 48px "Arial Black", "Montserrat", sans-serif';
@@ -231,7 +248,7 @@ function createFuselageSideTexture() {
   ctx.shadowBlur = 0;
   ctx.font = '700 24px monospace';
   ctx.fillStyle = '#00f0ff';
-  ctx.fillText('AEROSPACE DIVISION  •  DEEP SPACE EXPLORER  •  ORBITAL CLASS', 960, 420);
+  ctx.fillText('PJMC STUDENT  •  PAWAN JHA MATHEMATICS CLASSES  •  SPACECRAFT PJMC-01', 960, 420);
 
   // Right Section: Rocket Identity Tag [ PJMC-01 ]
   ctx.fillStyle = 'rgba(0, 240, 255, 0.18)';
@@ -309,11 +326,11 @@ function createSpineDecalTexture() {
   ctx.fillStyle = '#ffffff';
   ctx.fillText('PJMC - 01', canvas.width / 2, 170);
 
-  // Subtitle "PAWAN JHA MATHEMATICS CLASSES"
+  // Subtitle "PJMC STUDENT • PAWAN JHA MATHEMATICS CLASSES"
   ctx.shadowBlur = 8;
-  ctx.font = '900 36px "Arial Black", sans-serif';
+  ctx.font = '900 32px "Arial Black", sans-serif';
   ctx.fillStyle = '#00f0ff';
-  ctx.fillText('PAWAN JHA MATHEMATICS CLASSES', canvas.width / 2, 280);
+  ctx.fillText('PJMC STUDENT • PAWAN JHA MATHEMATICS CLASSES', canvas.width / 2, 280);
 
   // Chevron directional arrows pointing toward nose
   ctx.shadowBlur = 0;
@@ -441,7 +458,7 @@ function createWingDecalTexture() {
   ctx.shadowBlur = 0;
   ctx.font = '900 36px monospace';
   ctx.fillStyle = '#00f0ff';
-  ctx.fillText('★ PJMC-01  •  AEROSPACE WING ★', canvas.width / 2, 400);
+  ctx.fillText('★ PJMC-01  •  PJMC STUDENT SPACE PROGRAM ★', canvas.width / 2, 400);
   ctx.restore();
 
   const tex = new THREE.CanvasTexture(canvas);

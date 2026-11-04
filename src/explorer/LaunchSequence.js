@@ -88,6 +88,13 @@ export class LaunchSequence {
     this.statusEl.className = 'pjmc-launch-status';
     this.statusEl.textContent = 'SYSTEMS CHECK…';
 
+    this.brandHeaderEl = document.createElement('div');
+    this.brandHeaderEl.className = 'pjmc-launch-brand-tag';
+    this.brandHeaderEl.innerHTML = `
+      <span class="launch-brand-lead">PJMC STUDENT SPACE PROGRAM</span>
+      <span class="launch-brand-sub">SPACECRAFT PJMC-01 • PAWAN JHA MATHEMATICS CLASSES</span>
+    `;
+
     this.skipBtn = document.createElement('button');
     this.skipBtn.className = 'pjmc-skip-intro-btn';
     this.skipBtn.innerHTML = 'SKIP INTRO ⏭';
@@ -98,7 +105,7 @@ export class LaunchSequence {
       this.skip();
     });
 
-    this.overlay.append(this.statusEl, this.countdownEl, this.skipBtn);
+    this.overlay.append(this.brandHeaderEl, this.statusEl, this.countdownEl, this.skipBtn);
     document.body.append(this.overlay);
   }
 

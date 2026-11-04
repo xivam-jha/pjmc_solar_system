@@ -3,15 +3,30 @@
 /* ------------------------------------------------------------------ */
 
 :root {
-  --bg: #04070c;
-  --panel: rgba(8, 14, 22, 0.78);
-  --line: rgba(120, 200, 255, 0.22);
-  --line-strong: rgba(120, 200, 255, 0.55);
-  --text: #cfe3f0;
-  --text-dim: #7d97a8;
-  --accent: #5fd4ff;
-  --accent-dim: rgba(95, 212, 255, 0.16);
+  --bg: #050B18;
+  --panel: rgba(11, 22, 48, 0.88);
+  --line: rgba(72, 217, 255, 0.22);
+  --line-strong: rgba(72, 217, 255, 0.55);
+  --text: #F5FAFF;
+  --text-dim: #8fa7be;
+  --accent: #48D9FF;
+  --accent-dim: rgba(72, 217, 255, 0.16);
   --mono: 'Cascadia Code', 'Consolas', 'SF Mono', 'Menlo', monospace;
+
+  /* PJMC Official Brand Design System */
+  --pjmc-bg: #050B18;
+  --pjmc-panel: #0B1630;
+  --pjmc-panel-alpha: rgba(11, 22, 48, 0.90);
+  --pjmc-cyan: #48D9FF;
+  --pjmc-cyan-glow: rgba(72, 217, 255, 0.35);
+  --pjmc-blue: #397BFF;
+  --pjmc-blue-dim: rgba(57, 123, 255, 0.20);
+  --pjmc-gold: #FFC36B;
+  --pjmc-gold-dim: rgba(255, 195, 107, 0.22);
+  --pjmc-white: #F5FAFF;
+  --pjmc-text-dim: #8fa7be;
+  --pjmc-border: rgba(72, 217, 255, 0.22);
+  --pjmc-border-bright: rgba(72, 217, 255, 0.60);
 }
 
 * {
@@ -39,7 +54,7 @@ body {
 }
 
 /* ------------------------------------------------------------------ */
-/* Loading overlay                                                      */
+/* PJMC Student Loading overlay                                       */
 /* ------------------------------------------------------------------ */
 
 #loading {
@@ -49,8 +64,9 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--bg);
+  background: radial-gradient(circle at center, #0B1630 0%, #050B18 70%, #02060e 100%);
   transition: opacity 0.6s ease;
+  user-select: none;
 }
 
 #loading.hidden {
@@ -58,30 +74,106 @@ body {
   pointer-events: none;
 }
 
-.loading-box {
-  width: min(420px, 80vw);
+.pjmc-loading-bg-fx {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: 
+    radial-gradient(1px 1px at 20px 30px, #ffffff, rgba(0,0,0,0)),
+    radial-gradient(1.5px 1.5px at 150px 120px, #48d9ff, rgba(0,0,0,0)),
+    radial-gradient(1px 1px at 280px 240px, #ffc36b, rgba(0,0,0,0)),
+    radial-gradient(1.5px 1.5px at 400px 380px, #ffffff, rgba(0,0,0,0));
+  background-size: 550px 550px;
+  opacity: 0.45;
+}
+
+.pjmc-loading-box {
+  position: relative;
+  width: min(460px, 86vw);
   text-align: center;
+  padding: 36px 28px;
+  background: rgba(11, 22, 48, 0.85);
+  border: 1px solid rgba(72, 217, 255, 0.28);
+  border-radius: 18px;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6), 0 0 24px rgba(72, 217, 255, 0.15);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
-.loading-title {
-  font-size: 15px;
-  letter-spacing: 0.45em;
-  color: var(--accent);
-  margin-bottom: 22px;
+.pjmc-loading-logo-wrap {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 16px;
 }
 
-.loading-bar {
-  height: 2px;
-  background: rgba(120, 200, 255, 0.12);
-  overflow: hidden;
+.pjmc-anim-ring {
+  transform-origin: 32px 32px;
+  animation: pjmc-ring-spin 8s linear infinite;
+}
+
+@keyframes pjmc-ring-spin {
+  from { transform: rotate(-28deg); }
+  to { transform: rotate(332deg); }
+}
+
+.pjmc-loading-brand {
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: 0.32em;
+  color: #F5FAFF;
+  text-shadow: 0 0 16px rgba(72, 217, 255, 0.6);
+  margin-bottom: 4px;
+}
+
+.pjmc-loading-inst {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.26em;
+  color: #FFC36B;
+  text-transform: uppercase;
   margin-bottom: 14px;
 }
 
-.loading-bar-fill {
+.pjmc-loading-title {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.35em;
+  color: #48D9FF;
+  margin-bottom: 22px;
+}
+
+.pjmc-loading-bar {
+  height: 4px;
+  background: rgba(72, 217, 255, 0.15);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 14px;
+  position: relative;
+}
+
+.pjmc-loading-fill {
   height: 100%;
-  width: 40%;
-  background: var(--accent);
-  animation: scan 1.1s ease-in-out infinite alternate;
+  width: 45%;
+  background: linear-gradient(90deg, #397BFF, #48D9FF, #FFC36B);
+  border-radius: 2px;
+  animation: scan 1.2s ease-in-out infinite alternate;
+  box-shadow: 0 0 10px #48D9FF;
+}
+
+.pjmc-loading-tagline {
+  margin-top: 18px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.36em;
+  color: rgba(255, 195, 107, 0.9);
+  text-transform: uppercase;
+}
+
+.loading-status {
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  color: var(--text-dim);
 }
 
 @keyframes scan {
@@ -1943,4 +2035,358 @@ body {
     width: 100%;
   }
 }
+
+/* ------------------------------------------------------------------ */
+/* PJMC STUDENT — Global Master Brand Identity Styles                 */
+/* ------------------------------------------------------------------ */
+
+/* Top Navigation App Title & Brand Mark */
+.pjmc-app-title {
+  display: flex;
+  align-items: center;
+  pointer-events: auto;
+}
+
+.pjmc-title-brand-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pjmc-nav-logo {
+  flex-shrink: 0;
+  filter: drop-shadow(0 0 10px rgba(72, 217, 255, 0.5));
+}
+
+.pjmc-title-text-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pjmc-title-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pjmc-brand-main {
+  font-size: 14.5px;
+  font-weight: 900;
+  letter-spacing: 0.22em;
+  color: var(--pjmc-white);
+  text-shadow: 0 0 12px rgba(72, 217, 255, 0.4);
+}
+
+.pjmc-brand-pill {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  padding: 1px 6px;
+  background: rgba(72, 217, 255, 0.16);
+  border: 1px solid rgba(72, 217, 255, 0.45);
+  border-radius: 4px;
+  color: var(--pjmc-cyan);
+}
+
+.title-sub-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.pjmc-title-inst {
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: var(--pjmc-gold);
+  text-transform: uppercase;
+  opacity: 0.9;
+}
+
+/* Global Brand Signature Footer */
+.pjmc-global-footer {
+  position: fixed;
+  bottom: 74px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 16px;
+  background: rgba(11, 22, 48, 0.72);
+  border: 1px solid rgba(72, 217, 255, 0.18);
+  border-radius: 20px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 15;
+  pointer-events: none;
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  color: var(--pjmc-text-dim);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.4);
+  white-space: nowrap;
+}
+
+.pjmc-gf-brand {
+  font-weight: 900;
+  color: var(--pjmc-cyan);
+  letter-spacing: 0.18em;
+}
+
+.pjmc-gf-dot {
+  color: var(--pjmc-gold);
+  opacity: 0.7;
+}
+
+.pjmc-gf-tagline {
+  font-weight: 700;
+  color: var(--pjmc-gold);
+  letter-spacing: 0.18em;
+}
+
+/* About PJMC Modal */
+.pjmc-about-window {
+  max-width: 580px;
+}
+
+.pjmc-about-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.pjmc-about-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 14px;
+  background: linear-gradient(90deg, rgba(57, 123, 255, 0.18), rgba(72, 217, 255, 0.14));
+  border: 1px solid rgba(72, 217, 255, 0.28);
+  border-radius: 8px;
+}
+
+.pjmc-about-tagline {
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.22em;
+  color: var(--pjmc-gold);
+}
+
+.pjmc-about-badge {
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  padding: 2px 8px;
+  background: rgba(72, 217, 255, 0.2);
+  border: 1px solid var(--pjmc-cyan);
+  border-radius: 4px;
+  color: var(--pjmc-white);
+}
+
+.pjmc-about-desc {
+  font-size: 12.5px;
+  line-height: 1.65;
+  color: var(--pjmc-white);
+  opacity: 0.92;
+  letter-spacing: 0.04em;
+}
+
+.pjmc-about-pillars {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.pjmc-pillar-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 10px;
+  background: rgba(5, 11, 24, 0.65);
+  border: 1px solid rgba(72, 217, 255, 0.18);
+  border-radius: 8px;
+}
+
+.pjmc-pillar-card .pillar-icon {
+  font-size: 20px;
+}
+
+.pjmc-pillar-card .pillar-title {
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  color: var(--pjmc-cyan);
+}
+
+.pjmc-pillar-card .pillar-desc {
+  font-size: 9.5px;
+  line-height: 1.45;
+  color: var(--pjmc-text-dim);
+}
+
+.pjmc-about-footer-card {
+  padding: 12px 16px;
+  background: rgba(11, 22, 48, 0.8);
+  border: 1px dashed rgba(255, 195, 107, 0.35);
+  border-radius: 8px;
+  text-align: center;
+}
+
+.pjmc-about-inst-name {
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.24em;
+  color: var(--pjmc-gold);
+  margin-bottom: 3px;
+}
+
+.pjmc-about-prod-name {
+  font-size: 9.5px;
+  letter-spacing: 0.16em;
+  color: var(--pjmc-cyan);
+}
+
+/* Flight Telemetry Branded Tag */
+.pjmc-ship-tag-details {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.pjmc-ship-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pjmc-ship-inst {
+  font-size: 8.5px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  color: var(--pjmc-cyan);
+  padding: 0 4px;
+  background: rgba(72, 217, 255, 0.14);
+  border-radius: 3px;
+}
+
+/* Mission Control Briefing Branding */
+.pjmc-mission-briefing-label {
+  display: block;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  color: var(--pjmc-gold);
+  margin-top: 3px;
+}
+
+.pjmc-mission-footer-signature {
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  color: var(--pjmc-gold);
+  text-align: center;
+  margin-top: 6px;
+}
+
+/* Victory Modal Branded Cert */
+.pjmc-victory-brand-lead {
+  font-size: 14px;
+  font-weight: 900;
+  letter-spacing: 0.3em;
+  color: var(--pjmc-cyan);
+  text-align: center;
+}
+
+.pjmc-victory-cert-badge {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.24em;
+  color: var(--pjmc-gold);
+  text-align: center;
+  margin-top: -6px;
+  margin-bottom: 6px;
+}
+
+.pjmc-victory-footer-note {
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  color: var(--pjmc-gold);
+  text-align: center;
+  margin-top: 8px;
+}
+
+.pjmc-pause-footer-inst {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: var(--pjmc-cyan);
+  text-align: center;
+  margin-top: 6px;
+}
+
+/* Launch Sequence Brand Tag */
+.pjmc-launch-brand-tag {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.launch-brand-lead {
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: 0.32em;
+  color: var(--pjmc-white);
+  text-shadow: 0 0 16px rgba(72, 217, 255, 0.7);
+}
+
+.launch-brand-sub {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.24em;
+  color: var(--pjmc-gold);
+}
+
+/* Mobile Responsiveness for PJMC Branding */
+@media (max-width: 768px) {
+  .pjmc-title-brand-row {
+    gap: 8px;
+  }
+  .pjmc-nav-logo {
+    width: 28px;
+    height: 28px;
+  }
+  .pjmc-brand-main {
+    font-size: 12px;
+    letter-spacing: 0.16em;
+  }
+  .pjmc-brand-pill {
+    display: none;
+  }
+  .pjmc-title-inst {
+    font-size: 7.5px;
+    letter-spacing: 0.12em;
+  }
+  .pjmc-global-footer {
+    display: none; /* Hide footer on small mobile screens to prevent overlapping time bar */
+  }
+  .pjmc-about-pillars {
+    grid-template-columns: 1fr;
+  }
+  .launch-brand-lead {
+    font-size: 14px;
+    letter-spacing: 0.2em;
+  }
+  .launch-brand-sub {
+    font-size: 9px;
+    letter-spacing: 0.14em;
+  }
+}
+
 

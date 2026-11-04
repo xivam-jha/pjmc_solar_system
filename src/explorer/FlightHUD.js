@@ -12,6 +12,7 @@
  */
 
 import { MISSIONS } from './Missions.js';
+import { BRAND, getMonogramSvg } from '../config/brand.js';
 
 export class FlightHUD {
   constructor(callbacks = {}) {
@@ -44,9 +45,15 @@ export class FlightHUD {
     this.telemetryEl.innerHTML = `
       <div class="pjmc-hud-left">
         <div class="pjmc-ship-tag">
-          <span class="pjmc-tag-dot"></span>
-          <span class="pjmc-ship-name">PJMC-01</span>
-          <span class="pjmc-ship-status">ONLINE</span>
+          ${getMonogramSvg(26, 'pjmc-hud-monogram')}
+          <div class="pjmc-ship-tag-details">
+            <div class="pjmc-ship-row">
+              <span class="pjmc-tag-dot"></span>
+              <span class="pjmc-ship-name">${BRAND.spacecraft}</span>
+              <span class="pjmc-ship-inst">PJMC STUDENT</span>
+            </div>
+            <span class="pjmc-ship-status">FLIGHT SYSTEM ONLINE</span>
+          </div>
         </div>
         <div class="pjmc-mission-badge" id="pjmc-hud-mission">EARTH ORBIT</div>
       </div>
@@ -120,7 +127,7 @@ export class FlightHUD {
         <div class="pjmc-horizon-bar right"></div>
       </div>
       <div class="pjmc-cockpit-footer">
-        <span>PJMC FLIGHT COMPUTER V2.4 • HUD ACTIVE</span>
+        <span>${BRAND.name} • FLIGHT COMPUTER • HUD ACTIVE</span>
       </div>
     `;
 
@@ -150,7 +157,7 @@ export class FlightHUD {
       (m) => `
       <div class="pjmc-mission-card ${m.id === 'mission_01' ? 'active-card' : ''}" data-id="${m.id}">
         <div class="pjmc-card-header">
-          <span class="pjmc-card-num">${m.num}</span>
+          <span class="pjmc-card-num">PJMC ${m.num}</span>
           <span class="pjmc-card-diff diff-${m.difficulty.toLowerCase()}">${m.difficulty}</span>
         </div>
         <h3 class="pjmc-card-title">${m.title}</h3>
@@ -169,9 +176,13 @@ export class FlightHUD {
       <div class="pjmc-modal-backdrop"></div>
       <div class="pjmc-modal-window">
         <div class="pjmc-modal-header">
-          <div class="pjmc-title-group">
-            <span class="pjmc-sub-title">PJMC SPACE COMMAND</span>
-            <h2 class="pjmc-modal-title">MISSION CONTROL</h2>
+          <div class="pjmc-title-group" style="display: flex; align-items: center; gap: 12px;">
+            ${getMonogramSvg(38, 'pjmc-mission-head-logo')}
+            <div>
+              <span class="pjmc-sub-title">${BRAND.institute}</span>
+              <h2 class="pjmc-modal-title">PJMC STUDENT SPACE MISSION CONTROL</h2>
+              <span class="pjmc-mission-briefing-label">MISSION BRIEFING • LEARN • EXPLORE • DISCOVER</span>
+            </div>
           </div>
           <button type="button" class="pjmc-modal-close-btn" id="pjmc-mission-close">✕</button>
         </div>
@@ -185,9 +196,10 @@ export class FlightHUD {
             ← BACK TO SOLAR SYSTEM
           </button>
           <button type="button" class="pjmc-btn-primary" id="pjmc-launch-btn">
-            🚀 LAUNCH PJMC-01
+            🚀 LAUNCH ${BRAND.spacecraft}
           </button>
         </div>
+        <div class="pjmc-mission-footer-signature">A LEARNING EXPERIENCE BY PAWAN JHA MATHEMATICS CLASSES</div>
       </div>
     `;
 
@@ -225,8 +237,12 @@ export class FlightHUD {
     this.pauseModalEl.innerHTML = `
       <div class="pjmc-modal-backdrop"></div>
       <div class="pjmc-modal-window small">
-        <div class="pjmc-modal-header">
-          <h2 class="pjmc-modal-title">FLIGHT PAUSED</h2>
+        <div class="pjmc-modal-header" style="display: flex; align-items: center; gap: 12px;">
+          ${getMonogramSvg(30, 'pjmc-pause-head-logo')}
+          <div>
+            <span class="pjmc-sub-title">${BRAND.institute}</span>
+            <h2 class="pjmc-modal-title">${BRAND.name} • FLIGHT PAUSED</h2>
+          </div>
         </div>
 
         <div class="pjmc-pause-options">
@@ -258,6 +274,7 @@ export class FlightHUD {
         <div class="pjmc-controls-reminder">
           <strong>CONTROLS:</strong> WASD/Stick to Steer • SPACE/Hold Boost • C Cockpit • ESC Pause
         </div>
+        <div class="pjmc-pause-footer-inst">${BRAND.product} • ${BRAND.spacecraft}</div>
       </div>
     `;
 
@@ -302,8 +319,13 @@ export class FlightHUD {
     this.victoryModalEl.innerHTML = `
       <div class="pjmc-modal-backdrop"></div>
       <div class="pjmc-modal-window">
+        <div class="pjmc-victory-logo-wrap" style="display: flex; justify-content: center; margin-bottom: 8px;">
+          ${getMonogramSvg(44, 'pjmc-vic-logo')}
+        </div>
+        <div class="pjmc-victory-brand-lead">${BRAND.name}</div>
         <div class="pjmc-victory-badge">★ ★ ★</div>
         <h2 class="pjmc-victory-title">MISSION ACCOMPLISHED!</h2>
+        <div class="pjmc-victory-cert-badge">SPACE EXPLORATION CERTIFIED</div>
         <div class="pjmc-victory-sub" id="pjmc-vic-name">EARTH ORBIT CHALLENGE COMPLETE</div>
 
         <div class="pjmc-stats-grid">
@@ -312,7 +334,7 @@ export class FlightHUD {
             <span class="pjmc-stat-value" id="pjmc-vic-time">00:45s</span>
           </div>
           <div class="pjmc-stat-box">
-            <span class="pjmc-stat-label">STATUS</span>
+            <span class="pjmc-stat-label">PILOT STATUS</span>
             <span class="pjmc-stat-value highlight">PERFECT</span>
           </div>
         </div>
@@ -325,6 +347,7 @@ export class FlightHUD {
             NEXT MISSION →
           </button>
         </div>
+        <div class="pjmc-victory-footer-note">POWERED BY PAWAN JHA MATHEMATICS CLASSES</div>
       </div>
     `;
 

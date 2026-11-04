@@ -24,6 +24,7 @@ import { createConstellationText } from './objects/ConstellationText.js';
 import { createHUD } from './ui/hud.js';
 import { InfoPanel } from './ui/infoPanel.js';
 import { Labels } from './ui/labels.js';
+import { AboutModal } from './ui/aboutModal.js';
 import { ExplorerGame } from './explorer/ExplorerGame.js';
 import './styles.css';
 
@@ -380,10 +381,16 @@ async function init() {
   /* ---------- UI ---------- */
   const bodyList = entries.map((e) => ({ id: e.id, name: e.name, isMoon: e.isMoon }));
   const infoPanel = new InfoPanel(() => releaseFocus());
+  const aboutModal = new AboutModal();
   const hud = createHUD(
     {
       onSelectBody: (id) => focusBody(entryById.get(id)),
-      onLanguageChange: (lang) => { infoPanel.setLanguage(lang); labels.setLanguage(lang); },
+      onLanguageChange: (lang) => {
+        infoPanel.setLanguage(lang);
+        labels.setLanguage(lang);
+        aboutModal.setLanguage(lang);
+      },
+      onOpenAbout: () => aboutModal.open(),
       onTogglePlay: () => {
         playing = !playing;
         hud.setPlaying(playing);
