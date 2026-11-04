@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%2348D9FF'/%3E%3Cstop offset='100%25' stop-color='%23397BFF'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='14' fill='%23050B18'/%3E%3Cellipse cx='32' cy='32' rx='27' ry='11' transform='rotate(-28 32 32)' stroke='%23FFC36B' stroke-width='2.5' fill='none' opacity='0.85'/%3E%3Cpolygon points='32,8 53,20 53,44 32,56 11,44 11,20' fill='%230B1630' stroke='url(%23g)' stroke-width='2.8'/%3E%3Ctext x='32' y='38' font-family='sans-serif' font-weight='900' font-size='14.5' fill='%23F5FAFF' text-anchor='middle' letter-spacing='1'%3EPJMC%3C/text%3E%3Ccircle cx='52' cy='21' r='3.5' fill='%2348D9FF'/%3E%3C/svg%3E" />
+    <meta name="theme-color" content="#050B18" />
+    <meta name="description" content="PJMC Student Space Explorer — An interactive 3D Solar System and spacecraft flight simulation by Pawan Jha Mathematics Classes. Learn, Explore, Discover." />
+    <meta property="og:title" content="PJMC Student | Solar System Explorer" />
+    <meta property="og:description" content="Explore an interactive 3D Solar System and pilot the PJMC-01 spacecraft with Pawan Jha Mathematics Classes." />
+    <meta property="og:type" content="website" />
+    <title>PJMC Student | Solar System Explorer</title>
+    <script type="module" crossorigin src="./assets/index-MgRItlcN.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-DUfA2BqF.css">
+  </head>
+  <body>
+    <!-- Loading overlay: branded static HTML so it paints immediately -->
+    <div id="loading">
+      <div class="pjmc-loading-bg-fx">
+        <div class="pjmc-loading-orbit-bg"></div>
+      </div>
+      <div class="loading-box pjmc-loading-box">
+        <div class="pjmc-loading-logo-wrap">
+          <svg class="pjmc-loading-logo" width="72" height="72" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="ld-grad-core" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#48D9FF" />
+                <stop offset="50%" stop-color="#397BFF" />
+                <stop offset="100%" stop-color="#0055ff" />
+              </linearGradient>
+              <linearGradient id="ld-grad-ring" x1="0%" y1="100%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#FFC36B" />
+                <stop offset="45%" stop-color="#48D9FF" />
+                <stop offset="100%" stop-color="#397BFF" stop-opacity="0.25" />
+              </linearGradient>
+            </defs>
+            <ellipse class="pjmc-anim-ring" cx="32" cy="32" rx="28" ry="12" transform="rotate(-28 32 32)" stroke="url(#ld-grad-ring)" stroke-width="2.2" stroke-dasharray="88 8" fill="none" />
+            <circle cx="53" cy="21" r="3.4" fill="#FFC36B" />
+            <polygon points="32,6 54,18 54,46 32,58 10,46 10,18" fill="#0B1630" stroke="url(#ld-grad-core)" stroke-width="2.2" />
+            <polygon points="32,10 50,20 50,44 32,54 14,44 14,20" fill="#050B18" opacity="0.9" />
+            <text x="32" y="38" font-family="'Cascadia Code', Consolas, sans-serif" font-weight="900" font-size="14.5" fill="#F5FAFF" text-anchor="middle" letter-spacing="1.4">PJMC</text>
+            <path d="M32 11 L33.2 14.5 L36.7 15.7 L33.2 16.9 L32 20.4 L30.8 16.9 L27.3 15.7 L30.8 14.5 Z" fill="#FFC36B" />
+          </svg>
+        </div>
+        <div class="pjmc-loading-brand">PJMC STUDENT</div>
+        <div class="pjmc-loading-inst">PAWAN JHA MATHEMATICS CLASSES</div>
+        <div class="loading-title pjmc-loading-title">SOLAR SYSTEM EXPLORER</div>
+        <div class="loading-bar pjmc-loading-bar"><div class="loading-bar-fill pjmc-loading-fill"></div></div>
+        <div class="loading-status" id="loading-status">INITIALIZING SYSTEMS&hellip;</div>
+        <div class="pjmc-loading-tagline">LEARN • EXPLORE • DISCOVER</div>
+      </div>
+    </div>
+
+    <!-- three.js canvas mounts here -->
+    <div id="app"></div>
+
+    <!-- floating body-name labels (projected each frame) -->
+    <div id="labels"></div>
+
+  </body>
+</html>
