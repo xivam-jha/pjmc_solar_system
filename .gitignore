@@ -1,7 +1,0 @@
-node_modules/
-dist/
-
-# Machine-specific desktop-shortcut launcher (hardcoded local paths)
-launch-solar-system.ps1
-launch-solar-system.vbs
-solar-system.ico
