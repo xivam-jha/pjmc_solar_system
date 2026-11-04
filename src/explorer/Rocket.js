@@ -35,28 +35,74 @@ const FLAME_VERTEX = /* glsl */ `
 
 const FLAME_FRAGMENT = /* glsl */ `
   uniform float uTime;
+  uniform float uPower;
   uniform float uThrottle;
   uniform float uBoost;
   varying vec2 vUv;
   varying vec3 vNormal;
 
   void main() {
-    float y = vUv.y; // 0 at base, 1 at tip
-    float wave = sin(vUv.x * 24.0 + uTime * 40.0) * 0.12;
-    float intensity = (1.0 - y + wave * (1.0 - y)) * (0.65 + uThrottle * 0.85 + uBoost * 1.35);
+    float power = max(uPower, uThrottle);
+    float boost = uBoost;
+    float totalPwr = clamp(power + boost * 1.5, 0.0, 2.5);
 
-    // Color gradient: Core bright white/cyan -> electric blue -> deep sapphire outer edge
-    vec3 coreColor = vec3(0.92, 0.98, 1.0);
-    vec3 blueColor = vec3(0.0, 0.72, 1.0);
-    vec3 deepBlue  = vec3(0.0, 0.28, 0.85);
+    // 1. ABSOLUTE ZERO CUTOFF: Zero throttle = 100% invisible engine exhaust
+    if (totalPwr <= 0.001) {
+      discard;
+    }
 
-    vec3 col = mix(coreColor, blueColor, smoothstep(0.08, 0.55, y));
-    col = mix(col, deepBlue, smoothstep(0.55, 1.0, y));
+    float y = vUv.y; // 0.0 at nozzle base, 1.0 at flame tip
 
-    float alpha = clamp(intensity, 0.0, 1.0) * (1.0 - y * 0.65);
-    if (alpha < 0.02) discard;
+    // Dynamic length threshold: scales smoothly with throttle and boost
+    float effectiveMaxLen = clamp(0.22 + power * 0.58 + boost * 0.38, 0.05, 1.0);
+    if (y > effectiveMaxLen) {
+      discard;
+    }
 
-    gl_FragColor = vec4(col * (1.6 + uBoost * 1.6), alpha);
+    // High-frequency plasma turbulence
+    float speed = 36.0 + boost * 28.0;
+    float wave1 = sin(vUv.x * 24.0 + uTime * speed) * 0.08;
+    float wave2 = cos(vUv.x * 48.0 - uTime * (speed * 1.3)) * 0.05;
+    float turbulence = (wave1 + wave2) * (1.0 - y * 0.45);
+
+    // Mach diamond shock nodes pulsing down the supersonic jet stream
+    float shockPhase = y * 28.0 - uTime * (speed * 1.25);
+    float shockDiamond = pow(clamp(sin(shockPhase) * 0.5 + 0.5, 0.0, 1.0), 3.5) * (1.0 - y);
+
+    // Smooth taper towards the exhaust tip
+    float tipFade = smoothstep(effectiveMaxLen, effectiveMaxLen * 0.52, y);
+
+    // Combined intensity (ZERO floor when power is 0)
+    float intensity = (1.0 - (y / effectiveMaxLen) + turbulence) * tipFade * (power * 1.15 + boost * 1.75);
+    intensity += shockDiamond * (0.45 * power + 0.95 * boost);
+
+    if (intensity <= 0.01) {
+      discard;
+    }
+
+    // Color gradient:
+    // 1. Bright white-hot cyan inner plasma core
+    // 2. Electric blue middle flame
+    // 3. Deep sapphire royal blue outer exhaust boundary
+    vec3 whiteCore    = vec3(0.96, 0.99, 1.0);
+    vec3 cyanPlasma   = vec3(0.25, 0.92, 1.0);
+    vec3 electricBlue = vec3(0.0, 0.58, 1.0);
+    vec3 deepSapphire = vec3(0.01, 0.12, 0.85);
+
+    float normY = y / effectiveMaxLen;
+    vec3 col = mix(whiteCore, cyanPlasma, smoothstep(0.0, 0.22, normY));
+    col = mix(col, electricBlue, smoothstep(0.22, 0.62, normY));
+    col = mix(col, deepSapphire, smoothstep(0.62, 1.0, normY));
+
+    // Accentuate core with shock diamonds
+    col = mix(col, whiteCore, shockDiamond * (0.35 + boost * 0.45));
+
+    float alpha = clamp(intensity, 0.0, 1.0) * (0.85 + boost * 0.15);
+    if (alpha < 0.015) {
+      discard;
+    }
+
+    gl_FragColor = vec4(col * (1.3 + power * 0.75 + boost * 1.8), alpha);
   }
 `;
 
@@ -746,6 +792,7 @@ export class Rocket {
     this.flameMaterial = new THREE.ShaderMaterial({
       uniforms: {
         uTime: { value: 0 },
+        uPower: { value: 0 },
         uThrottle: { value: 0 },
         uBoost: { value: 0 },
       },
@@ -757,22 +804,25 @@ export class Rocket {
       side: THREE.DoubleSide,
     });
 
-    const flameGeo = new THREE.ConeGeometry(0.46, 3.4, 18, 1, true);
+    const flameGeo = new THREE.ConeGeometry(0.46, 3.4, 20, 1, true);
     flameGeo.rotateX(-Math.PI / 2);
     flameGeo.translate(0, 0, -1.7); // flame shoots backwards (-Z)
 
     this.rightFlame = new THREE.Mesh(flameGeo, this.flameMaterial);
     this.rightFlame.position.set(0.44, -0.05, -3.4);
+    this.rightFlame.visible = false;
     this.model.add(this.rightFlame);
 
     this.leftFlame = new THREE.Mesh(flameGeo, this.flameMaterial);
     this.leftFlame.position.set(-0.44, -0.05, -3.4);
+    this.leftFlame.visible = false;
     this.model.add(this.leftFlame);
 
-    // Dynamic Engine Blue Glow Light
-    this.engineLight = new THREE.PointLight(0x00d4ff, 1.8, 8);
-    this.engineLight.position.set(0, 0, -1.2);
-    this.root.add(this.engineLight);
+    // Dynamic Engine Blue Glow Light (placed directly between dual nozzles)
+    this.engineLight = new THREE.PointLight(0x00d4ff, 0.0, 10);
+    this.engineLight.position.set(0, -0.05, -3.4);
+    this.engineLight.visible = false;
+    this.model.add(this.engineLight);
 
     // Cockpit camera mount point (proportional to 0.28 scale)
     this.cockpitMount = new THREE.Group();
@@ -932,32 +982,65 @@ export class Rocket {
   /* Animation, Engine Flames & Shader Updates                          */
   /* ------------------------------------------------------------------ */
 
-  update(dt, inputOrThrottle = 0.5, maybeBoost = false) {
-    if (typeof inputOrThrottle === 'number') {
-      this.throttle = inputOrThrottle;
-      this.isBoosting = !!maybeBoost;
-    } else if (inputOrThrottle && typeof inputOrThrottle === 'object') {
-      // Compatibility for launch sequence or standalone calls
-      this.throttle = inputOrThrottle.boost ? 1.0 : (inputOrThrottle.forward ? 0.75 : 0.4);
-      this.isBoosting = !!inputOrThrottle.boost;
+  update(dt, powerOrInput = 0.0, maybeBoost = 0.0, isBoostingFlag = false) {
+    let power = 0.0;
+    let boostPower = 0.0;
+    let boosting = false;
+
+    if (typeof powerOrInput === 'number') {
+      power = Math.max(0.0, Math.min(1.0, powerOrInput));
+      if (typeof maybeBoost === 'number') {
+        boostPower = Math.max(0.0, Math.min(1.0, maybeBoost));
+        boosting = isBoostingFlag || boostPower > 0.05;
+      } else if (typeof maybeBoost === 'boolean') {
+        boosting = maybeBoost;
+        boostPower = boosting ? 1.0 : 0.0;
+      }
+    } else if (powerOrInput && typeof powerOrInput === 'object') {
+      boosting = !!powerOrInput.boost;
+      boostPower = boosting ? 1.0 : 0.0;
+      if (typeof powerOrInput.thrust === 'number') {
+        power = Math.max(0.0, powerOrInput.thrust);
+      } else if (typeof powerOrInput.power === 'number') {
+        power = Math.max(0.0, powerOrInput.power);
+      } else {
+        power = boosting ? 1.0 : (powerOrInput.forward ? 0.75 : 0.0);
+      }
     }
+
+    this.enginePower = power;
+    this.boostPower = boostPower;
+    this.throttle = power;
+    this.isBoosting = boosting;
+
+    const totalActive = (power > 0.001 || boostPower > 0.001);
 
     // Engine flame plumes shader animation
     if (this.flameMaterial && this.flameMaterial.uniforms) {
       this.flameMaterial.uniforms.uTime.value += dt;
-      this.flameMaterial.uniforms.uThrottle.value = this.throttle;
-      this.flameMaterial.uniforms.uBoost.value = this.isBoosting ? 1.0 : 0.0;
+      this.flameMaterial.uniforms.uPower.value = power;
+      this.flameMaterial.uniforms.uThrottle.value = power;
+      this.flameMaterial.uniforms.uBoost.value = boostPower;
     }
 
     if (this.rightFlame && this.leftFlame) {
-      const flameScaleZ = 0.6 + this.throttle * 1.2 + (this.isBoosting ? 2.4 : 0.0);
-      const flameScaleXY = 1.0 + (this.isBoosting ? 0.45 : 0.0);
-      this.rightFlame.scale.set(flameScaleXY, flameScaleXY, flameScaleZ);
-      this.leftFlame.scale.copy(this.rightFlame.scale);
+      this.rightFlame.visible = totalActive;
+      this.leftFlame.visible = totalActive;
+
+      if (totalActive) {
+        const flameScaleZ = 0.35 + power * 1.1 + boostPower * 1.7;
+        const flameScaleXY = 0.75 + power * 0.25 + boostPower * 0.45;
+        this.rightFlame.scale.set(flameScaleXY, flameScaleXY, flameScaleZ);
+        this.leftFlame.scale.copy(this.rightFlame.scale);
+      } else {
+        this.rightFlame.scale.set(0.001, 0.001, 0.001);
+        this.leftFlame.scale.copy(this.rightFlame.scale);
+      }
     }
 
     if (this.engineLight) {
-      this.engineLight.intensity = 1.4 + this.throttle * 2.6 + (this.isBoosting ? 4.6 : 0.0);
+      this.engineLight.visible = totalActive;
+      this.engineLight.intensity = totalActive ? (power * 3.8 + boostPower * 5.2) : 0.0;
     }
   }
 
@@ -966,8 +1049,17 @@ export class Rocket {
     this.velocity.set(0, 0, 0);
     this.speed = 0;
     this.throttle = 0;
+    this.enginePower = 0;
+    this.boostPower = 0;
+    this.isBoosting = false;
     this.banking = 0;
     this.model.rotation.z = 0;
+    if (this.rightFlame) this.rightFlame.visible = false;
+    if (this.leftFlame) this.leftFlame.visible = false;
+    if (this.engineLight) {
+      this.engineLight.visible = false;
+      this.engineLight.intensity = 0.0;
+    }
     if (lookAtPos) {
       this.root.lookAt(lookAtPos);
     }

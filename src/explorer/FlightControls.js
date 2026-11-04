@@ -512,16 +512,24 @@ export class FlightControls {
         if (!this.enabled) return;
         e.preventDefault();
         e.stopPropagation();
-        activePointer = e.pointerId;
+        activePointer = e.pointerId ?? 1;
         try {
-          btn.setPointerCapture(e.pointerId);
+          if (e.pointerId !== undefined && btn.setPointerCapture) {
+            btn.setPointerCapture(e.pointerId);
+          }
         } catch (_) {}
         btn.classList.add('active');
         onDown();
       };
 
       const up = (e) => {
-        if (activePointer === null || (e && e.pointerId !== activePointer)) return;
+        if (activePointer === null) return;
+        if (e && e.pointerId !== undefined && activePointer !== 1 && e.pointerId !== activePointer) return;
+        try {
+          if (activePointer !== null && activePointer !== 1 && btn.hasPointerCapture?.(activePointer)) {
+            btn.releasePointerCapture(activePointer);
+          }
+        } catch (_) {}
         activePointer = null;
         btn.classList.remove('active');
         onUp();
@@ -530,6 +538,10 @@ export class FlightControls {
       btn.addEventListener('pointerdown', down, { passive: false });
       window.addEventListener('pointerup', up, { passive: false });
       window.addEventListener('pointercancel', up, { passive: false });
+      window.addEventListener('touchend', up, { passive: false });
+      window.addEventListener('touchcancel', up, { passive: false });
+      window.addEventListener('mouseup', up, { passive: false });
+      btn.addEventListener('lostpointercapture', up, { passive: false });
     };
 
     // BOOST: Hold for turbo speed
@@ -584,26 +596,50 @@ export class FlightControls {
       if (!this.enabled) return;
       if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
 
+      const wasBoosting = this.keys.has('Space') || this.keys.has('ShiftLeft') || this.keys.has('ShiftRight');
       this.keys.add(e.code);
 
       if (e.code === 'KeyC') {
         this.callbacks.onCameraToggle?.();
       } else if (e.code === 'Escape') {
         this.callbacks.onPauseToggle?.();
+      } else if (e.code === 'Space' || e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
+        if (!wasBoosting && !this.input.boost) {
+          this.callbacks.onBoostChange?.(true);
+        }
       }
     });
 
     window.addEventListener('keyup', (e) => {
       if (!this.enabled) return;
       this.keys.delete(e.code);
+
+      if (e.code === 'Space' || e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
+        const stillBoosting = this.keys.has('Space') || this.keys.has('ShiftLeft') || this.keys.has('ShiftRight');
+        if (!stillBoosting && !this.input.boost) {
+          this.callbacks.onBoostChange?.(false);
+        }
+      }
     });
 
-    window.addEventListener('blur', () => {
+    const handleResetAllInputs = () => {
       this.keys.clear();
       handleJoystickUp();
       handleLeverUp();
+      const wasBoosting = this.input.boost;
       this.input.boost = false;
       this.input.brake = false;
+      this.boostBtn?.classList.remove('active');
+      if (wasBoosting) {
+        this.callbacks.onBoostChange?.(false);
+      }
+    };
+
+    window.addEventListener('blur', handleResetAllInputs);
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        handleResetAllInputs();
+      }
     });
   }
 
@@ -749,6 +785,7 @@ export class FlightControls {
   disable() {
     this.enabled = false;
     this.keys.clear();
+    const wasBoosting = this.input.boost;
     this.input.boost = false;
     this.input.brake = false;
     this.input.pitch = 0;
@@ -761,9 +798,13 @@ export class FlightControls {
     this.root.classList.remove('active');
     this.joystickBase.classList.remove('active');
     this.leverBase.classList.remove('active');
+    this.boostBtn?.classList.remove('active');
     this.joystickKnob.style.transform = 'translate(-50%, -50%)';
     this.leverHandle.style.transform = 'translate(-50%, -50%)';
     this.closeSettingsModal();
+    if (wasBoosting) {
+      this.callbacks.onBoostChange?.(false);
+    }
   }
 
   hide() {

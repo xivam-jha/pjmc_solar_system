@@ -91,6 +91,9 @@ export class ExplorerGame {
     // Flight physics & dynamics variables
     this.velocity = new THREE.Vector3();
     this.flightSpeed = 0.0; // Stationary on start! Only moves when lever is pushed
+    this.requestedThrottle = 0.0;
+    this.enginePower = 0.0;
+    this.boostPower = 0.0;
     this.cruiseSpeed = 0.0;
     this.maxCruiseSpeed = 38.0; // Max speed when lever pushed to AAGE
     this.boostSpeed = 54.0;
@@ -324,12 +327,20 @@ export class ExplorerGame {
 
     // Initial momentum is 0 (Stationary in orbit until player pushes the lever forward!)
     this.flightSpeed = 0.0;
+    this.requestedThrottle = 0.0;
+    this.enginePower = 0.0;
+    this.boostPower = 0.0;
+    this.isBoosting = false;
     this.pitchRate = 0;
     this.yawRate = 0;
     this.rollRate = 0;
     this.visualBank = 0;
     this.rocket.setVisualBank(0);
     this.velocity.set(0, 0, 0);
+
+    // Initial engine visual and audio are OFF (zero flame, zero light, zero noise)
+    this.rocket.update(0.016, 0.0, 0.0, false);
+    this.audio.playEngineThrottle(0.0, false);
 
     // Reset free-look orbit camera
     this.freeLookYaw = 0.0;
@@ -362,15 +373,19 @@ export class ExplorerGame {
     this.state = GAME_STATE.FLYING;
     this.hud.hidePauseModal();
     this.controls.show();
-    this.audio.playEngineThrottle(0.5);
+    this.audio.playEngineThrottle(this.enginePower, this.isBoosting);
   }
 
   togglePause() {
     if (this.state === GAME_STATE.FLYING) {
       this.state = GAME_STATE.PAUSED;
+      this.isBoosting = false;
+      this.boostPower = 0.0;
       this.hud.showPauseModal();
       this.controls.hide();
       this.audio.stopEngine();
+      this.audio.stopBoost();
+      this.rocket.update(0.016, 0.0, 0.0, false);
     } else if (this.state === GAME_STATE.PAUSED) {
       this.resumeFlight();
     }
@@ -378,6 +393,12 @@ export class ExplorerGame {
 
   restartMission() {
     this.hud.hidePauseModal();
+    this.isBoosting = false;
+    this.boostPower = 0.0;
+    this.enginePower = 0.0;
+    this.requestedThrottle = 0.0;
+    this.audio.stopEngine();
+    this.audio.stopBoost();
     if (this.activeMission) {
       this.startLaunchForMission(this.activeMission.id);
     } else {
@@ -387,6 +408,12 @@ export class ExplorerGame {
 
   startNextMission() {
     if (!this.activeMission) return;
+    this.isBoosting = false;
+    this.boostPower = 0.0;
+    this.enginePower = 0.0;
+    this.requestedThrottle = 0.0;
+    this.audio.stopEngine();
+    this.audio.stopBoost();
     const curIdx = MISSIONS.findIndex((m) => m.id === this.activeMission.id);
     const nextIdx = (curIdx + 1) % MISSIONS.length;
     this.startLaunchForMission(MISSIONS[nextIdx].id);
@@ -399,8 +426,16 @@ export class ExplorerGame {
     this.audio.stopEngine();
     this.audio.stopBoost();
 
+    // Reset dynamics & states
+    this.isBoosting = false;
+    this.boostPower = 0.0;
+    this.enginePower = 0.0;
+    this.requestedThrottle = 0.0;
+    this.flightSpeed = 0.0;
+
     // Cleanup launch, rocket, waypoints, controls, HUD
     this.launchSeq.stop();
+    this.rocket.update(0.016, 0.0, 0.0, false);
     this.rocket.setVisible(false);
     if (this.warpPoints) this.warpPoints.visible = false;
     this.missions.clearCheckpoints();
@@ -497,6 +532,11 @@ export class ExplorerGame {
         this.isBoosting = true;
         this.audio.playBoostWhoosh();
       }
+      if (this.boostEnergy <= 0.5) {
+        // Boost depleted: automatically stop boost
+        this.isBoosting = false;
+        this.audio.stopBoost();
+      }
     } else {
       this.boostEnergy = Math.min(this.maxBoostEnergy, this.boostEnergy + dt * this.boostRechargeRate);
       if (this.isBoosting) {
@@ -505,15 +545,32 @@ export class ExplorerGame {
       }
     }
 
-    // 2. Spacecraft Forward Speed
+    // 2. Throttle and Engine Power Decoupling
+    // Commanded positive throttle:
+    this.requestedThrottle = (input.thrust > 0.02) ? Math.min(1.0, input.thrust) : 0.0;
+
+    // Smoothly damp actual engine output power towards commanded throttle
+    this.enginePower = THREE.MathUtils.damp(this.enginePower, this.requestedThrottle, 8.5, dt);
+    if (this.enginePower < 0.002 && this.requestedThrottle === 0.0) {
+      this.enginePower = 0.0;
+    }
+
+    // Boost power damp
+    const targetBoostPwr = this.isBoosting ? 1.0 : 0.0;
+    this.boostPower = THREE.MathUtils.damp(this.boostPower, targetBoostPwr, 12.0, dt);
+    if (this.boostPower < 0.002 && !this.isBoosting) {
+      this.boostPower = 0.0;
+    }
+
+    // 3. Spacecraft Forward Speed
     // CRITICAL: Stationary on start! Only moves forward when lever is pushed up towards AAGE.
     // When lever is released (input.thrust == 0), the jet gradually glides to a stop ("dhire dhire ruk jae")!
     let targetSpeed = 0.0;
     if (this.isBoosting) {
       targetSpeed = this.boostSpeed;
-    } else if (input.thrust > 0.02) {
+    } else if (this.requestedThrottle > 0.02) {
       // Pushing AAGE on lever accelerates up to maxCruiseSpeed (38.0)
-      targetSpeed = input.thrust * this.maxCruiseSpeed;
+      targetSpeed = this.requestedThrottle * this.maxCruiseSpeed;
     } else if (input.thrust < -0.05 || input.brake) {
       // Pulling PICHE on lever or brake decelerates quickly to full stop (0)
       targetSpeed = 0.0;
@@ -522,23 +579,23 @@ export class ExplorerGame {
     // Smooth acceleration / gradual stopping damping:
     // Accelerating: damp 3.8
     // Gliding to a stop when lever is released: damp 2.2 (natural smooth glide to stop)
-    // Active braking: damp 5.5
+    // Active braking: damp 5.8
     const speedDamp = this.isBoosting
       ? 5.0
       : targetSpeed > this.flightSpeed
         ? 3.8
         : (input.thrust < -0.05 || input.brake)
-          ? 5.5
+          ? 5.8
           : 2.2;
 
     this.flightSpeed = THREE.MathUtils.damp(this.flightSpeed, targetSpeed, speedDamp, dt);
 
     // If nearly stopped and no throttle is applied, snap to absolute zero
-    if (this.flightSpeed < 0.1 && targetSpeed === 0.0) {
+    if (this.flightSpeed < 0.08 && targetSpeed === 0.0) {
       this.flightSpeed = 0.0;
     }
 
-    // 3. Angular velocity with responsive damping
+    // 4. Angular velocity with responsive damping
     const targetPitchRate = input.pitch * this.maxTurnRate;
     const targetYawRate = input.yaw * this.maxTurnRate;
     const targetRollRate = input.roll * this.maxRollRate;
@@ -555,7 +612,7 @@ export class ExplorerGame {
     const rollDelta = -this.rollRate * dt;
     this.rocket.applyLocalRotation(pitchDelta, yawDelta, rollDelta);
 
-    // 4. Automatic Visual Banking (tilts visual mesh along Z without altering flight orientation)
+    // 5. Automatic Visual Banking (tilts visual mesh along Z without altering flight orientation)
     if (this.controls.settings.autoBank) {
       const targetBank = -this.yawRate * 0.52; // Bank naturally into the turn
       this.visualBank = THREE.MathUtils.damp(this.visualBank, targetBank, 6.0, dt);
@@ -564,7 +621,7 @@ export class ExplorerGame {
     }
     this.rocket.setVisualBank(this.visualBank);
 
-    // 5. Forward movement along actual facing vector (+Z) ONLY when flightSpeed > 0
+    // 6. Forward movement along actual facing vector (+Z) ONLY when flightSpeed > 0
     if (this.flightSpeed > 0.001) {
       const forward = this.rocket.getForwardVector(this.tempV1);
       this.velocity.copy(forward).multiplyScalar(this.flightSpeed);
@@ -573,7 +630,7 @@ export class ExplorerGame {
       this.velocity.set(0, 0, 0);
     }
 
-    // 6. Update Space Warp Particles
+    // 7. Update Space Warp Particles
     this.updateWarpParticles(dt);
 
     // Soft celestial boundaries: prevent flying beyond radius 260
@@ -601,16 +658,11 @@ export class ExplorerGame {
       }
     }
 
-    // 7. Update rocket flame animation and boost intensity
-    const throttleNorm = this.isBoosting ? 1.0 : (this.flightSpeed / this.maxCruiseSpeed);
-    this.rocket.update(dt, Math.max(0.0, Math.min(1.0, throttleNorm)), this.isBoosting);
+    // 8. Update rocket flame animation and boost intensity based directly on engine power (NOT flightSpeed)
+    this.rocket.update(dt, this.enginePower, this.boostPower, this.isBoosting);
 
-    // 8. Modulate engine audio
-    if (this.flightSpeed > 0.05 || this.isBoosting) {
-      this.audio.playEngineThrottle(throttleNorm, this.isBoosting);
-    } else {
-      this.audio.playEngineThrottle(0.0, false);
-    }
+    // 9. Modulate engine audio based directly on engine power (NOT flightSpeed)
+    this.audio.playEngineThrottle(this.enginePower, this.isBoosting);
   }
 
   updateCamera(dt) {

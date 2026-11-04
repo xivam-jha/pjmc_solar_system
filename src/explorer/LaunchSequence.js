@@ -197,6 +197,8 @@ export class LaunchSequence {
         .addScaledVector(this.surfaceNormal, 0.85);
       this.camera.position.copy(camPos);
       if (this.rocket) {
+        // Countdown: engine must remain visually OFF and completely silent
+        this.rocket.update(dt, 0.0, 0.0, false);
         this.camera.lookAt(this.rocket.root.position);
       }
 
@@ -209,6 +211,9 @@ export class LaunchSequence {
         audioSystem.playBeep(1760, 0.5);
         audioSystem.startEngine();
         audioSystem.setEngineThrottle(1.0, true);
+        if (this.rocket) {
+          this.rocket.update(dt, 1.0, 1.0, true);
+        }
       }
     }
     // Stage 1: Vertical Ascent into Orbit (duration ~4.0s)
@@ -219,9 +224,7 @@ export class LaunchSequence {
       // Rocket ascends upward along surface normal into space
       if (this.rocket) {
         this.rocket.root.position.addScaledVector(this.surfaceNormal, verticalSpeed * dt);
-        this.rocket.throttle = 1.0;
-        this.rocket.isBoosting = true;
-        this.rocket.update(dt, 1.0, true);
+        this.rocket.update(dt, 1.0, 1.0, true);
       }
 
       // Camera smoothly tracks behind rocket showing Earth receding below
@@ -242,6 +245,10 @@ export class LaunchSequence {
 
   skip() {
     if (!this.active) return;
+    if (this.rocket) {
+      this.rocket.update(0.016, 0.0, 0.0, false);
+    }
+    audioSystem.setEngineThrottle(0.0, false);
     this.stop();
     if (this.onSkip) {
       this.onSkip();
@@ -269,6 +276,7 @@ export class LaunchSequence {
 
     if (this.rocket) {
       this.rocket.teleport(orbitPos, lookTarget);
+      this.rocket.update(0.016, 0.0, 0.0, false);
     }
 
     audioSystem.startEngine();

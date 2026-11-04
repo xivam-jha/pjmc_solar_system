@@ -111,9 +111,9 @@ export class AudioSystem {
     oscGain.gain.setValueAtTime(0.08, this.ctx.currentTime);
     this.engineOsc.connect(oscGain);
 
-    // Master engine gain
+    // Master engine gain — starts completely silent at 0.0
     this.engineGain = this.ctx.createGain();
-    this.engineGain.gain.setValueAtTime(this.muted ? 0 : 0.05, this.ctx.currentTime);
+    this.engineGain.gain.setValueAtTime(0.0, this.ctx.currentTime);
 
     this.engineNoise.connect(this.engineFilter);
     this.engineFilter.connect(this.engineGain);
@@ -125,33 +125,47 @@ export class AudioSystem {
   }
 
   /** Modulate rocket engine sound with throttle and boost */
-  setEngineThrottle(throttle = 0.2, isBoosting = false) {
+  setEngineThrottle(throttle = 0.0, isBoosting = false) {
     if (!this.engineRunning || !this.ctx) return;
 
-    const targetGain = this.muted ? 0 : Math.min(0.04 + throttle * 0.14 + (isBoosting ? 0.08 : 0), 0.26);
-    const targetFreq = 180 + throttle * 480 + (isBoosting ? 650 : 0);
-    const targetOsc = 45 + throttle * 55 + (isBoosting ? 40 : 0);
-
     const now = this.ctx.currentTime;
+    const isEngineOff = throttle <= 0.005 && !isBoosting;
+
+    if (isEngineOff || this.muted) {
+      // Complete silence when engine is off or muted (no continuous engine roar)
+      this.engineGain.gain.setTargetAtTime(0.0, now, 0.06);
+      this.engineFilter.frequency.setTargetAtTime(140, now, 0.08);
+      this.engineOsc.frequency.setTargetAtTime(40, now, 0.08);
+      return;
+    }
+
+    const targetGain = Math.min(0.025 + throttle * 0.16 + (isBoosting ? 0.09 : 0.0), 0.28);
+    const targetFreq = 160 + throttle * 520 + (isBoosting ? 650 : 0);
+    const targetOsc = 45 + throttle * 60 + (isBoosting ? 45 : 0);
+
     this.engineGain.gain.setTargetAtTime(targetGain, now, 0.08);
     this.engineFilter.frequency.setTargetAtTime(targetFreq, now, 0.08);
     this.engineOsc.frequency.setTargetAtTime(targetOsc, now, 0.08);
   }
 
-  /** Stop engine sound */
+  /** Stop engine sound cleanly */
   stopEngine() {
     if (!this.engineRunning || !this.ctx) return;
     this.engineRunning = false;
     try {
-      this.engineGain.gain.setTargetAtTime(0, this.ctx.currentTime, 0.1);
+      this.engineGain?.gain.setTargetAtTime(0.0, this.ctx.currentTime, 0.05);
+      const noise = this.engineNoise;
+      const osc = this.engineOsc;
+      this.engineNoise = null;
+      this.engineOsc = null;
       setTimeout(() => {
         try {
-          this.engineNoise?.stop();
-          this.engineOsc?.stop();
-          this.engineNoise?.disconnect();
-          this.engineOsc?.disconnect();
+          noise?.stop();
+          osc?.stop();
+          noise?.disconnect();
+          osc?.disconnect();
         } catch (_) {}
-      }, 150);
+      }, 100);
     } catch (_) {}
   }
 
@@ -234,7 +248,15 @@ export class AudioSystem {
   }
 
   /** Throttle helper for gameplay loop */
-  playEngineThrottle(throttle = 0.5, isBoosting = false) {
+  playEngineThrottle(throttle = 0.0, isBoosting = false) {
+    const isEngineOff = throttle <= 0.005 && !isBoosting;
+    if (isEngineOff) {
+      if (this.engineRunning) {
+        this.setEngineThrottle(0.0, false);
+      }
+      return;
+    }
+
     if (!this.engineRunning) {
       this.startEngine();
     }
