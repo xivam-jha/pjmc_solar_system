@@ -2455,3 +2455,12 @@ body {
 .pjmc-modal-window { max-height: 88dvh; overflow-y: auto; }
 .pjmc-telemetry-bar .pjmc-ship-tag, .pjmc-telemetry-bar .pjmc-mission-badge { display: none; }
 @media (max-height: 500px) { .student-flight-tip { top: 52px; font-size: 12px; } .pjmc-controls-root .pjmc-lever-zone { height: 130px; } .student-speed-slider { height: 94px; } }
+
+/* Two right-hand flight pedals. */
+.pjmc-actions-zone .pjmc-action-col { display: flex; flex-direction: row; gap: 14px; align-items: end; }
+.pjmc-action-btn.accelerate-btn, .pjmc-action-btn.brake-btn { width: 82px; height: 94px; border-radius: 22px; touch-action: none; user-select: none; }
+.pjmc-action-btn.accelerate-btn { color: #d9fff3; background: #087454cc; border: 2px solid #62e6ba; }
+.pjmc-action-btn.brake-btn { color: #fff0ed; background: #8b302dcc; border: 2px solid #ff9a8f; }
+.pjmc-actions-zone .pjmc-action-btn.active { transform: scale(.94); filter: brightness(1.25); }
+.pjmc-telemetry-bar .pjmc-boost-wrap { display: none; }
+@media (max-width: 480px) { .pjmc-action-btn.accelerate-btn, .pjmc-action-btn.brake-btn { width: 68px; height: 82px; } .pjmc-actions-zone .pjmc-action-col { gap: 8px; } }

@@ -23,7 +23,7 @@
  *   - D / ArrowRight: Right
  *   - R / PageUp: Uper (Pitch Up)
  *   - F / PageDown: Niche (Pitch Down)
- *   - Space / Shift: Boost
+ *   - Space: Brake
  *   - C: Camera
  *   - Esc: Pause
  */
@@ -160,20 +160,6 @@ export class FlightControls {
 
     this.leverBase.querySelector('.pjmc-lever-track').appendChild(this.leverHandle);
     this.leverZone.appendChild(this.leverBase);
-    this.speedSlider = document.createElement('input');
-    this.speedSlider.type = 'range';
-    this.speedSlider.min = '0';
-    this.speedSlider.max = '100';
-    this.speedSlider.value = '0';
-    this.speedSlider.setAttribute('aria-label', 'Flight speed');
-    this.speedSlider.className = 'student-speed-slider';
-    this.speedSlider.addEventListener('input', () => {
-      this.input.thrust = Number(this.speedSlider.value) / 100;
-    });
-    const speedLabel = document.createElement('label');
-    speedLabel.textContent = 'SPEED';
-    speedLabel.append(this.speedSlider);
-    this.leverZone.append(speedLabel);
 
     // -------------------------------------------------------------
     // 3. RIGHT THUMB — Action Button Cluster
@@ -182,13 +168,13 @@ export class FlightControls {
     this.actionsZone.className = 'pjmc-actions-zone';
 
     // Boost Button (Large glowing orange turbo button)
-    this.boostBtn = document.createElement('button');
-    this.boostBtn.type = 'button';
-    this.boostBtn.className = 'pjmc-action-btn boost-btn';
-    this.boostBtn.setAttribute('aria-label', 'Turbo Boost');
-    this.boostBtn.innerHTML = `
-      <span class="action-icon">⚡</span>
-      <span class="action-label">BOOST</span>
+    this.accelerateBtn = document.createElement('button');
+    this.accelerateBtn.type = 'button';
+    this.accelerateBtn.className = 'pjmc-action-btn accelerate-btn';
+    this.accelerateBtn.setAttribute('aria-label', 'Increase speed');
+    this.accelerateBtn.innerHTML = `
+      <span class="action-icon">▲</span>
+      <span class="action-label">SPEED +</span>
     `;
 
     // Camera Switch Button (Chase / Cockpit)
@@ -221,9 +207,14 @@ export class FlightControls {
     // Clustered arrangement
     const actionCol = document.createElement('div');
     actionCol.className = 'pjmc-action-col';
-    actionCol.append(this.boostBtn);
+    this.brakeBtn = document.createElement('button');
+    this.brakeBtn.type = 'button';
+    this.brakeBtn.className = 'pjmc-action-btn brake-btn';
+    this.brakeBtn.setAttribute('aria-label', 'Brake');
+    this.brakeBtn.innerHTML = '<span class="action-icon">■</span><span class="action-label">BRAKE</span>';
+    actionCol.append(this.accelerateBtn, this.brakeBtn);
 
-    this.actionsZone.append(actionCol, this.leverZone);
+    this.actionsZone.append(actionCol);
 
     // -------------------------------------------------------------
     // 4. Quick Flight Settings Modal
@@ -526,7 +517,7 @@ export class FlightControls {
       let activePointer = null;
 
       const down = (e) => {
-        if (!this.enabled) return;
+        if (!this.enabled || activePointer !== null) return;
         e.preventDefault();
         e.stopPropagation();
         activePointer = e.pointerId ?? 1;
@@ -541,7 +532,7 @@ export class FlightControls {
 
       const up = (e) => {
         if (activePointer === null) return;
-        if (e && e.pointerId !== undefined && activePointer !== 1 && e.pointerId !== activePointer) return;
+        if (e && e.pointerId !== undefined && e.pointerId !== activePointer) return;
         try {
           if (activePointer !== null && activePointer !== 1 && btn.hasPointerCapture?.(activePointer)) {
             btn.releasePointerCapture(activePointer);
@@ -555,24 +546,15 @@ export class FlightControls {
       btn.addEventListener('pointerdown', down, { passive: false });
       window.addEventListener('pointerup', up, { passive: false });
       window.addEventListener('pointercancel', up, { passive: false });
-      window.addEventListener('touchend', up, { passive: false });
-      window.addEventListener('touchcancel', up, { passive: false });
-      window.addEventListener('mouseup', up, { passive: false });
       btn.addEventListener('lostpointercapture', up, { passive: false });
     };
 
-    // BOOST: Hold for turbo speed
-    bindHoldButton(
-      this.boostBtn,
-      () => {
-        this.input.boost = true;
-        this.callbacks.onBoostChange?.(true);
-      },
-      () => {
-        this.input.boost = false;
-        this.callbacks.onBoostChange?.(false);
-      }
-    );
+    bindHoldButton(this.accelerateBtn,
+      () => { this.input.accelerate = true; },
+      () => { this.input.accelerate = false; });
+    bindHoldButton(this.brakeBtn,
+      () => { this.input.brake = true; },
+      () => { this.input.brake = false; });
 
     const bindTapButton = (btn, onTap) => {
       let started = false;
@@ -613,7 +595,7 @@ export class FlightControls {
       if (!this.enabled) return;
       if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
 
-      const wasBoosting = this.keys.has('Space') || this.keys.has('ShiftLeft') || this.keys.has('ShiftRight');
+      if (e.code === 'Space') e.preventDefault();
       this.keys.add(e.code);
 
       if (e.repeat) return;
@@ -621,10 +603,6 @@ export class FlightControls {
         this.callbacks.onCameraToggle?.();
       } else if (e.code === 'Escape') {
         this.callbacks.onPauseToggle?.();
-      } else if (e.code === 'Space' || e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
-        if (!wasBoosting && !this.input.boost) {
-          this.callbacks.onBoostChange?.(true);
-        }
       }
     });
 
@@ -632,12 +610,7 @@ export class FlightControls {
       if (!this.enabled) return;
       this.keys.delete(e.code);
 
-      if (e.code === 'Space' || e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
-        const stillBoosting = this.keys.has('Space') || this.keys.has('ShiftLeft') || this.keys.has('ShiftRight');
-        if (!stillBoosting && !this.input.boost) {
-          this.callbacks.onBoostChange?.(false);
-        }
-      }
+
     });
 
     const handleResetAllInputs = () => {
@@ -647,7 +620,10 @@ export class FlightControls {
       const wasBoosting = this.input.boost;
       this.input.boost = false;
       this.input.brake = false;
-      this.boostBtn?.classList.remove('active');
+      this.input.accelerate = false;
+      this.accelerateBtn?.classList.remove('active');
+      this.brakeBtn?.classList.remove('active');
+      this.accelerateBtn?.classList.remove('active');
       if (wasBoosting) {
         this.callbacks.onBoostChange?.(false);
       }
@@ -742,7 +718,7 @@ export class FlightControls {
     let keyThrust = 0;
     let keyYaw = 0;
     let keyPitch = 0;
-    let keyBoost = false;
+
 
     // Desktop W/S or Arrow Up/Down -> Aage (Forward) / Piche (Brake)
     if (this.keys.has('KeyW') || this.keys.has('ArrowUp')) keyThrust += 1.0;
@@ -756,14 +732,12 @@ export class FlightControls {
     if (this.keys.has('KeyR') || this.keys.has('PageUp')) keyPitch += 1.0;
     if (this.keys.has('KeyF') || this.keys.has('PageDown')) keyPitch -= 1.0;
 
-    // Boost keys: Space or Shift
-    if (this.keys.has('Space') || this.keys.has('ShiftLeft') || this.keys.has('ShiftRight')) keyBoost = true;
-
-    // Blend touch and keyboard
-    const finalThrust = keyThrust !== 0 ? keyThrust : this.input.thrust;
+    // Braking takes priority if both pedals are held.
+    const braking = this.input.brake || this.keys.has('KeyS') || this.keys.has('ArrowDown') || this.keys.has('Space');
+    const finalThrust = braking ? -1 : this.input.accelerate ? 1 : keyThrust;
     const finalYaw = Math.abs(this.input.yaw) > 0.02 ? this.input.yaw : keyYaw;
     const finalPitch = Math.abs(this.input.pitch) > 0.02 ? this.input.pitch : keyPitch;
-    const finalBoost = this.input.boost || keyBoost;
+
 
     const sens = this.settings.sensitivity;
 
@@ -772,7 +746,7 @@ export class FlightControls {
       yaw: Math.max(-1.0, Math.min(1.0, finalYaw)) * sens,
       pitch: Math.max(-1.0, Math.min(1.0, finalPitch)) * sens,
       roll: 0,
-      boost: finalBoost,
+      boost: false,
       brake: finalThrust < -0.15,
       forward: true,
     };
@@ -808,10 +782,13 @@ export class FlightControls {
     const wasBoosting = this.input.boost;
     this.input.boost = false;
     this.input.brake = false;
+      this.input.accelerate = false;
+      this.accelerateBtn?.classList.remove('active');
+      this.brakeBtn?.classList.remove('active');
     this.input.pitch = 0;
     this.input.yaw = 0;
     this.input.thrust = 0;
-    this.speedSlider.value = '0';
+
     this.joystickPointerId = null;
     this.leverPointerId = null;
     this.root.style.display = 'none';
@@ -819,7 +796,7 @@ export class FlightControls {
     this.root.classList.remove('active');
     this.joystickBase.classList.remove('active');
     this.leverBase.classList.remove('active');
-    this.boostBtn?.classList.remove('active');
+    this.accelerateBtn?.classList.remove('active');
     this.joystickKnob.style.transform = 'translate(-50%, -50%)';
     this.leverHandle.style.transform = 'translate(-50%, -50%)';
     this.closeSettingsModal();

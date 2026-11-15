@@ -406,7 +406,7 @@ export class ExplorerGame {
     this.safeRotation.copy(this.rocket.quaternion);
     this.missions.prepareRoute(this.rocket.position, this.rocket.getForwardVector(new THREE.Vector3()));
     this.hud.show();
-    this.hud.showTip('Joystick से दिशा बदलें • SPEED से उड़ें • चमकते गेट की ओर जाएँ');
+    this.hud.showTip('Joystick से दिशा बदलें • SPEED + दबाकर उड़ें • BRAKE से रुकें');
     this.setCockpitMode(false);
     if (this.warpPoints) this.warpPoints.visible = true;
   }
@@ -781,7 +781,7 @@ export class ExplorerGame {
         this.flightSpeed = 0;
         this.missions.previousRocketPos = this.safePosition.clone();
         this.controls.input.thrust = 0;
-        this.controls.speedSlider.value = '0';
+        this.controls.input.accelerate = false;
         this.controls.input.boost = false;
         this.controls.keys.clear();
         this.isBoosting = false;

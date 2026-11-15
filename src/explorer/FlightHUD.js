@@ -291,7 +291,7 @@ export class FlightHUD {
         </div>
 
         <div class="pjmc-controls-reminder">
-          <strong>CONTROLS:</strong> W/S Speed • A/D Turn • R/F Up/Down • SPACE Boost • C Camera • ESC Pause
+          <strong>CONTROLS:</strong> W/S Speed • A/D Turn • R/F Up/Down • SPACE Brake • C Camera • ESC Pause
         </div>
         <div class="pjmc-pause-footer-inst">${BRAND.product} • ${BRAND.spacecraft}</div>
       </div>
