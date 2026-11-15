@@ -172,14 +172,28 @@ export class ExplorerGame {
 
     const material = new THREE.PointsMaterial({
       color: 0x66e5ff,
-      size: 1.5,
+      size: 2,
+      sizeAttenuation: false,
       transparent: true,
-      opacity: 0.75,
+      opacity: 0.22,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
     });
 
+    // Fade each point to a circle instead of rendering its square sprite.
+    material.onBeforeCompile = (shader) => {
+      shader.fragmentShader = shader.fragmentShader.replace(
+        '#include <map_particle_fragment>',
+        `#include <map_particle_fragment>
+        float particleRadius = length(gl_PointCoord - vec2(0.5));
+        if (particleRadius >= 0.5) discard;
+        diffuseColor.a *= 1.0 - smoothstep(0.12, 0.5, particleRadius);`,
+      );
+    };
+    material.customProgramCacheKey = () => 'soft-flight-particles-v1';
     this.warpPoints = new THREE.Points(geometry, material);
+    // Positions move around the spacecraft, outside the original bounding sphere.
+    this.warpPoints.frustumCulled = false;
     this.warpPoints.visible = false;
     this.scene.add(this.warpPoints);
   }
@@ -220,8 +234,8 @@ export class ExplorerGame {
     }
 
     posAttr.needsUpdate = true;
-    this.warpPoints.material.opacity = this.isBoosting ? 0.95 : Math.min(0.85, 0.25 + (this.flightSpeed / this.maxCruiseSpeed) * 0.55);
-    this.warpPoints.material.size = this.isBoosting ? 2.4 : 1.5;
+    this.warpPoints.material.opacity = this.isBoosting ? 0.32 : Math.min(0.22, (this.flightSpeed / this.maxCruiseSpeed) * 0.22);
+    this.warpPoints.material.size = this.isBoosting ? 3 : 2;
   }
 
   /* ------------------------------------------------------------------ */
