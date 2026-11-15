@@ -218,7 +218,10 @@ export class FlightHUD {
     let selectedMissionId = 'mission_01';
     const nameInput = this.missionModalEl.querySelector('#student-pilot-name');
     nameInput.value = this.progress.data.name;
+    nameInput.readOnly = Boolean(this.progress.student);
+    if (this.progress.student) nameInput.title = 'PJMC account से सत्यापित नाम';
     nameInput.addEventListener('input', () => {
+      if (this.progress.student) return;
       this.progress.data.name = nameInput.value.trim().slice(0, 24) || 'Pilot';
       if (!this.progress.save()) this.showTip('नाम इस सत्र तक रहेगा। ब्राउज़र storage उपलब्ध नहीं है।');
     });

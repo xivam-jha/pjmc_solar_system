@@ -1,0 +1,41 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
+import { initializeStudentAuth, getAuthenticatedStudent } from '../src/explorer/StudentAuth.js';
+import { StudentProgress } from '../src/explorer/StudentProgress.js';
+
+test('dashboard login binds code to verifier, isolates accounts and rejects bad callbacks', async () => {
+  const session = new Map(); const local = new Map();
+  globalThis.sessionStorage = { getItem: k => session.get(k), setItem: (k,v) => session.set(k,v), removeItem: k => session.delete(k) };
+  globalThis.localStorage = { getItem: k => local.get(k), setItem: (k,v) => local.set(k,v) };
+  let redirected;
+  globalThis.location = { hash: '#login=1', pathname: '/pjmc_solar_system/', search: '', replace: url => { redirected = new URL(url); } };
+  globalThis.history = { replaceState: () => { location.hash = ''; } };
+  assert.equal(await initializeStudentAuth(), false);
+  const pending = JSON.parse(session.get('pjmc_game_login_pending'));
+  assert.equal(redirected.searchParams.get('code_challenge'), createHash('sha256').update(pending.verifier).digest('base64url'));
+  assert.equal(redirected.origin, 'https://shivamonline.gt.tc');
+  location.hash = `#code=${'x'.repeat(43)}&state=${pending.state}`;
+  let calls = 0;
+  globalThis.fetch = async (url, options) => {
+    calls++;
+    assert.equal(options.credentials, 'omit');
+    if (url.endsWith('exchange.php')) assert.equal(JSON.parse(options.body).verifier, pending.verifier);
+    return new Response(JSON.stringify({ token: 't'.repeat(43), expires_at: Math.floor(Date.now()/1000)+3600, student: {id:'17', name:'Student Seventeen'} }), {headers:{'Content-Type':'application/json'}});
+  };
+  assert.equal(await initializeStudentAuth(), true);
+  assert.equal(getAuthenticatedStudent().id, '17');
+  assert.equal(location.hash, '');
+  assert.equal(session.has('pjmc_game_login_pending'), false);
+  const profile = new StudentProgress(); profile.award('mission_01');
+  assert.equal(profile.data.name, 'Student Seventeen');
+  assert.equal(local.has('pjmc_space_pilot_v1:student:17'), true);
+  assert.equal(local.has('pjmc_space_pilot_v1'), false);
+  await initializeStudentAuth(); assert.equal(calls, 2);
+  location.hash = `#code=${'z'.repeat(43)}&state=${'a'.repeat(43)}`;
+  await assert.rejects(initializeStudentAuth(), /Login request/);
+  assert.equal(calls, 2);
+  assert.equal(getAuthenticatedStudent(), null);
+  assert.equal(session.has('pjmc_game_login'), false);
+  for (const key of ['location','history','sessionStorage','localStorage','fetch']) delete globalThis[key];
+});

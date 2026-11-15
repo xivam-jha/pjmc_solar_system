@@ -1,3 +1,4 @@
+import { getAuthenticatedStudent } from './StudentAuth.js';
 const STORAGE_KEY = 'pjmc_space_pilot_v1';
 export const LESSONS = {
   mission_01: {
@@ -24,9 +25,11 @@ export const LESSONS = {
 
 export class StudentProgress {
   constructor() {
+    this.student = getAuthenticatedStudent();
+    this.storageKey = this.student ? `${STORAGE_KEY}:student:${this.student.id}` : STORAGE_KEY;
     this.data = { name: 'Pilot', badges: {}, photos: [], color: '#ecf2f8' };
     try {
-      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+      const saved = JSON.parse(localStorage.getItem(this.storageKey));
       if (saved && typeof saved === 'object') {
         this.data.name = typeof saved.name === 'string' ? saved.name.slice(0, 24) : 'Pilot';
         this.data.badges = Object.fromEntries(Object.keys(LESSONS).filter(id => saved.badges?.[id]).map(id => [id, true]));
@@ -34,10 +37,11 @@ export class StudentProgress {
         if (['#ecf2f8', '#f4b942', '#ad8cff'].includes(saved.color)) this.data.color = saved.color;
       }
     } catch { /* A fresh profile also works when storage is unavailable. */ }
+    if (this.student) this.data.name = this.student.name;
   }
   get stars() { return Object.keys(this.data.badges).length * 3; }
   save() {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(this.data)); return true; }
+    try { localStorage.setItem(this.storageKey, JSON.stringify(this.data)); return true; }
     catch { return false; }
   }
   award(id) {

@@ -1,3 +1,4 @@
+import { initializeStudentAuth } from './explorer/StudentAuth.js';
 /**
  * Solar System Explorer — entry point.
  *
@@ -119,6 +120,8 @@ const setStatus = (text) => {
 };
 
 async function init() {
+  setStatus('PJMC LOGIN CHECK');
+  if (!(await initializeStudentAuth())) return;
   /* ---------- renderer / scene / camera ---------- */
   setStatus('CREATING RENDERER…');
   const renderer = new THREE.WebGLRenderer({
@@ -585,6 +588,11 @@ async function init() {
 setTimeout(() => {
   init().catch((err) => {
     console.error(err);
-    setStatus('INITIALIZATION FAILED — SEE CONSOLE');
+    setStatus(err.message || 'INITIALIZATION FAILED — SEE CONSOLE');
+    const returnLink = document.createElement('a');
+    returnLink.href = 'https://shivamonline.gt.tc/student/dashboard.php';
+    returnLink.textContent = 'PJMC Dashboard खोलें';
+    returnLink.style.color = '#74e0ff';
+    document.querySelector('.loading-box')?.append(returnLink);
   });
 }, 30);
