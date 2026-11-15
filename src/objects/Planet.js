@@ -1,3 +1,4 @@
+import { orbitPosition } from '../data/orbits.js';
 /**
  * Planet.js — Ultra Photorealistic Planetary Rendering Engine
  * PJMC STUDENT — SOLAR SYSTEM EXPLORER
@@ -195,6 +196,7 @@ export class Planet {
       if (cloudTex) {
         this.cloudMaterial = new THREE.MeshStandardMaterial({
           map: cloudTex,
+          alphaMap: cloudTex,
           transparent: true,
           opacity: 0.86,
           roughness: 0.95,
@@ -205,7 +207,7 @@ export class Planet {
           getSphereGeometry(preset.cloudSegments),
           this.cloudMaterial
         );
-        this.cloudMesh.scale.setScalar(1.018);
+        this.cloudMesh.scale.setScalar(1.006);
         this.spinGroup.add(this.cloudMesh);
       }
     }
@@ -225,7 +227,7 @@ export class Planet {
     this.ringMaterial = null;
     if (data.rings) {
       // Prioritize high-resolution alpha ring texture
-      const ringTex = textures.saturn_ring_alpha || textures[data.rings.texture];
+      const ringTex = (data.id === 'saturn' && textures.saturn_ring_alpha) || textures[data.rings.texture];
       const { mesh, material } = createRings(data.rings, ringTex);
       this.ringMesh = mesh;
       this.ringMaterial = material;
@@ -238,7 +240,7 @@ export class Planet {
 
     // -- orbit line -------------------------------------------------
     this.orbitLine = new THREE.LineLoop(
-      getCircleGeometry(),
+      getCircleGeometry().clone(),
       new THREE.LineBasicMaterial({
         color: isMoon ? 0x35586e : 0x3b6a8a,
         transparent: true,
@@ -396,6 +398,12 @@ export class Planet {
           vEarthWorldPos = (modelMatrix * vec4(position, 1.0)).xyz;`,
         );
       shader.fragmentShader = shader.fragmentShader
+        .replace('#include <roughnessmap_fragment>', `
+          float roughnessFactor = roughness;
+          #ifdef USE_ROUGHNESSMAP
+            roughnessFactor = mix(0.95, 0.22, texture2D(roughnessMap, vRoughnessMapUv).g);
+          #endif
+        `)
         .replace(
           '#include <common>',
           `#include <common>
@@ -405,19 +413,20 @@ export class Planet {
           varying vec3 vEarthWorldPos;`,
         )
         .replace(
-          '#include <dithering_fragment>',
-          `#include <dithering_fragment>
+          '#include <opaque_fragment>',
+          `
           {
             vec3 sunDir = normalize(-vEarthWorldPos);
             float dayAmount = dot(normalize(vEarthWorldNormal), sunDir);
             // Smooth terminator transition for city illumination
-            float nightFactor = smoothstep(0.08, -0.16, dayAmount);
+            float nightFactor = (1.0 - smoothstep(-0.16, 0.08, dayAmount));
             if (nightFactor > 0.0) {
               vec3 cityLights = texture2D(uNightMap, vEarthUv).rgb;
               // Warm incandescent glow with slight boost
-              gl_FragColor.rgb += cityLights * vec3(1.35, 1.15, 0.90) * nightFactor * 1.5;
+              outgoingLight += cityLights * nightFactor;
             }
-          }`,
+          }
+          #include <opaque_fragment>`,
         );
     };
     mat.customProgramCacheKey = () => 'earth-night-lights-v2';
@@ -455,7 +464,7 @@ export class Planet {
           uniform vec3 uPlanetPos;`,
         )
         .replace(
-          '#include <dithering_fragment>',
+          '#include <opaque_fragment>',
           `{
             vec3 toSun = normalize(-vRingWorldPos);
             float denom = dot(toSun, uRingNormal);
@@ -556,6 +565,29 @@ export class Planet {
     const angle = L0 + (TWO_PI * daysSinceJ2000) / this.data.orbitalPeriodDays;
     this.bodyGroup.position.set(Math.cos(angle) * orbitR, 0, -Math.sin(angle) * orbitR);
     this.orbitLine.scale.setScalar(orbitR);
+    if (!this.isMoon && orbitPosition(this.data.id, daysSinceJ2000, this.bodyGroup.position)) {
+      this.root.rotation.x = 0;
+      this.bodyGroup.position.multiplyScalar(orbitR / this.data.distanceAU);
+      if (this.orbitGeometryDay !== Math.floor(daysSinceJ2000)) {
+      this.orbitGeometryDay = Math.floor(daysSinceJ2000);
+      const positions = this.orbitLine.geometry.attributes.position;
+      const point = new THREE.Vector3();
+      for (let i = 0; i < positions.count; i++) {
+        orbitPosition(this.data.id, daysSinceJ2000, point, TWO_PI * i / positions.count);
+        point.divideScalar(this.data.distanceAU);
+        positions.setXYZ(i, point.x, point.y, point.z);
+      }
+      positions.needsUpdate = true;
+      this.orbitLine.geometry.computeBoundingSphere();
+      }
+    } else {
+      this.root.rotation.x = THREE.MathUtils.degToRad(this.data.inclinationDeg ?? 0);
+      if (this.orbitGeometryDay !== undefined) {
+        this.orbitGeometryDay = undefined;
+        this.orbitLine.geometry.copy(getCircleGeometry());
+      }
+    }
+
 
     // Daily rotation (Venus/Uranus/Pluto retrograde comes from tilt > 90 deg).
     this.spinGroup.rotation.y =
@@ -563,7 +595,7 @@ export class Planet {
 
     // Clouds drift with differential velocity relative to the planet surface
     if (this.cloudMesh) {
-      this.cloudMesh.rotation.y = this.spinGroup.rotation.y * 1.05 + daysSinceJ2000 * 0.12;
+      this.cloudMesh.rotation.y = daysSinceJ2000 * 0.12;
     }
 
     // Ring shader uniforms (world-space, scale-aware).

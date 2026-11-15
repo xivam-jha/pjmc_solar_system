@@ -46,7 +46,7 @@ class PlanetTextureManager {
 
     return new Promise((resolve) => {
       this.loader.load(
-        path,
+        import.meta.env.BASE_URL + path.replace(/^\//, ''),
         (texture) => {
           texture.colorSpace = isDataMap ? THREE.NoColorSpace : THREE.SRGBColorSpace;
           texture.wrapS = wrapS;

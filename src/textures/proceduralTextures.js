@@ -492,7 +492,7 @@ const textureLoader = new THREE.TextureLoader();
 function loadRealisticTexture(url, { isLinear = false, wrapS = THREE.RepeatWrapping, wrapT = THREE.ClampToEdgeWrapping } = {}) {
   return new Promise((resolve) => {
     textureLoader.load(
-      url,
+      import.meta.env.BASE_URL + url.replace(/^\//, ''),
       (tex) => {
         tex.colorSpace = isLinear ? THREE.NoColorSpace : THREE.SRGBColorSpace;
         tex.wrapS = wrapS;

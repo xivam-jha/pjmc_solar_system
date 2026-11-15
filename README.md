@@ -54,7 +54,7 @@ Requires Node.js ≥ 20.19 (any recent LTS).
 
 The date/time bar shows the current clock in India Standard Time (IST) by default. The simulation starts at real time; the speed presets let you accelerate it. Search planets and moons in English or Hindi, and use the language toggle for the interface.
 
-**Position accuracy note:** this is an educational circular-orbit approximation anchored to J2000 mean-longitude values, not a precision ephemeris. Its positions update with the current date/time, but they should not be used for scientific navigation or exact sky predictions. The textures are procedural visuals, not NASA high-resolution image maps.
+**Position accuracy note:** the eight planets use JPL Table 1 Keplerian elements for 1800–2050 (Earth uses the Earth–Moon barycenter). Outside that interval, and for moons and Pluto, circular-orbit approximations are used, not a precision ephemeris. Its positions update with the current date/time, but they should not be used for scientific navigation or exact sky predictions. Bundled 2K image maps are loaded first, with procedural fallback.
 
 The simulated date is shown in the bottom bar. The info panel (name, type, diameter,
 distance, periods, tilt, moons, and a fact) opens whenever a body is selected.
