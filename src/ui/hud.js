@@ -94,6 +94,24 @@ export function createHUD(app, bodyList) {
 
   // 2. View Controls
   const viewControls = el('div', 'view-controls');
+  viewControls.id = 'universe-view-controls';
+  const menuBtn = button('☰', 'mobile-menu-btn', () => setMobileMenu(!hud.classList.contains('mobile-menu-open')));
+  menuBtn.setAttribute('aria-label', 'Open controls menu');
+  menuBtn.setAttribute('aria-expanded', 'false');
+  menuBtn.setAttribute('aria-controls', viewControls.id);
+  function setMobileMenu(open) {
+    hud.classList.toggle('mobile-menu-open', open);
+    menuBtn.setAttribute('aria-expanded', String(open));
+    menuBtn.setAttribute('aria-label', open ? 'Close controls menu' : 'Open controls menu');
+    menuBtn.textContent = open ? '×' : '☰';
+    if (!open) {
+      hud.querySelector('.body-list')?.classList.remove('open');
+      hud.querySelector('.bodies-toggle')?.classList.remove('active');
+    }
+  }
+  hud.addEventListener('keydown', event => {
+    if (event.key === 'Escape') { setMobileMenu(false); menuBtn.focus(); }
+  });
   const vizBtn = button('VISUALIZATION', 'scale-btn active', () => app.onSetScaleMode('viz'));
   const trueBtn = button('TRUE SCALE', 'scale-btn', () => app.onSetScaleMode('true'));
   const scaleGroup = el('div', 'btn-group');
@@ -132,8 +150,13 @@ export function createHUD(app, bodyList) {
   const exploreBtn = button('🚀 EXPLORE SPACE', 'explore-btn', () => app.onStartExplore?.());
 
   viewControls.append(scaleGroup, orbitsBtn, labelsBtn, freeBtn, resetBtn, qualityBtn, aboutBtn, langBtn, exploreBtn);
-  top.append(title, viewControls);
+  top.append(title, viewControls, menuBtn);
   hud.append(top);
+  const mobileExploreBtn = button('🚀 EXPLORE SPACE', 'mobile-explore-btn', () => {
+    setMobileMenu(false);
+    app.onStartExplore?.();
+  });
+  hud.append(mobileExploreBtn);
 
   // 3. Body Search Panel
   const listWrap = el('aside', 'body-list');
@@ -172,7 +195,7 @@ export function createHUD(app, bodyList) {
     listWrap.classList.toggle('open');
     bodiesToggle.classList.toggle('active', listWrap.classList.contains('open'));
   });
-  hud.append(bodiesToggle);
+  viewControls.append(bodiesToggle);
 
   // 4. Time Controls Bar
   const timeBar = el('footer', 'time-bar');
@@ -229,6 +252,7 @@ export function createHUD(app, bodyList) {
     resetBtn.textContent = translate('RESET VIEW', lang);
     aboutBtn.textContent = translate('ℹ️ ABOUT', lang);
     exploreBtn.textContent = translate('🚀 EXPLORE SPACE', lang);
+    mobileExploreBtn.textContent = translate('🚀 EXPLORE SPACE', lang);
     heading.textContent = translate('BODIES', lang);
     search.placeholder = translate('SEARCH', lang);
     dateLabel.textContent = translate('SIMULATED TIME', lang);
@@ -262,6 +286,7 @@ export function createHUD(app, bodyList) {
   return {
     setVisible(visible) {
       hud.style.display = visible ? '' : 'none';
+      if (!visible) setMobileMenu(false);
     },
     setQuality(mode, tier) {
       currentQualityMode = mode;
