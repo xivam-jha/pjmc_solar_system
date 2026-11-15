@@ -57,3 +57,21 @@ export async function initializeStudentAuth() {
   }
   return true; // A direct public visit remains a guest; never infer an account.
 }
+
+export function requestStudentRecords(action, payload = {}, host = window, timeoutMs = 12000) {
+  if (host.parent === host) return Promise.reject(new Error('Dashboard से गेम खोलें।'));
+  const nonce = base64url(crypto.getRandomValues(new Uint8Array(32)));
+  return new Promise((resolve, reject) => {
+    const cleanup = () => { clearTimeout(timer); host.removeEventListener('message', receive); };
+    const receive = event => {
+      if (event.origin !== DASHBOARD_ORIGIN || event.source !== host.parent ||
+          event.data?.type !== 'pjmc:records-result' || event.data.nonce !== nonce) return;
+      cleanup();
+      if (event.data.error) reject(new Error(event.data.error));
+      else resolve(event.data.result);
+    };
+    const timer = setTimeout(() => { cleanup(); reject(new Error('Online record अभी उपलब्ध नहीं है।')); }, timeoutMs);
+    host.addEventListener('message', receive);
+    host.parent.postMessage({ type: 'pjmc:records', nonce, action, ...payload }, DASHBOARD_ORIGIN);
+  });
+}

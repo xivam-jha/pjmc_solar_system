@@ -4,7 +4,11 @@ import { initializeStudentAuth, receiveDashboardProfile, getAuthenticatedStudent
 import { StudentProgress } from '../src/explorer/StudentProgress.js';
 function fixture() {
   let listener, request;
-  const parent = { postMessage: (data, origin) => { request = { data, origin }; } };
+  const parent = { postMessage: (data, origin) => {
+    if (data.type === 'pjmc:records') {
+      queueMicrotask(() => listener?.({origin:'https://shivamonline.gt.tc',source:parent,data:{type:'pjmc:records-result',nonce:data.nonce,result:{badges:[]}}}));
+    } else request = { data, origin };
+  } };
   const host = { parent, addEventListener: (_, fn) => { listener = fn; }, removeEventListener: () => { listener = null; } };
   return { host, request: () => request, listening: () => !!listener,
     send: (overrides = {}) => listener?.({ origin: 'https://shivamonline.gt.tc', source: parent,
@@ -39,6 +43,7 @@ test('bridge avoids fetch, isolates progress, migrates old sessions and ignores 
     const login = initializeStudentAuth(); f.send(); assert.equal(await login, true);
     assert.equal(getAuthenticatedStudent().id, '17');
     const progress = new StudentProgress(); progress.award('mission_01');
+    await progress.syncOnline();
     assert.equal(progress.data.name, 'Student Seventeen');
     assert.equal(local.has('pjmc_space_pilot_v1:student:17'), true);
     assert.equal(local.has('pjmc_space_pilot_v1'), false);

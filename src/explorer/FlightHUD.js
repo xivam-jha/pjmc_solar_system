@@ -531,6 +531,12 @@ export class FlightHUD {
           }
           const saved = this.progress.award(mission.id);
           feedback.textContent = saved ? `सही जवाब! 3 ★ और ${mission.reward} मिल गया।` : 'सही जवाब! बैज इस सत्र में उपलब्ध है, ब्राउज़र में सेव नहीं हो सका।';
+          if (this.progress.student) {
+            feedback.textContent += ' Online record सेव हो रहा है…';
+            this.progress.syncOnline().then(ok => {
+              feedback.textContent = ok ? 'सही जवाब! आपका online record सेव हो गया। 3 ★' : 'बैज मिला। Online save बाकी है; internet आने पर जवाब फिर दबाएँ या गेम दोबारा खोलें।';
+            });
+          }
           badge.textContent = `★ ★ ★  ${mission.reward}`;
           nextButton.disabled = false;
         });
