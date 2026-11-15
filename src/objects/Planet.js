@@ -476,16 +476,16 @@ export class Planet {
                 if (r > uRingInner && r < uRingOuter) {
                   float u = (r - uRingInner) / (uRingOuter - uRingInner);
                   float a = texture2D(uRingMap, vec2(u, 0.5)).a;
-                  gl_FragColor.rgb *= 1.0 - a * 0.85;
+                  outgoingLight *= 1.0 - a * 0.85;
                 }
               }
             }
           }
-          #include <dithering_fragment>`,
+          #include <opaque_fragment>`,
         );
       self.ringShadowShader = shader;
     };
-    mat.customProgramCacheKey = () => 'standard-ring-shadow-v2';
+    mat.customProgramCacheKey = () => 'standard-ring-shadow-v3';
   }
 
   /**
