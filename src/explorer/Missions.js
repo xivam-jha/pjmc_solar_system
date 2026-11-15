@@ -21,7 +21,7 @@ export const MISSIONS = [
     title: 'Earth to Moon',
     titleHi: 'पृथ्वी से चाँद तक',
     target: 'moon',
-    desc: 'Learn to steer through three gates, then follow the Moon approach and land.',
+    desc: 'Collect PJMC Gold on your approach to the Moon.',
     descHi: 'पृथ्वी के चारों ओर 5 ऑर्बिटल चेकपॉइंट्स को सफलतापूर्वक पार करें।',
     difficulty: 'EASY',
     difficultyHi: 'आसान',
@@ -40,7 +40,7 @@ export const MISSIONS = [
     title: 'Mars Rover Rescue',
     titleHi: 'मंगल अभियान',
     target: 'mars',
-    desc: 'Follow the beacons to find a lost rover on Mars.',
+    desc: 'Collect Gold on the route to the Mars rover.',
     descHi: 'पृथ्वी से मंगल ग्रह की ओर 6 अंतरिक्ष मार्ग चेकपॉइंट्स को पार करें।',
     difficulty: 'MEDIUM',
     difficultyHi: 'मध्यम',
@@ -60,7 +60,7 @@ export const MISSIONS = [
     title: 'Saturn Rings',
     titleHi: 'शनि के छल्ले',
     target: 'saturn',
-    desc: 'Weave through Saturn’s legendary ring system through 7 precision flight rings.',
+    desc: 'Collect seven Gold tokens above Saturn’s rings.',
     descHi: 'शनि ग्रह के शानदार छल्लों के बीच से 7 सटीक रिंग्स को पार करें।',
     difficulty: 'HARD',
     difficultyHi: 'कठिन',
@@ -81,7 +81,7 @@ export const MISSIONS = [
     title: 'Jupiter Photo Expedition',
     titleHi: 'बृहस्पति महायात्रा',
     target: 'jupiter',
-    desc: 'Follow a safe flyby route and photograph Jupiter. Look for its Great Red Spot.',
+    desc: 'Collect Gold near Jupiter and take a photo.',
     descHi: 'विशालकाय बृहस्पति ग्रह के चारों ओर तीव्र गति से 6 चेकपॉइंट्स पूरे करें।',
     difficulty: 'EXPERT',
     difficultyHi: 'विशेषज्ञ',
@@ -118,7 +118,7 @@ export class MissionManager {
     this.activeWaypointIndex = 0;
     this.checkpointMeshes = [];
     this.group = new THREE.Group();
-    this.group.name = 'PJMC_Checkpoints_Group';
+    this.group.name = 'PJMC_Gold_Collectibles';
     this.scene.add(this.group);
 
     this.tempV1 = new THREE.Vector3();
@@ -128,35 +128,36 @@ export class MissionManager {
     this.onWaypointComplete = null;
     this.onMissionComplete = null;
 
-    // Shared geometry for checkpoint rings (optimized for 0.28 scale rocket)
-    this.ringGeom = new THREE.TorusGeometry(0.85, 0.045, 12, 36);
-    this.outerRingGeom = new THREE.TorusGeometry(0.98, 0.02, 8, 36);
-
-    // Active & inactive ring materials
-    this.activeMat = new THREE.MeshBasicMaterial({
-      color: 0x00f0ff,
-      transparent: true,
-      opacity: 0.95,
-      blending: THREE.AdditiveBlending,
-    });
-    this.activeOuterMat = new THREE.MeshBasicMaterial({
-      color: 0xffee55,
-      transparent: true,
-      opacity: 0.85,
-      blending: THREE.AdditiveBlending,
-    });
-    this.inactiveMat = new THREE.MeshBasicMaterial({
-      color: 0x0077aa,
-      transparent: true,
-      opacity: 0.35,
-      blending: THREE.AdditiveBlending,
-    });
+    this.ringGeom = new THREE.CylinderGeometry(.72, .72, .16, 40);
+    this.ringGeom.rotateX(Math.PI / 2);
+    this.outerRingGeom = new THREE.TorusGeometry(.69, .025, 6, 40);
+    this.activeMat = new THREE.MeshStandardMaterial({color:0xeec36b,metalness:.65,roughness:.28,emissive:0x8a571a,emissiveIntensity:.4});
+    this.activeOuterMat = new THREE.MeshBasicMaterial({color:0xffe4a1});
+    this.inactiveMat = new THREE.MeshStandardMaterial({color:0x9d793b,metalness:.45,roughness:.5,emissive:0x38240b,emissiveIntensity:.4});
+    this.coinFaceGeometry = new THREE.CircleGeometry(.62, 40);
+    this.coinTexture = this.createGoldTexture();
+    this.coinFaceMaterial = new THREE.MeshBasicMaterial({map:this.coinTexture,color:0xffe5a0,side:THREE.DoubleSide});
 
     // Particle burst on passing checkpoint
     this.burstMesh = this.createBurstSystem();
     this.group.add(this.burstMesh);
     this.burstActive = false;
     this.burstTimer = 0;
+  }
+
+  createGoldTexture() {
+    if (typeof document === 'undefined') return null;
+    const canvas = document.createElement('canvas'); canvas.width = canvas.height = 256;
+    const ctx = canvas.getContext('2d'); if (!ctx) return null;
+    const gradient = ctx.createLinearGradient(0,0,256,256);
+    gradient.addColorStop(0,'#fff0bc'); gradient.addColorStop(.5,'#cc9c45'); gradient.addColorStop(1,'#f5d78b');
+    ctx.fillStyle=gradient; ctx.fillRect(0,0,256,256);
+    ctx.strokeStyle='#846022'; ctx.lineWidth=3; ctx.beginPath();ctx.arc(128,128,115,0,Math.PI*2);ctx.stroke();
+    ctx.lineWidth=1;ctx.beginPath();ctx.arc(128,128,104,0,Math.PI*2);ctx.stroke();
+    ctx.textAlign='center';ctx.fillStyle='#694515';ctx.font='bold 49px sans-serif';ctx.fillText('PJMC',128,137);
+    ctx.font='bold 21px sans-serif';ctx.fillText('G O L D',128,174);
+    ctx.font='26px sans-serif';ctx.fillText('✦',128,83);
+    const texture = new THREE.CanvasTexture(canvas); texture.colorSpace=THREE.SRGBColorSpace; return texture;
   }
 
   createBurstSystem() {
@@ -182,14 +183,17 @@ export class MissionManager {
     geom.userData = { vel, count, basePos: new THREE.Vector3() };
 
     const mat = new THREE.PointsMaterial({
-      color: 0x00ffff,
-      size: 0.35,
+      color: 0xffd37c,
+      size: 0.09,
       transparent: true,
       opacity: 0,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
     });
 
+    mat.onBeforeCompile = shader => {
+      shader.fragmentShader = shader.fragmentShader.replace('#include <clipping_planes_fragment>', '#include <clipping_planes_fragment>\nif (distance(gl_PointCoord, vec2(0.5)) > 0.5) discard;');
+    };
     const mesh = new THREE.Points(geom, mat);
     mesh.visible = false;
     return mesh;
@@ -231,6 +235,8 @@ export class MissionManager {
     this.activeMission = mission;
     this.activeWaypointIndex = 0;
     this.elapsedSeconds = 0;
+    this.burstActive = false;
+    this.burstMesh.visible = false;
     this.previousRocketPos = null;
     this.route = null;
 
@@ -253,16 +259,19 @@ export class MissionManager {
     const total = this.activeMission.waypoints.length;
     for (let i = 0; i < total; i++) {
       const ringGroup = new THREE.Group();
-      ringGroup.name = `Checkpoint_${i}`;
+      ringGroup.name = `PJMC_Gold_${i}`;
 
       const inner = new THREE.Mesh(this.ringGeom, i === 0 ? this.activeMat : this.inactiveMat);
       const outer = new THREE.Mesh(this.outerRingGeom, i === 0 ? this.activeOuterMat : this.inactiveMat);
       ringGroup.add(inner);
       ringGroup.add(outer);
+      outer.position.z = .09;
+      const front = new THREE.Mesh(this.coinFaceGeometry, this.coinFaceMaterial);front.position.z=.085;
+      const back = new THREE.Mesh(this.coinFaceGeometry, this.coinFaceMaterial);back.position.z=-.085;back.rotation.y=Math.PI;
+      ringGroup.add(front,back);
 
       // Light directional beacon
-      const beaconLight = new THREE.PointLight(0x00f0ff, i === 0 ? 1.5 : 0.2, 8, 2);
-      ringGroup.add(beaconLight);
+      const beaconLight = { intensity: 0 }; // No per-token lights on mobile.
 
       ringGroup.userData = {
         index: i,
@@ -298,17 +307,11 @@ export class MissionManager {
     this.route = [];
     for (let i = 0; i < count; i++) {
       let point;
-      if (target === 'saturn' || target === 'jupiter') {
-        const angle = (i / count) * Math.PI * 1.6;
-        const orbitRadius = radius * (target === 'saturn' ? 2.6 : 1.7) + 2;
-        point = new THREE.Vector3(Math.cos(angle) * orbitRadius, 2, Math.sin(angle) * orbitRadius);
-        point.applyQuaternion(entry.body.tiltGroup.getWorldQuaternion(new THREE.Quaternion())).add(center);
-      } else if (i < 3) {
-        point = start.clone().addScaledVector(forward, (i + 1) * 2.5);
-      } else {
-        const approach = start.clone().sub(center).normalize();
-        point = center.clone().addScaledVector(approach, radius + 2 + (count - 1 - i) * 2.5);
-      }
+      const approach = center.clone().add(new THREE.Vector3(0, radius + (target === 'saturn' ? 5 : 3), 0));
+      const fraction = (i + 1) / count;
+      point = start.clone().lerp(approach, fraction);
+      // Small side-to-side movement while staying above the planetary plane.
+      point.x += Math.sin(fraction * Math.PI * 2) * 2;
       // Keep every gate outside solid bodies, including the Sun and moons.
       for (const body of this.planetRegistry.values()) {
         const bodyPos = body.surfaceMesh.getWorldPosition(new THREE.Vector3());
@@ -360,7 +363,7 @@ export class MissionManager {
 
       // Rotate ring slowly for sci-fi look
       mesh.rotation.y += dt * 0.8;
-      mesh.rotation.z += dt * 0.4;
+      mesh.rotation.z = Math.sin(this.pulseTime * .7 + i) * .12;
 
       const isActive = i === currentIdx;
       const isPast = i < currentIdx;
@@ -372,7 +375,7 @@ export class MissionManager {
         mesh.scale.set(pulseScale, pulseScale, pulseScale);
         mesh.userData.inner.material = this.activeMat;
         mesh.userData.outer.material = this.activeOuterMat;
-        mesh.userData.light.intensity = 2.0;
+        mesh.userData.light.intensity = 0;
 
         // Check if rocket entered checkpoint radius (radius ~ 1.35)
         const segment = new THREE.Line3(this.previousRocketPos || rocketPos, rocketPos);
@@ -388,7 +391,7 @@ export class MissionManager {
         mesh.scale.set(1, 1, 1);
         mesh.userData.inner.material = this.inactiveMat;
         mesh.userData.outer.material = this.inactiveMat;
-        mesh.userData.light.intensity = 0.2;
+        mesh.userData.light.intensity = 0;
       }
     }
     this.previousRocketPos = rocketPos.clone();
@@ -415,7 +418,7 @@ export class MissionManager {
   }
 
   getActiveWaypointPosition(out) {
-    if (!this.activeMission || !this.activeMission.waypoints.length) {
+    if (!this.activeMission || !this.activeMission.waypoints.length || this.activeWaypointIndex >= this.activeMission.waypoints.length) {
       out.set(0, 0, 0);
       return false;
     }
@@ -445,6 +448,8 @@ export class MissionManager {
       this.burstMesh.geometry.dispose();
       this.burstMesh.material.dispose();
     }
+    this.ringGeom.dispose(); this.outerRingGeom.dispose(); this.coinFaceGeometry.dispose();
+    this.activeMat.dispose(); this.activeOuterMat.dispose(); this.inactiveMat.dispose(); this.coinFaceMaterial.dispose(); this.coinTexture?.dispose();
     this.scene.remove(this.group);
   }
 }

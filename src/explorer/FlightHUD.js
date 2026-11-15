@@ -15,6 +15,8 @@ import { LESSONS } from './StudentProgress.js';
 import { MISSIONS } from './Missions.js';
 import { BRAND, getMonogramSvg } from '../config/brand.js';
 
+const ASSET_BASE = import.meta.env?.BASE_URL || '/';
+
 export class FlightHUD {
   constructor(callbacks = {}) {
     this.callbacks = callbacks;
@@ -89,7 +91,7 @@ export class FlightHUD {
             <span class="pjmc-dist-val" id="pjmc-hud-dist">0 KM</span>
           </div>
           <div class="pjmc-waypoint-row" id="pjmc-hud-wp-row">
-            <span class="pjmc-label-dim">GATE:</span>
+            <span class="pjmc-label-dim gold-label">PJMC GOLD</span>
             <span class="pjmc-wp-val" id="pjmc-hud-wp">1/5</span>
           </div>
         </div>
@@ -163,16 +165,18 @@ export class FlightHUD {
     const cardsHtml = MISSIONS.map(
       (m) => `
       <div class="pjmc-mission-card ${m.id === 'mission_01' ? 'active-card' : ''}" data-id="${m.id}">
+        <span class="mission-planet planet-${m.target}" style="background-image:url('${ASSET_BASE}textures/${m.target}.jpg')" aria-hidden="true"></span>
         <div class="pjmc-card-header">
-          <span class="pjmc-card-num">PJMC ${m.num}</span>
+          <span class="pjmc-card-num">${m.num}</span>
           <span class="pjmc-card-diff diff-${m.difficulty.toLowerCase()}">${m.difficulty}</span>
         </div>
         <h3 class="pjmc-card-title">${m.title}</h3>
-        <p class="pjmc-card-desc">${m.desc}</p>
+        <p class="pjmc-card-desc">${m.waypoints.length ? m.waypoints.length + ' PJMC Gold' : 'Fly anywhere'}</p>
+        <span class="mission-status"></span>
         <div class="pjmc-card-reward">
           <span class="pjmc-badge-icon">🎖</span> ${m.reward}
         </div>
-        <button type="button" class="pjmc-select-mission-btn" data-id="${m.id}">
+        <button type="button" class="pjmc-select-mission-btn" data-id="${m.id}" aria-label="Select ${m.title}">
           SELECT MISSION
         </button>
       </div>
@@ -186,15 +190,15 @@ export class FlightHUD {
           <div class="pjmc-title-group" style="display: flex; align-items: center; gap: 12px;">
             ${getMonogramSvg(38, 'pjmc-mission-head-logo')}
             <div>
-              <span class="pjmc-sub-title">${BRAND.institute}</span>
-              <h2 class="pjmc-modal-title">PJMC STUDENT SPACE MISSION CONTROL</h2>
-              <span class="pjmc-mission-briefing-label">MISSION BRIEFING • LEARN • EXPLORE • DISCOVER</span>
+              <span class="pjmc-sub-title">PJMC SPACE EXPLORERS</span>
+              <h2 class="pjmc-modal-title">Choose your mission</h2>
+              <span class="pjmc-mission-briefing-label">Collect Gold. Discover more.</span>
             </div>
           </div>
           <button type="button" class="pjmc-modal-close-btn" id="pjmc-mission-close">✕</button>
         </div>
 
-        <label class="student-pilot-name">Pilot name <input id="student-pilot-name" maxlength="24" placeholder="Your name" /></label>
+        <label class="student-pilot-name"><span>PILOT</span> <input id="student-pilot-name" maxlength="24" placeholder="Your name" /></label>
         <p id="student-progress-summary"></p>
         <div class="pjmc-mission-grid">
           ${cardsHtml}
@@ -202,10 +206,10 @@ export class FlightHUD {
 
         <div class="pjmc-modal-footer">
           <button type="button" class="pjmc-btn-secondary" id="pjmc-back-to-solar">
-            ← BACK TO SOLAR SYSTEM
+            ← Back
           </button>
           <button type="button" class="pjmc-btn-primary" id="pjmc-launch-btn">
-            🚀 LAUNCH ${BRAND.spacecraft}
+            Launch mission ↗
           </button>
         </div>
         <div class="pjmc-mission-footer-signature">A LEARNING EXPERIENCE BY PAWAN JHA MATHEMATICS CLASSES</div>
@@ -229,8 +233,9 @@ export class FlightHUD {
     cards.forEach((card) => {
       card.addEventListener('click', () => {
         if (card.dataset.locked === 'true') return;
-        cards.forEach((c) => c.classList.remove('active-card'));
+        cards.forEach((c) => { c.classList.remove('active-card'); c.querySelector('button').setAttribute('aria-pressed','false'); });
         card.classList.add('active-card');
+        card.querySelector('button').setAttribute('aria-pressed','true');
         selectedMissionId = card.dataset.id;
       });
     });
@@ -260,7 +265,7 @@ export class FlightHUD {
           ${getMonogramSvg(30, 'pjmc-pause-head-logo')}
           <div>
             <span class="pjmc-sub-title">${BRAND.institute}</span>
-            <h2 class="pjmc-modal-title">${BRAND.name} • FLIGHT PAUSED</h2>
+            <h2 class="pjmc-modal-title">Flight paused</h2>
           </div>
         </div>
 
@@ -473,22 +478,26 @@ export class FlightHUD {
   }
 
   openMissionModal() {
-    this.missionModalEl.querySelector('#student-progress-summary').textContent = `${this.progress.stars} ★ • मिशन पूरा करके नए सफ़र और जेट के रंग खोलें`;
+    this.missionModalEl.querySelector('#student-progress-summary').textContent = `${this.progress.stars} ★ / 12 • ${Object.keys(this.progress.data.badges).length}/4 missions complete`;
     this.missionModalEl.querySelectorAll('.pjmc-mission-card').forEach((card, index) => {
       const unlocked = this.progress.unlocked(index);
       card.dataset.locked = String(!unlocked);
       const button = card.querySelector('button');
       button.disabled = !unlocked;
-      button.textContent = unlocked ? 'SELECT MISSION' : 'पहला मिशन पूरा करें';
+      button.textContent = unlocked ? 'Select mission' : 'Locked';
+      button.setAttribute('aria-pressed', String(card.classList.contains('active-card')));
+      card.querySelector('.mission-status').textContent = this.progress.data.badges[card.dataset.id] ? '✓ Completed' : unlocked ? 'Ready to fly' : '🔒 Locked';
     });
     this.show();
     this.missionModalEl.style.display = 'flex';
+    if (window.parent !== window) window.parent.postMessage({type:'pjmc:overlay',open:true},'https://shivamonline.gt.tc');
     this.telemetryEl.style.display = 'none';
     this.navArrowEl.style.display = 'none';
   }
 
   closeMissionModal() {
     this.missionModalEl.style.display = 'none';
+    if (window.parent !== window) window.parent.postMessage({type:'pjmc:overlay',open:false},'https://shivamonline.gt.tc');
     this.telemetryEl.style.display = 'flex';
   }
 

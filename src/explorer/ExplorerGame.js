@@ -15,6 +15,7 @@
  */
 
 import * as THREE from 'three';
+import { safeAboveSystem, clearOfBodies, recoverOutsideBodies } from './FlightSafety.js';
 import { Rocket } from './Rocket.js';
 import { FlightControls } from './FlightControls.js';
 import { AudioSystem } from './AudioSystem.js';
@@ -326,25 +327,13 @@ export class ExplorerGame {
     this.hud.closeMissionModal();
     this.createRover();
 
-    // Find launch base position on Earth
-    const earthPos = this.tempV1;
-    this.missions.getPlanetWorldPos('earth', earthPos);
-
-    this.state = GAME_STATE.LAUNCHING;
-    this.controls.hide();
-
-    // Start cinematic launch on Earth surface
-    this.launchSeq.start(
-      earthPos,
-      (rocketPos, rocketRot) => {
-        // Launch finished: transition seamlessly into space flight!
-        this.startSpaceFlight(rocketPos, rocketRot);
-      },
-      () => {
-        // Skip intro clicked: place spacecraft directly in realistic Low Earth Orbit
-        this.launchSeq.finish();
-      }
-    );
+    // Begin above the orbital plane instead of the sun-facing Earth launchpad.
+    const start = safeAboveSystem(this.planetRegistry);
+    const target = this.missions.getPlanetWorldPos(this.activeMission.target, new THREE.Vector3());
+    const radius = this.planetRegistry.get(this.activeMission.target)?.body?.radiusWorld || 2;
+    target.y += radius + 4;
+    this.rocket.teleport(start, target);
+    this.startSpaceFlight(start, this.rocket.quaternion.clone());
   }
 
   startSpaceFlight(startPos, startRot) {
@@ -404,6 +393,7 @@ export class ExplorerGame {
     this.controls.show();
     this.safePosition.copy(this.rocket.position);
     this.safeRotation.copy(this.rocket.quaternion);
+    this.safeSampleTimer = 0;
     this.missions.prepareRoute(this.rocket.position, this.rocket.getForwardVector(new THREE.Vector3()));
     this.hud.show();
     this.hud.showTip('Joystick से दिशा बदलें • SPEED + दबाकर उड़ें • BRAKE से रुकें');
@@ -584,8 +574,9 @@ export class ExplorerGame {
   handleWaypointHit(current, total) {
     this.safePosition.copy(this.rocket.position);
     this.safeRotation.copy(this.rocket.quaternion);
+    this.safeSampleTimer = 0;
     this.audio.playCheckpointChime(current, total);
-    this.hud.showTip(`गेट ${current}/${total} पूरा! अगला चमकता गेट खोजें।`);
+    this.hud.showTip(`PJMC GOLD +1 • ${current}/${total} collected`);
   }
 
   handleMissionSuccess({ mission, elapsedSeconds }) {
@@ -766,6 +757,7 @@ export class ExplorerGame {
       this.rocket.position.addScaledVector(pull, (distFromOrigin - 250) * dt * 2.0);
     }
 
+    let recovered = false;
     // Soft planetary atmospheric barrier: prevent clipping inside planets
     for (const [id, entry] of this.planetRegistry) {
 
@@ -775,6 +767,7 @@ export class ExplorerGame {
       const baseR = entry.body?.radiusWorld || entry.surfaceMesh.getWorldScale(new THREE.Vector3()).x;
       const minAltitude = baseR + 0.35;
       if (dist < minAltitude) {
+        this.safePosition.copy(recoverOutsideBodies(this.safePosition, this.planetRegistry));
         this.rocket.position.copy(this.safePosition);
         this.rocket.quaternion.copy(this.safeRotation);
         this.velocity.set(0, 0, 0);
@@ -785,10 +778,20 @@ export class ExplorerGame {
         this.controls.input.boost = false;
         this.controls.keys.clear();
         this.isBoosting = false;
-        this.hud.showTip('सुरक्षित गेट पर वापस आ गए। SPEED बढ़ाकर फिर कोशिश करें।');
+        this.requestedThrottle = 0;
+        this.enginePower = 0;
+        recovered = true;
+        this.hud.showTip('आप सुरक्षित हैं। आपका Gold बचा है—दिशा बदलकर आगे बढ़ें।');
         this.camCurrentPos.copy(this.safePosition).add(new THREE.Vector3(0, 1, -3).applyQuaternion(this.safeRotation));
         break;
       }
+    }
+
+    this.safeSampleTimer = (this.safeSampleTimer || 0) + dt;
+    if (!recovered && this.safeSampleTimer >= .25 && clearOfBodies(this.rocket.position, this.planetRegistry, 3)) {
+      this.safePosition.copy(this.rocket.position);
+      this.safeRotation.copy(this.rocket.quaternion);
+      this.safeSampleTimer = 0;
     }
 
     // 8. Update rocket flame animation and boost intensity based directly on engine power (NOT flightSpeed)
@@ -872,7 +875,7 @@ export class ExplorerGame {
       missionTitle: this.activeMission?.title || 'EXPLORATION',
       targetName: targetId,
       targetDistance: distToPlanet, // Game world units
-      waypointCurrent: progress.current + 1,
+      waypointCurrent: progress.current,
       waypointTotal: progress.total,
       isFreeFlight: isFree,
     });

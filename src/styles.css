@@ -2493,3 +2493,88 @@ body {
   .hud .pjmc-global-footer { display: none; }
 }
 @media (max-width: 360px) { .hud .pjmc-brand-main { font-size: 9px; letter-spacing: 0; } .hud .pjmc-nav-logo { width: 23px; height: 23px; } .hud .mobile-explore-btn { min-width: 174px; font-size: 13px; } }
+
+/* Shared glass surface system: translucent, readable, and quiet highlights. */
+:root {
+  --glass-panel: linear-gradient(145deg,rgba(49,64,80,.68),rgba(10,20,34,.76));
+  --glass-border: rgba(226,239,255,.2);
+  --glass-shadow: 0 20px 60px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.12);
+  --panel: rgba(21,34,50,.68); --line: rgba(220,235,255,.18); --text-dim: #b1bfce;
+}
+.hud-btn, .pjmc-hud-btn, .pjmc-btn-secondary, .pjmc-modal-close-btn, .pjmc-setting-btn,
+.flight-setting-toggle, .pjmc-select-mission-btn, .student-flight-pedal {
+  background: rgba(58,78,99,.28); border: 1px solid var(--glass-border); color: #eaf1f8;
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); box-shadow: inset 0 1px 0 #ffffff0c;
+  border-radius: 10px; text-shadow: none;
+}
+.pjmc-modal-window, .pjmc-settings-window, .flight-settings-panel, .body-list, .info-panel,
+.pjmc-telemetry-bar, .pjmc-portrait-hint, .student-flight-tip, .pjmc-nav-pointer,
+.hud.mobile-menu-open .view-controls, .hud.mobile-menu-open .time-bar, .loading-box {
+  background: var(--glass-panel); border: 1px solid var(--glass-border);
+  backdrop-filter: blur(22px) saturate(125%); -webkit-backdrop-filter: blur(22px) saturate(125%);
+  box-shadow: var(--glass-shadow); border-radius: 18px; color: #eaf1f8;
+}
+.pjmc-modal, .pjmc-settings-window, .flight-settings-panel { font-family: system-ui,-apple-system,'Segoe UI',sans-serif; }
+.pjmc-modal-backdrop { background: rgba(3,9,18,.42); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+.pjmc-modal-window { padding: 24px; gap: 16px; }
+.pjmc-modal-title { font-family: system-ui,sans-serif; font-size: 22px; font-weight: 600; letter-spacing: -.04em; text-shadow: none; }
+.pjmc-sub-title { color: #c6b994; font-size: 9px; letter-spacing: .15em; }
+.pjmc-modal-header { border-bottom-color: #ffffff15; }
+.pjmc-btn-primary, .hud .mobile-explore-btn { background: linear-gradient(135deg,rgba(243,219,164,.9),rgba(194,160,100,.86)); border: 1px solid #fff2ca70; color: #25231e; box-shadow: inset 0 1px 0 #fff6,0 5px 24px #0003; backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); text-shadow:none; border-radius:12px; font-family:system-ui,sans-serif;letter-spacing:.02em; }
+.pjmc-btn-primary:hover { background: rgba(245,221,173,.96);color:#25231e;box-shadow:0 6px 25px #0003; }
+.pjmc-modal button:focus-visible, .hud button:focus-visible { outline:2px solid #f2d49a;outline-offset:3px; }
+.pjmc-portrait-hint { font-family:system-ui,sans-serif;font-size:12px; }
+.pjmc-joystick-base, .pjmc-joystick-knob { background-color:rgba(30,55,73,.38);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px); }
+.pjmc-about-banner, .student-badges, .pjmc-stat-box { background:rgba(255,255,255,.04);border-color:var(--glass-border); }
+.gold-label { color:#f1d29a!important; }
+/* Mission selection fits five compact cards instead of a tall brochure. */
+.pjmc-mission-select-modal .pjmc-modal-window { width:min(620px,calc(100% - 24px)); max-height:calc(100dvh - 28px); gap:12px; padding:22px; overflow:hidden; }
+.pjmc-mission-select-modal .pjmc-title-group { flex-direction:row; }
+.pjmc-mission-select-modal .pjmc-mission-briefing-label { color:#aab9ca;font:11px system-ui;letter-spacing:.02em; }
+.pjmc-mission-select-modal .pjmc-modal-header { padding-bottom:12px;flex-shrink:0; }
+.pjmc-mission-select-modal .pjmc-modal-title { font-size:23px;line-height:1.3; }
+.pjmc-mission-select-modal .student-pilot-name { display:flex;align-items:center;gap:12px;font:10px system-ui;color:#aebdcd;letter-spacing:.1em; }
+.pjmc-mission-select-modal .student-pilot-name input { flex:1;min-width:0;width:auto;padding:7px 10px;border-radius:8px;background:#ffffff06;border:1px solid #ffffff12;font:13px system-ui;color:#f3f6fa; }
+#student-progress-summary { margin:0;font:11px/1.4 system-ui;color:#d9c496; }
+.pjmc-mission-grid { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:0;min-height:0;overflow:auto;padding:2px; }
+.pjmc-mission-card { min-width:0;position:relative;min-height:116px;padding:13px;gap:5px;border:1px solid #ffffff1c;border-radius:13px;background:linear-gradient(120deg,#ffffff0e,#ffffff03);box-shadow:inset 0 1px 0 #ffffff09;transition:border-color .15s,background .15s; }
+.pjmc-mission-card:hover { transform:none;background:#ffffff12;border-color:#ffffff40;box-shadow:none; }
+.pjmc-mission-card.active-card { border-color:#dfc28a;background:linear-gradient(120deg,#e4c28a18,#ffffff06);box-shadow:inset 0 0 0 1px #e4c28a26; }
+.pjmc-mission-card[data-locked="true"] { opacity:.6; }
+.pjmc-card-header { justify-content:flex-start;gap:6px; }
+.pjmc-card-num { color:#a4b6c8;font:10px system-ui; }
+.pjmc-card-diff { font:8px system-ui;background:#ffffff0c;color:#becbda;border-radius:4px;padding:2px 5px;letter-spacing:.02em; }
+.pjmc-card-title { font:600 14px/1.25 system-ui;letter-spacing:-.02em;max-width:calc(100% - 30px); }
+.pjmc-card-desc { font:11px/1.4 system-ui;color:#d0bd94;flex-grow:0; }
+.mission-status { font:9px system-ui;color:#9fb4c8; }
+.pjmc-card-reward { display:none; }
+.pjmc-mission-card .pjmc-select-mission-btn { position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:pointer;border-radius:13px; }
+.pjmc-mission-card:focus-within { outline:2px solid #f2d49a;outline-offset:2px; }
+.mission-planet { position:absolute;right:12px;top:13px;width:32px;height:32px;border-radius:50%;background-size:auto 100%;box-shadow:inset -10px -3px 12px #000b,0 4px 15px #0004;pointer-events:none; }
+.pjmc-mission-card[data-id="free_flight"] { grid-column:1/-1;min-height:77px; }
+.pjmc-mission-select-modal .pjmc-modal-footer { display:flex;flex-direction:row;gap:10px;padding-top:10px;border-top:1px solid #ffffff15;margin:0;flex-shrink:0; }
+.pjmc-mission-select-modal .pjmc-modal-footer button { min-height:44px;padding:10px 14px;font:600 12px system-ui;letter-spacing:.01em; }
+.pjmc-mission-select-modal #pjmc-launch-btn { flex:1; }
+.pjmc-mission-footer-signature { display:none; }
+@media(max-width:520px) {
+ .pjmc-mission-select-modal .pjmc-modal-window { padding:16px;gap:10px; }
+ .pjmc-mission-select-modal .pjmc-modal-title { font-size:19px; }
+ .pjmc-mission-head-logo { width:29px;height:29px; }
+ .pjmc-mission-select-modal .pjmc-sub-title { font-size:8px; }
+ .pjmc-mission-grid { gap:8px; }
+ .pjmc-mission-card { padding:11px;min-height:110px; }
+ .pjmc-card-title { font-size:12px; }
+ .mission-planet { width:26px;height:26px;right:9px;top:10px; }
+ .pjmc-mission-card[data-id="free_flight"] { min-height:72px; }
+ .pjmc-modal-window { border-radius:16px; }
+}
+@media(max-height:540px) { .pjmc-mission-select-modal .pjmc-modal-window { gap:7px;padding:12px; }.pjmc-mission-grid { grid-template-columns:repeat(3,minmax(0,1fr)); }.pjmc-mission-card[data-id="free_flight"]{grid-column:auto;}.pjmc-mission-select-modal .pjmc-mission-briefing-label{display:none;} }
+@supports not (backdrop-filter:blur(1px)) { .pjmc-modal-window,.pjmc-telemetry-bar,.body-list,.info-panel { background:rgba(16,29,45,.96); } }
+@media(prefers-reduced-transparency:reduce) { .pjmc-modal-window,.pjmc-telemetry-bar,.body-list,.info-panel { background:#142236;backdrop-filter:none; } }
+.hud .mobile-menu-btn, .pjmc-controls-root .pjmc-action-btn, .pjmc-pause-btn { background:linear-gradient(145deg,#52677e50,#14233899);border:1px solid #e2efff33;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:inset 0 1px 0 #ffffff14; }
+.pjmc-controls-root .accelerate-btn { border-color:#80d8bd66;color:#b0f4dd; }
+.pjmc-controls-root .brake-btn { border-color:#e898a266;color:#ffd0d6; }
+.pjmc-mission-select-modal .student-pilot-name { padding:0;flex-shrink:0; }
+.hud .explore-btn { background:linear-gradient(135deg,#f3dba4d9,#c2a064c9);border:1px solid #fff2ca70;color:#25231e;box-shadow:inset 0 1px 0 #fff4; }
+.pjmc-about-card,.pjmc-pause-option,.flight-setting-item { background:#ffffff06;border-color:#ffffff18; }
+.pjmc-mission-select-modal .pjmc-modal-window { isolation:isolate; }
