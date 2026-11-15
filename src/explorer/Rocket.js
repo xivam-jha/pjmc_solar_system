@@ -148,15 +148,16 @@ export class Rocket {
 
   setPaint(color) {
     this.paintMaterial.color.set(color);
+    this.paintMaterial.emissive.set(color);
     const tint = color === '#ecf2f8' ? '#00d4ff' : color;
     this.engineLight.color.set(tint);
     this.flameMaterial.uniforms.uTint.value.set(tint);
   }
 
   #buildMesh() {
-    const pearl = new THREE.MeshPhysicalMaterial({color:0xecf2f8,metalness:.28,roughness:.3,clearcoat:.55,clearcoatRoughness:.22});
-    const gold = new THREE.MeshStandardMaterial({color:0xd7ae63,metalness:.72,roughness:.3});
-    const graphite = new THREE.MeshStandardMaterial({color:0x252c36,metalness:.48,roughness:.38});
+    const pearl = new THREE.MeshPhysicalMaterial({color:0xf5f8fc,metalness:.16,roughness:.38,clearcoat:.45,clearcoatRoughness:.25,emissive:0xecf2f8,emissiveIntensity:.42});
+    const gold = new THREE.MeshStandardMaterial({color:0xf2c76e,metalness:.48,roughness:.36,emissive:0xc18b36,emissiveIntensity:.32});
+    const graphite = new THREE.MeshStandardMaterial({color:0x455365,metalness:.3,roughness:.46,emissive:0x34485d,emissiveIntensity:.3});
     const glass = new THREE.MeshPhysicalMaterial({color:0x326986,metalness:.15,roughness:.12,clearcoat:1,transparent:true,opacity:.72,depthWrite:false});
     const cyan = new THREE.MeshBasicMaterial({color:0x53dce8,toneMapped:false});
     this.paintMaterial = pearl;
@@ -168,12 +169,18 @@ export class Rocket {
     const hullGeo=new THREE.LatheGeometry(profile.map(([z,r])=>new THREE.Vector2(r,z)),40);
     hullGeo.rotateX(Math.PI/2);hullGeo.scale(1,.78,1);
     add('Pearl ceramic fuselage',hullGeo,pearl);
+    // LatheGeometry leaves the rear profile ring open. Seal it with an opaque
+    // elliptical bulkhead so background planets cannot show between the engines.
+    const rearCap=add('Opaque rear bulkhead',new THREE.CircleGeometry(.625,40),pearl,0,0,-2.655);
+    rearCap.scale.y=.78;rearCap.rotation.y=Math.PI;
     const noseGeo=new THREE.LatheGeometry([[2.65,.46],[2.95,.29],[3.2,.08],[3.26,0]].map(([z,r])=>new THREE.Vector2(r,z)),32);
     noseGeo.rotateX(Math.PI/2);noseGeo.scale(1,.79,1);add('Graphite nose cap',noseGeo,graphite);
     const band=add('Gold nose collar',new THREE.TorusGeometry(.46,.055,8,40),gold,0,0,2.66);band.scale.y=.79;
     // Cockpit rim and a curved smoked-glass dome with visible seat backs.
     const rimGeo=new THREE.SphereGeometry(1,28,14,0,Math.PI*2,0,Math.PI/2);rimGeo.scale(.65,.17,1.16);
     add('Cockpit graphite frame',rimGeo,graphite,0,.59,1.04);
+    const floor=add('Opaque cockpit floor',new THREE.CircleGeometry(1,32),graphite,0,.68,1.04);
+    floor.rotation.x=-Math.PI/2;floor.scale.set(.61,1.1,1);
     for(const x of [-.22,.22]) {
       const seat=add('Cockpit seat',new THREE.BoxGeometry(.27,.43,.24),graphite,x,.88,.83);seat.rotation.x=-.14;
     }

@@ -29,3 +29,19 @@ test('concept spacecraft retains flight, camera and throttle contracts with boun
  assert.ok(rocket.getCockpitPosition(new THREE.Vector3()).toArray().every(Number.isFinite));
  rocket.dispose();assert.equal(rocket.root.children.length,0);
 });
+
+test('rear hull blocks background sightlines and hull stays lit without engine power',()=>{
+ const rocket=new Rocket();rocket.root.updateMatrixWorld(true);
+ const rear=rocket.model.getObjectByName('Opaque rear bulkhead');
+ assert.equal(rear.material.transparent,false);assert.equal(rear.material.depthWrite,true);
+ const ray=new THREE.Raycaster(new THREE.Vector3(0,0,-2),new THREE.Vector3(0,0,1));
+ assert.ok(ray.intersectObject(rear).length>0,'center sightline between engines must hit the sealed hull');
+ const floor=rocket.model.getObjectByName('Opaque cockpit floor');
+ assert.equal(floor.material.transparent,false);
+ rocket.update(.016,0);
+ assert.equal(rocket.engineLight.visible,false);
+ assert.ok(rocket.paintMaterial.emissiveIntensity>=.4);
+ assert.ok(rocket.model.getObjectByName('Brushed gold exhaust rim 1').material.emissiveIntensity>0);
+ rocket.setPaint('#f4b942');assert.equal(rocket.paintMaterial.emissive.getHexString(),'f4b942');
+ rocket.dispose();
+});
