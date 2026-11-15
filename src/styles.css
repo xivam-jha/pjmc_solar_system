@@ -2578,3 +2578,12 @@ body {
 .hud .explore-btn { background:linear-gradient(135deg,#f3dba4d9,#c2a064c9);border:1px solid #fff2ca70;color:#25231e;box-shadow:inset 0 1px 0 #fff4; }
 .pjmc-about-card,.pjmc-pause-option,.flight-setting-item { background:#ffffff06;border-color:#ffffff18; }
 .pjmc-mission-select-modal .pjmc-modal-window { isolation:isolate; }
+/* Meteor challenge: compact health, fixed-path warning and recovery. */
+.meteor-health{position:absolute;top:86px;left:16px;width:220px;padding:11px 14px;background:var(--glass-panel);border:1px solid var(--glass-border);border-radius:13px;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);font:11px/1.4 system-ui;color:#edf5fa;pointer-events:none;}
+.meteor-health-heading{display:flex;justify-content:space-between;align-items:center;letter-spacing:.08em;font-size:9px;color:#bdccd9}.meteor-health-heading strong{font-size:16px;color:#d2f4e3;letter-spacing:0}
+.meteor-health progress{display:block;width:100%;height:6px;margin:7px 0;accent-color:#88d9b9;border:0;border-radius:8px;overflow:hidden;background:#ffffff14}.meteor-health progress::-webkit-progress-bar{background:#ffffff14}.meteor-health progress::-webkit-progress-value{background:#88d9b9}.meteor-health.low progress{accent-color:#ee9779}.meteor-health.low progress::-webkit-progress-value{background:#ee9779}.meteor-status{color:#e5c59c;font-size:11px;}
+.meteor-danger-marker{position:fixed;transform:translate(-50%,-50%);display:grid;place-items:center;width:44px;height:44px;border:2px solid #ffac7a;border-radius:50%;background:#b838222a;color:#ffd6b1;font:700 22px system-ui;pointer-events:none;box-shadow:0 0 16px #f8663540;}
+.meteor-danger-marker[hidden],.meteor-health[hidden]{display:none}.pjmc-explorer-ui.meteor-impact{box-shadow:inset 0 0 70px #ed643545}.meteor-failure p{font:14px/1.6 system-ui;color:#c4d3df}.meteor-failure button{min-height:48px;padding:12px;font-size:13px;}
+@media(max-width:600px){.meteor-health{top:80px;left:12px;width:200px;padding:9px 12px}.meteor-health-heading strong{font-size:14px}}
+@media(max-height:450px){.meteor-health{top:70px;width:175px;padding:6px 10px}.meteor-status{font-size:10px}}
+@media(prefers-reduced-motion:reduce){.pjmc-explorer-ui.meteor-impact{box-shadow:none}}

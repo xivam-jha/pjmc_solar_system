@@ -16,6 +16,7 @@
 
 import * as THREE from 'three';
 import { safeAboveSystem, clearOfBodies, recoverOutsideBodies } from './FlightSafety.js';
+import { MeteorChallenge } from './MeteorChallenge.js';
 import { Rocket } from './Rocket.js';
 import { FlightControls } from './FlightControls.js';
 import { AudioSystem } from './AudioSystem.js';
@@ -31,6 +32,7 @@ export const GAME_STATE = {
   FLYING: 'FLYING',
   PAUSED: 'PAUSED',
   VICTORY: 'VICTORY',
+  WRECKED: 'WRECKED',
 };
 
 export class ExplorerGame {
@@ -77,6 +79,10 @@ export class ExplorerGame {
     this.scene.add(this.rocket.group);
     this.rocket.setVisible(false);
 
+    this.meteors = new MeteorChallenge(this.scene);
+    this.meteors.onDamage = () => { this.audio.playBeep(140,.12); this.hud?.showTip('टक्कर! दिशा बदलें • 2 सेकंड की सुरक्षा मिली'); };
+    this.meteors.onPickup = () => { this.audio.playBeep(1100,.12); this.hud.showTip('Shield मिला—अगली टक्कर से सुरक्षा'); };
+    this.meteors.onShield = () => this.hud.showTip('Shield ने टक्कर रोक ली');
     this.missions = new MissionManager(this.scene, this.planetRegistry);
     this.missions.onWaypointComplete = (curr, total) => this.handleWaypointHit(curr, total);
     this.missions.onMissionComplete = (res) => this.handleMissionSuccess(res);
@@ -94,6 +100,7 @@ export class ExplorerGame {
       onColor: (color) => this.rocket.setPaint(color),
       onResume: () => this.resumeFlight(),
       onRestart: () => this.restartMission(),
+      onRetryMeteor: () => this.retryMeteorChallenge(),
       onSelectMission: (id) => this.startLaunchForMission(id),
       onNextMission: () => this.startNextMission(),
       onExitExplore: () => this.exitToSolarSystem(),
@@ -322,6 +329,9 @@ export class ExplorerGame {
     const missionIndex = MISSIONS.findIndex(m => m.id === missionId);
     if (missionIndex < 0 || !this.progress.unlocked(missionIndex)) return;
     this.boostEnergy = this.maxBoostEnergy;
+    this.meteors.reset(missionIndex);
+    this.pendingMissionSuccess = null;
+    this.hud.hideMeteorFailure();
     this.activeMission = this.missions.startMission(missionId);
     this.rocket.setPaint(this.progress.data.color);
     this.hud.closeMissionModal();
@@ -401,6 +411,18 @@ export class ExplorerGame {
     if (this.warpPoints) this.warpPoints.visible = true;
   }
 
+  retryMeteorChallenge() {
+    if (this.state !== GAME_STATE.WRECKED) return;
+    const level=this.meteors.level;
+    this.meteors.reset(level);this.meteors.begin();
+    this.rocket.position.copy(recoverOutsideBodies(this.safePosition,this.planetRegistry));
+    this.rocket.quaternion.copy(this.safeRotation);this.missions.previousRocketPos=this.rocket.position.clone();
+    this.flightSpeed=0;this.velocity.set(0,0,0);this.enginePower=0;this.boostPower=0;this.requestedThrottle=0;
+    this.controls.keys.clear();this.controls.input.accelerate=false;this.controls.input.thrust=0;this.controls.input.boost=false;
+    this.camCurrentPos.copy(this.rocket.position).add(new THREE.Vector3(0,.85,-3.2).applyQuaternion(this.rocket.quaternion));
+    this.hud.hideMeteorFailure();this.resumeFlight();
+  }
+
   resumeFlight() {
     this.state = GAME_STATE.FLYING;
     this.hud.hidePauseModal();
@@ -453,6 +475,9 @@ export class ExplorerGame {
 
   exitToSolarSystem() {
     this.state = GAME_STATE.INACTIVE;
+    this.meteors.reset();
+    this.pendingMissionSuccess = null;
+    this.hud.hideMeteorFailure();
 
     // Stop audio
     this.audio.stopEngine();
@@ -580,6 +605,13 @@ export class ExplorerGame {
   }
 
   handleMissionSuccess({ mission, elapsedSeconds }) {
+    if (!this.meteors.finished) {
+      this.pendingMissionSuccess = { mission, elapsedSeconds };
+      this.meteors.begin();
+      this.hud.showTip('Gold पूरा! Meteor shower से बचकर mission पूरा करें।');
+      return;
+    }
+    this.pendingMissionSuccess = null;
     this.state = GAME_STATE.VICTORY;
     this.audio.stopEngine();
     this.audio.stopBoost();
@@ -590,6 +622,7 @@ export class ExplorerGame {
     if (mission.id === 'mission_01') this.placeMoonFlag();
     if (mission.id === 'mission_04') this.takePhoto();
     this.hud.showVictoryModal(mission, elapsedSeconds);
+    if (this.meteors.damageTaken === 0) this.hud.showTip('PERFECT FLIGHT • बिना damage के mission पूरा!');
   }
 
   handleBoostChange(boosting) {
@@ -621,7 +654,21 @@ export class ExplorerGame {
     if (this.state === GAME_STATE.FLYING) {
       this.updateFlightPhysics(dt);
       this.missions.update(dt, this.rocket.position);
+      if (this.state !== GAME_STATE.FLYING) return;
+      const progress = this.missions.getMissionProgress();
+      if (progress.total > 0 && progress.current >= Math.max(1,progress.total-2)) this.meteors.begin();
+      this.meteors.update(dt,this.rocket.position,this.rocket.getForwardVector(new THREE.Vector3()));
+      this.hud.updateMeteorHUD(this.meteors,this.camera);
+      if (this.meteors.phase === 'dead') {
+        this.state=GAME_STATE.WRECKED;this.flightSpeed=0;this.velocity.set(0,0,0);this.requestedThrottle=0;
+        this.controls.hide();this.controls.disable();this.audio.stopEngine();this.audio.stopBoost();this.rocket.update(0,0);
+        this.hud.showMeteorFailure();return;
+      }
+      if (this.pendingMissionSuccess && this.meteors.finished) { this.handleMissionSuccess({...this.pendingMissionSuccess,elapsedSeconds:this.missions.elapsedSeconds});return; }
       this.updateCamera(dt);
+      if (this.meteors.impactTime > 0 && !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+        this.camera.position.x += Math.sin(this.meteors.impactTime*60)*.025;
+      }
       this.updateHUDAndNav();
     }
   }
@@ -781,6 +828,7 @@ export class ExplorerGame {
         this.requestedThrottle = 0;
         this.enginePower = 0;
         recovered = true;
+        this.meteors.previousRocket = this.rocket.position.clone();
         this.hud.showTip('आप सुरक्षित हैं। आपका Gold बचा है—दिशा बदलकर आगे बढ़ें।');
         this.camCurrentPos.copy(this.safePosition).add(new THREE.Vector3(0, 1, -3).applyQuaternion(this.safeRotation));
         break;
@@ -917,6 +965,7 @@ export class ExplorerGame {
     this.audio.dispose();
     this.controls.destroy();
     this.missions.dispose();
+    this.meteors.dispose();
     this.hud.destroy();
     this.launchSeq.dispose();
     this.rocket.dispose();

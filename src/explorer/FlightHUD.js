@@ -38,6 +38,7 @@ export class FlightHUD {
     this.buildPauseModal();
     this.buildVictoryModal();
     this.buildPortraitBanner();
+    this.buildMeteorHUD();
     this.tip = document.createElement('div');
     this.tip.className = 'student-flight-tip';
     this.tip.setAttribute('role', 'status');
@@ -46,6 +47,36 @@ export class FlightHUD {
 
     document.body.appendChild(this.root);
   }
+
+  buildMeteorHUD() {
+    this.meteorPanel=document.createElement('div');this.meteorPanel.className='meteor-health glass';
+    this.meteorPanel.innerHTML='<div class="meteor-health-heading"><span>HULL HEALTH</span><strong>100</strong></div><progress max="100" value="100" aria-label="Jet health"></progress><span class="meteor-status" role="status">Ready to fly</span>';
+    this.meteorPanel.hidden=true;this.root.append(this.meteorPanel);
+    this.meteorMarker=document.createElement('div');this.meteorMarker.className='meteor-danger-marker';this.meteorMarker.textContent='!';this.meteorMarker.hidden=true;this.root.append(this.meteorMarker);
+    this.meteorFailure=document.createElement('div');this.meteorFailure.className='pjmc-modal meteor-failure';this.meteorFailure.style.display='none';
+    this.meteorFailure.innerHTML='<div class="pjmc-modal-backdrop"></div><div class="pjmc-modal-window small" role="dialog" aria-modal="true" aria-label="Jet disabled"><span class="pjmc-sub-title">MISSION RECOVERY</span><h2 class="pjmc-modal-title">Jet disabled</h2><p>Health खत्म हो गई। आपका collected Gold सुरक्षित है।</p><button class="pjmc-btn-primary meteor-retry" type="button">Checkpoint से फिर कोशिश करें</button><button class="pjmc-btn-secondary meteor-exit" type="button">Solar System में वापस</button></div>';
+    this.meteorFailure.querySelector('.meteor-retry').onclick=()=>this.callbacks.onRetryMeteor?.();
+    this.meteorFailure.querySelector('.meteor-exit').onclick=()=>this.callbacks.onExitExplore?.();this.root.append(this.meteorFailure);
+  }
+  updateMeteorHUD(challenge,camera) {
+    this.meteorPanel.hidden=challenge.phase==='idle';
+    this.meteorPanel.querySelector('strong').textContent=challenge.health;
+    this.meteorPanel.querySelector('progress').value=challenge.health;
+    this.meteorPanel.classList.toggle('low',challenge.health<=30);
+    const text=challenge.phase==='warning' ? `⚠ Meteor shower in ${Math.max(1,Math.ceil(challenge.timer))}…` : challenge.phase==='active' ? `Dodge meteors • ${Math.max(0,Math.ceil(challenge.timer))}s${challenge.shield?' • SHIELD ON':''}` : challenge.phase==='complete' ? 'Meteor zone cleared ✓' : 'Hull secure';
+    const status=this.meteorPanel.querySelector('.meteor-status');if(status.textContent!==text)status.textContent=text;
+    this.root.classList.toggle('meteor-impact',challenge.phase==='active' && challenge.impactTime>0);
+    if(challenge.phase==='warning'||challenge.phase==='active')this.portraitBanner.style.display='none';
+    const target=challenge.warningTarget();this.meteorMarker.hidden=!target;
+    if(target){
+      const screen=target.clone().project(camera);
+      this.meteorMarker.hidden=screen.z>1||screen.z< -1;
+      this.meteorMarker.style.left=`${Math.max(24,Math.min(window.innerWidth-24,(screen.x*.5+.5)*window.innerWidth))}px`;
+      this.meteorMarker.style.top=`${Math.max(100,Math.min(window.innerHeight-100,(-screen.y*.5+.5)*window.innerHeight))}px`;
+    }
+  }
+  showMeteorFailure(){this.meteorFailure.style.display='flex';this.meteorMarker.hidden=true;this.meteorFailure.querySelector('.meteor-retry').focus();}
+  hideMeteorFailure(){this.meteorFailure.style.display='none';this.meteorPanel.hidden=true;this.meteorMarker.hidden=true;this.root.classList.remove('meteor-impact');}
 
   buildTelemetryHUD() {
     this.telemetryEl = document.createElement('div');
@@ -472,12 +503,14 @@ export class FlightHUD {
     this.root.classList.remove('active');
     this.root.classList.add('hidden');
     this.closeMissionModal();
+    this.hideMeteorFailure();
     this.hidePauseModal();
     this.hideVictoryModal();
     this.diaryModal.style.display = 'none';
   }
 
   openMissionModal() {
+    this.meteorPanel.hidden=true;this.meteorMarker.hidden=true;
     this.missionModalEl.querySelector('#student-progress-summary').textContent = `${this.progress.stars} ★ / 12 • ${Object.keys(this.progress.data.badges).length}/4 missions complete`;
     this.missionModalEl.querySelectorAll('.pjmc-mission-card').forEach((card, index) => {
       const unlocked = this.progress.unlocked(index);
