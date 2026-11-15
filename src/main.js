@@ -347,7 +347,7 @@ async function init() {
     camera.position.add(delta);
     controls.target.copy(bodyPos);
     lastFollowPos.copy(bodyPos);
-    controls.minDistance = Math.max(followed.body.radiusWorld * 1.5, 0.001);
+    controls.minDistance = Math.max(followed.body.radiusWorld * 1.5, 1e-8);
   }
 
   /* ---------- scale mode toggle ---------- */
@@ -540,6 +540,15 @@ async function init() {
     if (explorerGame && explorerGame.state !== 'INACTIVE') {
       explorerGame.update(dt);
     } else {
+      // True-scale bodies can be smaller than the overview near plane.
+      // Keep clipping safely inside the clearance allowed by the zoom limit.
+      const near = followed
+        ? Math.max(Math.min(0.005, followed.body.radiusWorld * 0.02), 1e-10)
+        : 0.005;
+      if (camera.near !== near) {
+        camera.near = near;
+        camera.updateProjectionMatrix();
+      }
       followUpdate();
       controls.update();
       if (labelsEnabled) labels.update(camera, focusSystemId());
