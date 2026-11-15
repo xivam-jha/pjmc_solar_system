@@ -18,14 +18,14 @@ export const MISSIONS = [
   {
     id: 'mission_01',
     num: '01',
-    title: 'Earth Orbit',
-    titleHi: 'पृथ्वी की कक्षा',
-    target: 'earth',
-    desc: 'Perform an orbital insertion around Earth and pass through 5 orbital waypoints.',
+    title: 'Earth to Moon',
+    titleHi: 'पृथ्वी से चाँद तक',
+    target: 'moon',
+    desc: 'Learn to steer through three gates, then follow the Moon approach and land.',
     descHi: 'पृथ्वी के चारों ओर 5 ऑर्बिटल चेकपॉइंट्स को सफलतापूर्वक पार करें।',
     difficulty: 'EASY',
     difficultyHi: 'आसान',
-    reward: 'Orbit Master Badge',
+    reward: 'Moon Explorer',
     waypoints: [
       { offset: new THREE.Vector3(3.2, 0.4, 0.0), label: 'Orbit Point Alpha' },
       { offset: new THREE.Vector3(2.3, 1.2, 2.3), label: 'Orbit Point Beta' },
@@ -37,10 +37,10 @@ export const MISSIONS = [
   {
     id: 'mission_02',
     num: '02',
-    title: 'Mars Journey',
+    title: 'Mars Rover Rescue',
     titleHi: 'मंगल अभियान',
     target: 'mars',
-    desc: 'Navigate the interplanetary corridor from Earth to Mars through 6 transit waypoints.',
+    desc: 'Follow the beacons to find a lost rover on Mars.',
     descHi: 'पृथ्वी से मंगल ग्रह की ओर 6 अंतरिक्ष मार्ग चेकपॉइंट्स को पार करें।',
     difficulty: 'MEDIUM',
     difficultyHi: 'मध्यम',
@@ -78,10 +78,10 @@ export const MISSIONS = [
   {
     id: 'mission_04',
     num: '04',
-    title: 'Jupiter Titan',
+    title: 'Jupiter Photo Expedition',
     titleHi: 'बृहस्पति महायात्रा',
     target: 'jupiter',
-    desc: 'High-speed orbital run around Jupiter, braving intense radiation and mega gravity.',
+    desc: 'Follow a safe flyby route and photograph Jupiter. Look for its Great Red Spot.',
     descHi: 'विशालकाय बृहस्पति ग्रह के चारों ओर तीव्र गति से 6 चेकपॉइंट्स पूरे करें।',
     difficulty: 'EXPERT',
     difficultyHi: 'विशेषज्ञ',
@@ -230,7 +230,9 @@ export class MissionManager {
     const mission = MISSIONS.find((m) => m.id === missionId) || MISSIONS[0];
     this.activeMission = mission;
     this.activeWaypointIndex = 0;
-    this.missionStartTime = performance.now();
+    this.elapsedSeconds = 0;
+    this.previousRocketPos = null;
+    this.route = null;
 
     if (mission.waypoints && mission.waypoints.length > 0) {
       this.buildCheckpointMeshes();
@@ -281,53 +283,49 @@ export class MissionManager {
       return out;
     }
 
-    const wp = this.activeMission.waypoints[index];
-    const mId = this.activeMission.id;
-
-    if (mId === 'mission_01') {
-      // Earth Orbit: smooth circular orbit path encircling Earth at realistic LEO altitude
-      this.getPlanetWorldPos('earth', out);
-      const angle = (index / 5) * Math.PI * 1.8 + 0.35;
-      const r = 3.5;
-      out.x += Math.cos(angle) * r;
-      out.y += Math.sin(angle * 2) * 0.45;
-      out.z += Math.sin(angle) * r;
-    } else if (mId === 'mission_02') {
-      // Interplanetary Mars: line from Earth to Mars
-      const pEarth = this.tempV1;
-      const pMars = this.tempV2;
-      this.getPlanetWorldPos('earth', pEarth);
-      this.getPlanetWorldPos('mars', pMars);
-
-      // Interpolate along transit path
-      out.copy(pEarth).lerp(pMars, wp.fraction);
-      out.y += wp.height;
-      out.x += wp.lateral;
-    } else if (mId === 'mission_03') {
-      // Saturn rings: circle at given radius and angle around Saturn
-      this.getPlanetWorldPos('saturn', out);
-      const x = Math.cos(wp.angle) * wp.radius;
-      const z = Math.sin(wp.angle) * wp.radius;
-      out.x += x;
-      out.y += wp.y;
-      out.z += z;
-    } else if (mId === 'mission_04') {
-      // Jupiter flyby: circular orbit around Jupiter
-      this.getPlanetWorldPos('jupiter', out);
-      const x = Math.cos(wp.angle) * wp.radius;
-      const z = Math.sin(wp.angle) * wp.radius;
-      out.x += x;
-      out.y += wp.y;
-      out.z += z;
-    } else {
-      out.set(0, 0, 0);
-    }
+    if (this.route) return out.copy(this.route[index]);
+    return this.getPlanetWorldPos(this.activeMission.target, out);
 
     return out;
   }
 
+  prepareRoute(start, forward) {
+    const target = this.activeMission.target;
+    const entry = this.planetRegistry.get(target);
+    const center = this.getPlanetWorldPos(target, new THREE.Vector3());
+    const radius = entry?.body?.radiusWorld || 2;
+    const count = this.activeMission.waypoints.length;
+    this.route = [];
+    for (let i = 0; i < count; i++) {
+      let point;
+      if (target === 'saturn' || target === 'jupiter') {
+        const angle = (i / count) * Math.PI * 1.6;
+        const orbitRadius = radius * (target === 'saturn' ? 2.6 : 1.7) + 2;
+        point = new THREE.Vector3(Math.cos(angle) * orbitRadius, 2, Math.sin(angle) * orbitRadius);
+        point.applyQuaternion(entry.body.tiltGroup.getWorldQuaternion(new THREE.Quaternion())).add(center);
+      } else if (i < 3) {
+        point = start.clone().addScaledVector(forward, (i + 1) * 2.5);
+      } else {
+        const approach = start.clone().sub(center).normalize();
+        point = center.clone().addScaledVector(approach, radius + 2 + (count - 1 - i) * 2.5);
+      }
+      // Keep every gate outside solid bodies, including the Sun and moons.
+      for (const body of this.planetRegistry.values()) {
+        const bodyPos = body.surfaceMesh.getWorldPosition(new THREE.Vector3());
+        const clearance = (body.body?.radiusWorld || body.surfaceMesh.getWorldScale(new THREE.Vector3()).x) + 1.8;
+        const offset = point.clone().sub(bodyPos);
+        if (offset.length() < clearance) {
+          if (offset.lengthSq() < 1e-8) offset.copy(forward);
+          point.copy(bodyPos).addScaledVector(offset.normalize(), clearance);
+        }
+      }
+      this.route.push(point);
+    }
+  }
+
   update(dt, rocketPos) {
     this.pulseTime += dt;
+    this.elapsedSeconds += dt;
 
     // Update burst particles
     if (this.burstActive) {
@@ -377,7 +375,9 @@ export class MissionManager {
         mesh.userData.light.intensity = 2.0;
 
         // Check if rocket entered checkpoint radius (radius ~ 1.35)
-        const dist = rocketPos.distanceTo(pos);
+        const segment = new THREE.Line3(this.previousRocketPos || rocketPos, rocketPos);
+        const closest = segment.closestPointToPoint(pos, true, new THREE.Vector3());
+        const dist = closest.distanceTo(pos);
         if (dist < 1.35) {
           this.triggerBurst(pos);
           this.advanceCheckpoint();
@@ -391,6 +391,7 @@ export class MissionManager {
         mesh.userData.light.intensity = 0.2;
       }
     }
+    this.previousRocketPos = rocketPos.clone();
   }
 
   advanceCheckpoint() {
@@ -403,7 +404,7 @@ export class MissionManager {
 
     if (this.activeWaypointIndex >= total) {
       // Mission Complete!
-      const elapsedSec = (performance.now() - this.missionStartTime) / 1000;
+      const elapsedSec = this.elapsedSeconds;
       if (this.onMissionComplete) {
         this.onMissionComplete({
           mission: this.activeMission,

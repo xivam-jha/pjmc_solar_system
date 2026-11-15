@@ -437,9 +437,12 @@ async function init() {
         if (!explorerGame) return;
         releaseFocus();
         if (scaleMode !== 'viz') setScaleMode('viz');
+        if (activeMixTween) activeMixTween.done = true;
+        scaleState.mix = 0;
         explorerModeActive = true;
         hud.setVisible(false);
         labels.setEnabled(false);
+        for (const planet of planets) planet.update(daysSinceJ2000(), scaleAPI);
         explorerGame.openMenu();
       },
     },
@@ -527,7 +530,7 @@ async function init() {
 
     adaptiveQuality.update(dt);
     updateTweens(dt);
-    if (playing) {
+    if (playing && !explorerModeActive) {
       simMs = Math.min(simMs + dt * 1000 * SPEED_PRESETS[speedIndex].mult, MAX_SIM_MS);
     }
     const days = daysSinceJ2000();

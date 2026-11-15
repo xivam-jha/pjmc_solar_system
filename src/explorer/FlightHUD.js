@@ -11,12 +11,14 @@
  * - Mobile portrait orientation advisor
  */
 
+import { LESSONS } from './StudentProgress.js';
 import { MISSIONS } from './Missions.js';
 import { BRAND, getMonogramSvg } from '../config/brand.js';
 
 export class FlightHUD {
   constructor(callbacks = {}) {
     this.callbacks = callbacks;
+    this.progress = callbacks.progress;
     // callbacks: onResume, onRestart, onSelectMission, onExitExplore, onToggleSound, onToggleQuality
 
     this.root = document.createElement('div');
@@ -34,6 +36,11 @@ export class FlightHUD {
     this.buildPauseModal();
     this.buildVictoryModal();
     this.buildPortraitBanner();
+    this.tip = document.createElement('div');
+    this.tip.className = 'student-flight-tip';
+    this.tip.setAttribute('role', 'status');
+    this.root.append(this.tip);
+    this.buildDiary();
 
     document.body.appendChild(this.root);
   }
@@ -61,7 +68,7 @@ export class FlightHUD {
       <div class="pjmc-hud-center">
         <div class="pjmc-speed-gauge">
           <span class="pjmc-gauge-val" id="pjmc-hud-speed">0</span>
-          <span class="pjmc-gauge-unit">KM/S</span>
+          <span class="pjmc-gauge-unit">GAME u/s</span>
         </div>
         <div class="pjmc-boost-wrap">
           <div class="pjmc-boost-track">
@@ -187,6 +194,8 @@ export class FlightHUD {
           <button type="button" class="pjmc-modal-close-btn" id="pjmc-mission-close">✕</button>
         </div>
 
+        <label class="student-pilot-name">Pilot name <input id="student-pilot-name" maxlength="24" placeholder="Your name" /></label>
+        <p id="student-progress-summary"></p>
         <div class="pjmc-mission-grid">
           ${cardsHtml}
         </div>
@@ -207,9 +216,16 @@ export class FlightHUD {
 
     // Wire clicks
     let selectedMissionId = 'mission_01';
+    const nameInput = this.missionModalEl.querySelector('#student-pilot-name');
+    nameInput.value = this.progress.data.name;
+    nameInput.addEventListener('input', () => {
+      this.progress.data.name = nameInput.value.trim().slice(0, 24) || 'Pilot';
+      if (!this.progress.save()) this.showTip('नाम इस सत्र तक रहेगा। ब्राउज़र storage उपलब्ध नहीं है।');
+    });
     const cards = this.missionModalEl.querySelectorAll('.pjmc-mission-card');
     cards.forEach((card) => {
       card.addEventListener('click', () => {
+        if (card.dataset.locked === 'true') return;
         cards.forEach((c) => c.classList.remove('active-card'));
         card.classList.add('active-card');
         selectedMissionId = card.dataset.id;
@@ -266,13 +282,16 @@ export class FlightHUD {
             <button type="button" class="pjmc-opt-toggle" id="pjmc-quality-toggle">HIGH</button>
           </div>
 
+          <button type="button" class="pjmc-btn-secondary" id="student-camera">Switch camera</button>
+          <button type="button" class="pjmc-btn-secondary" id="student-photo">Take photo</button>
+          <button type="button" class="pjmc-btn-secondary" id="student-diary">Space Diary & Jet colors</button>
           <button type="button" class="pjmc-btn-danger" id="pjmc-pause-exit">
             EXIT TO SOLAR SYSTEM
           </button>
         </div>
 
         <div class="pjmc-controls-reminder">
-          <strong>CONTROLS:</strong> WASD/Stick to Steer • SPACE/Hold Boost • C Cockpit • ESC Pause
+          <strong>CONTROLS:</strong> W/S Speed • A/D Turn • R/F Up/Down • SPACE Boost • C Camera • ESC Pause
         </div>
         <div class="pjmc-pause-footer-inst">${BRAND.product} • ${BRAND.spacecraft}</div>
       </div>
@@ -280,6 +299,11 @@ export class FlightHUD {
 
     this.root.appendChild(this.pauseModalEl);
 
+    this.pauseModalEl.querySelector('#student-camera').addEventListener('click', () => {
+      this.callbacks.onCameraToggle?.(); this.callbacks.onResume?.();
+    });
+    this.pauseModalEl.querySelector('#student-photo').addEventListener('click', () => this.callbacks.onPhoto?.());
+    this.pauseModalEl.querySelector('#student-diary').addEventListener('click', () => this.openDiary());
     const resumeBtn = this.pauseModalEl.querySelector('#pjmc-pause-resume');
     resumeBtn.addEventListener('click', () => this.callbacks.onResume?.());
 
@@ -325,7 +349,7 @@ export class FlightHUD {
         <div class="pjmc-victory-brand-lead">${BRAND.name}</div>
         <div class="pjmc-victory-badge">★ ★ ★</div>
         <h2 class="pjmc-victory-title">MISSION ACCOMPLISHED!</h2>
-        <div class="pjmc-victory-cert-badge">SPACE EXPLORATION CERTIFIED</div>
+        <div class="pjmc-victory-cert-badge">PJMC SPACE PILOT</div>
         <div class="pjmc-victory-sub" id="pjmc-vic-name">EARTH ORBIT CHALLENGE COMPLETE</div>
 
         <div class="pjmc-stats-grid">
@@ -335,10 +359,11 @@ export class FlightHUD {
           </div>
           <div class="pjmc-stat-box">
             <span class="pjmc-stat-label">PILOT STATUS</span>
-            <span class="pjmc-stat-value highlight">PERFECT</span>
+            <span class="pjmc-stat-value highlight" id="student-pilot-badge"></span>
           </div>
         </div>
 
+        <div id="student-lesson"></div>
         <div class="pjmc-modal-footer">
           <button type="button" class="pjmc-btn-secondary" id="pjmc-vic-free">
             FREE FLIGHT
@@ -364,6 +389,44 @@ export class FlightHUD {
       this.hideVictoryModal();
       this.callbacks.onNextMission?.();
     });
+  }
+
+  showTip(message) {
+    this.tip.textContent = message;
+    clearTimeout(this.tipTimer);
+    this.tipTimer = setTimeout(() => { this.tip.textContent = ''; }, 7000);
+  }
+
+  buildDiary() {
+    this.diaryModal = document.createElement('div');
+    this.diaryModal.className = 'pjmc-modal student-diary';
+    this.diaryModal.style.display = 'none';
+    this.diaryModal.innerHTML = `<div class="pjmc-modal-window"><h2>Space Diary</h2><p>इस ब्राउज़र में आपकी अंतिम 8 तस्वीरें सेव रहेंगी।</p><div class="student-badges"></div><div class="student-paints"></div><div class="student-photos"></div><button type="button" class="pjmc-btn-secondary">Close</button></div>`;
+    this.diaryModal.querySelector('button').addEventListener('click', () => { this.diaryModal.style.display = 'none'; });
+    this.root.append(this.diaryModal);
+  }
+
+  openDiary() {
+    this.diaryModal.querySelector('.student-badges').textContent = `${this.progress.data.name} • ${this.progress.stars} ★ • ${Object.keys(this.progress.data.badges).map(id => MISSIONS.find(m => m.id === id)?.reward).join(' · ') || 'पहले मिशन से अपना पहला बैज पाएँ'}`;
+    const paints = this.diaryModal.querySelector('.student-paints'); paints.replaceChildren();
+    [['Silver', '#ecf2f8', 0], ['Gold', '#f4b942', 3], ['Violet', '#ad8cff', 6]].forEach(([name, color, stars]) => {
+      const button = document.createElement('button'); button.className = 'pjmc-btn-secondary'; button.textContent = `${name} • ${stars} ★`;
+      button.disabled = this.progress.stars < stars;
+      button.addEventListener('click', () => {
+        this.progress.data.color = color;
+        const saved = this.progress.save();
+        this.callbacks.onColor?.(color);
+        this.showTip(saved ? `${name} रंग चुना गया।` : 'रंग इस सत्र तक रहेगा।');
+      }); paints.append(button);
+    });
+    const photos = this.diaryModal.querySelector('.student-photos'); photos.replaceChildren();
+    if (!this.progress.data.photos.length) photos.textContent = 'Pause → Take photo से पहली तस्वीर जोड़ें।';
+    for (const photo of this.progress.data.photos) {
+      const figure = document.createElement('figure'); const img = document.createElement('img');
+      img.src = photo.image; img.alt = photo.title; const caption = document.createElement('figcaption'); caption.textContent = photo.title;
+      figure.append(img, caption); photos.append(figure);
+    }
+    this.diaryModal.style.display = 'flex';
   }
 
   buildPortraitBanner() {
@@ -403,9 +466,18 @@ export class FlightHUD {
     this.closeMissionModal();
     this.hidePauseModal();
     this.hideVictoryModal();
+    this.diaryModal.style.display = 'none';
   }
 
   openMissionModal() {
+    this.missionModalEl.querySelector('#student-progress-summary').textContent = `${this.progress.stars} ★ • मिशन पूरा करके नए सफ़र और जेट के रंग खोलें`;
+    this.missionModalEl.querySelectorAll('.pjmc-mission-card').forEach((card, index) => {
+      const unlocked = this.progress.unlocked(index);
+      card.dataset.locked = String(!unlocked);
+      const button = card.querySelector('button');
+      button.disabled = !unlocked;
+      button.textContent = unlocked ? 'SELECT MISSION' : 'पहला मिशन पूरा करें';
+    });
     this.show();
     this.missionModalEl.style.display = 'flex';
     this.telemetryEl.style.display = 'none';
@@ -434,6 +506,36 @@ export class FlightHUD {
     const secs = Math.floor(elapsedSec % 60);
     vicTime.textContent = `${mins > 0 ? mins + 'm ' : ''}${secs}s`;
 
+    this.victoryModalEl.querySelector('#student-pilot-badge').textContent = this.progress.data.name;
+    const badge = this.victoryModalEl.querySelector('.pjmc-victory-badge');
+    badge.textContent = mission.reward;
+    const nextButton = this.victoryModalEl.querySelector('#pjmc-vic-next');
+    nextButton.disabled = !this.progress.data.badges[mission.id];
+    const lesson = LESSONS[mission.id];
+    const container = this.victoryModalEl.querySelector('#student-lesson');
+    container.replaceChildren();
+    if (lesson) {
+      const fact = document.createElement('p'); fact.textContent = lesson.fact;
+      const question = document.createElement('p'); question.textContent = lesson.question;
+      const feedback = document.createElement('p'); feedback.setAttribute('role', 'status');
+      container.append(fact, question);
+      lesson.answers.forEach((answer, index) => {
+        const button = document.createElement('button');
+        button.type = 'button'; button.className = 'pjmc-btn-secondary'; button.textContent = answer;
+        button.addEventListener('click', () => {
+          if (index !== lesson.correct) {
+            feedback.textContent = 'ऊपर दी गई जानकारी पढ़कर फिर कोशिश करें।'; return;
+          }
+          const saved = this.progress.award(mission.id);
+          feedback.textContent = saved ? `सही जवाब! 3 ★ और ${mission.reward} मिल गया।` : 'सही जवाब! बैज इस सत्र में उपलब्ध है, ब्राउज़र में सेव नहीं हो सका।';
+          badge.textContent = `★ ★ ★  ${mission.reward}`;
+          nextButton.disabled = false;
+        });
+        container.append(button);
+      });
+      const source = document.createElement('a'); source.href = lesson.source; source.textContent = 'NASA पर पढ़ें'; source.target = '_blank'; source.rel = 'noopener';
+      container.append(feedback, source);
+    }
     this.victoryModalEl.style.display = 'flex';
   }
 
@@ -461,12 +563,7 @@ export class FlightHUD {
     this.missionBadgeEl.textContent = missionTitle.toUpperCase();
     this.targetValEl.textContent = targetName.toUpperCase();
 
-    // Distance display formatting
-    if (targetDistance > 1000) {
-      this.distValEl.textContent = `${(targetDistance / 1000).toFixed(1)}M KM`;
-    } else {
-      this.distValEl.textContent = `${Math.round(targetDistance * 10) / 10} KM`;
-    }
+    this.distValEl.textContent = `${targetDistance.toFixed(1)} u`;
 
     if (isFreeFlight) {
       this.wpRowEl.style.display = 'none';

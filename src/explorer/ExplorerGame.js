@@ -20,6 +20,7 @@ import { FlightControls } from './FlightControls.js';
 import { AudioSystem } from './AudioSystem.js';
 import { LaunchSequence } from './LaunchSequence.js';
 import { MissionManager, MISSIONS } from './Missions.js';
+import { StudentProgress } from './StudentProgress.js';
 import { FlightHUD } from './FlightHUD.js';
 
 export const GAME_STATE = {
@@ -52,13 +53,24 @@ export class ExplorerGame {
     });
     for (const p of planets) {
       this.planetRegistry.set(p.data.id, {
+        body: p,
         data: p.data,
         surfaceMesh: p.surfaceMesh,
         root: p.root,
       });
     }
 
+    for (const planet of planets) {
+      for (const moon of planet.moons) {
+        this.planetRegistry.set(moon.data.id, { body: moon, data: moon.data, surfaceMesh: moon.surfaceMesh, root: moon.root });
+      }
+    }
+
     // Subsystems
+    this.progress = new StudentProgress();
+    this.safePosition = new THREE.Vector3();
+    this.safeRotation = new THREE.Quaternion();
+    this.savedCameraUp = new THREE.Vector3();
     this.audio = new AudioSystem();
     this.rocket = new Rocket();
     this.scene.add(this.rocket.group);
@@ -75,6 +87,10 @@ export class ExplorerGame {
     });
 
     this.hud = new FlightHUD({
+      progress: this.progress,
+      onCameraToggle: () => this.toggleCameraMode(),
+      onPhoto: () => this.takePhoto(),
+      onColor: (color) => this.rocket.setPaint(color),
       onResume: () => this.resumeFlight(),
       onRestart: () => this.restartMission(),
       onSelectMission: (id) => this.startLaunchForMission(id),
@@ -86,6 +102,7 @@ export class ExplorerGame {
       onOpenSettings: () => this.controls.openSettingsModal(),
     });
 
+    this.hud.root.append(this.controls.settingsModal);
     this.launchSeq = new LaunchSequence(this.scene, this.camera, this.rocket);
 
     // Flight physics & dynamics variables
@@ -95,8 +112,8 @@ export class ExplorerGame {
     this.enginePower = 0.0;
     this.boostPower = 0.0;
     this.cruiseSpeed = 0.0;
-    this.maxCruiseSpeed = 38.0; // Max speed when lever pushed to AAGE
-    this.boostSpeed = 54.0;
+    this.maxCruiseSpeed = 12.0; // Max speed when lever pushed to AAGE
+    this.boostSpeed = 24.0;
     this.brakeSpeed = 0.0;
     this.boostEnergy = 100.0;
     this.maxBoostEnergy = 100.0;
@@ -277,6 +294,7 @@ export class ExplorerGame {
     }
 
     // Save camera & orbit controls state
+    this.savedCameraUp.copy(this.camera.up);
     this.savedCamPos.copy(this.camera.position);
     this.savedControlsTarget.copy(this.orbitControls.target);
     this.orbitControls.enabled = false;
@@ -286,8 +304,13 @@ export class ExplorerGame {
   }
 
   startLaunchForMission(missionId) {
+    const missionIndex = MISSIONS.findIndex(m => m.id === missionId);
+    if (missionIndex < 0 || !this.progress.unlocked(missionIndex)) return;
+    this.boostEnergy = this.maxBoostEnergy;
     this.activeMission = this.missions.startMission(missionId);
+    this.rocket.setPaint(this.progress.data.color);
     this.hud.closeMissionModal();
+    this.createRover();
 
     // Find launch base position on Earth
     const earthPos = this.tempV1;
@@ -363,8 +386,13 @@ export class ExplorerGame {
     this.camera.lookAt(this.camLookTarget);
 
     // Enable touch & keyboard controls
+    this.controls.disable();
     this.controls.show();
+    this.safePosition.copy(this.rocket.position);
+    this.safeRotation.copy(this.rocket.quaternion);
+    this.missions.prepareRoute(this.rocket.position, this.rocket.getForwardVector(new THREE.Vector3()));
     this.hud.show();
+    this.hud.showTip('Joystick से दिशा बदलें • SPEED से उड़ें • चमकते गेट की ओर जाएँ');
     this.setCockpitMode(false);
     if (this.warpPoints) this.warpPoints.visible = true;
   }
@@ -435,6 +463,8 @@ export class ExplorerGame {
 
     // Cleanup launch, rocket, waypoints, controls, HUD
     this.launchSeq.stop();
+    if (this.rover) this.scene.remove(this.rover);
+    if (this.moonFlag) this.scene.remove(this.moonFlag);
     this.rocket.update(0.016, 0.0, 0.0, false);
     this.rocket.setVisible(false);
     if (this.warpPoints) this.warpPoints.visible = false;
@@ -450,10 +480,71 @@ export class ExplorerGame {
     this.targetFreeLookPitch = 0.0;
 
     // Restore OrbitControls
+    this.camera.up.copy(this.savedCameraUp);
     this.orbitControls.enabled = true;
     this.camera.position.copy(this.savedCamPos);
     this.orbitControls.target.copy(this.savedControlsTarget);
     this.orbitControls.update();
+  }
+
+  createRover() {
+    if (this.rover) { this.scene.remove(this.rover); this.rover.visible = false; }
+    if (this.activeMission.id !== 'mission_02') return;
+    if (!this.rover) {
+      this.rover = new THREE.Group();
+      const chassis = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.18, 0.5), new THREE.MeshStandardMaterial({ color: 0xf4b942 }));
+      chassis.position.y = 0.18; this.rover.add(chassis);
+      const wheelGeometry = new THREE.SphereGeometry(0.09, 8, 6);
+      const wheelMaterial = new THREE.MeshStandardMaterial({ color: 0x222222 });
+      for (const x of [-0.23, 0.23]) for (const z of [-0.18, 0, 0.18]) {
+        const wheel = new THREE.Mesh(wheelGeometry, wheelMaterial); wheel.position.set(x, 0.09, z); this.rover.add(wheel);
+      }
+      const beacon = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.4, 8), new THREE.MeshBasicMaterial({ color: 0x48d9ff }));
+      beacon.position.y = 0.5; this.rover.add(beacon);
+    }
+    const mars = this.planetRegistry.get('mars');
+    const center = mars.surfaceMesh.getWorldPosition(new THREE.Vector3());
+    const earth = this.planetRegistry.get('earth').surfaceMesh.getWorldPosition(new THREE.Vector3());
+    const normal = earth.sub(center).normalize();
+    this.rover.position.copy(center).addScaledVector(normal, mars.body.radiusWorld);
+    this.rover.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), normal);
+    this.rover.visible = true; this.scene.add(this.rover);
+  }
+
+  takePhoto() {
+    try {
+      this.renderer.render(this.scene, this.camera);
+      const canvas = document.createElement('canvas');
+      canvas.width = 480;
+      canvas.height = Math.round(480 * this.renderer.domElement.height / this.renderer.domElement.width);
+      canvas.getContext('2d').drawImage(this.renderer.domElement, 0, 0, canvas.width, canvas.height);
+      const saved = this.progress.addPhoto(canvas.toDataURL('image/jpeg', 0.72), this.activeMission?.title || 'Space');
+      this.hud.showTip(saved ? 'फोटो Space Diary में सेव हो गई।' : 'फोटो सेव नहीं हुई। ब्राउज़र storage भर सकता है।');
+    } catch { this.hud.showTip('इस ब्राउज़र में फोटो सेव नहीं हो सकी।'); }
+  }
+
+  placeMoonFlag() {
+    if (this.moonFlag) this.scene.remove(this.moonFlag);
+    const moon = this.planetRegistry.get('moon');
+    const center = moon.surfaceMesh.getWorldPosition(new THREE.Vector3());
+    const normal = this.rocket.position.clone().sub(center).normalize();
+    const surface = center.clone().addScaledVector(normal, moon.body.radiusWorld);
+    const canvas = document.createElement('canvas');
+    canvas.width = 256; canvas.height = 96;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#063955'; ctx.fillRect(0, 0, 256, 96);
+    ctx.fillStyle = '#ffffff'; ctx.font = 'bold 34px sans-serif'; ctx.fillText('PJMC', 16, 42);
+    ctx.font = '20px sans-serif'; ctx.fillText(this.progress.data.name.slice(0, 18), 16, 77);
+    if (this.flagMaterial) { this.flagMaterial.map.dispose(); this.flagMaterial.dispose(); }
+    this.flagMaterial = new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(canvas) });
+    this.moonFlag = new THREE.Sprite(this.flagMaterial);
+    this.moonFlag.position.copy(surface).addScaledVector(normal, 0.25);
+    this.moonFlag.scale.set(0.8, 0.3, 1);
+    this.scene.add(this.moonFlag);
+    this.rocket.position.copy(surface).addScaledVector(normal, 0.4);
+    this.camCurrentPos.copy(this.rocket.position).addScaledVector(normal, 2);
+    this.camera.position.copy(this.camCurrentPos);
+    this.camera.lookAt(surface);
   }
 
   toggleCameraMode() {
@@ -477,13 +568,22 @@ export class ExplorerGame {
   /* ------------------------------------------------------------------ */
 
   handleWaypointHit(current, total) {
+    this.safePosition.copy(this.rocket.position);
+    this.safeRotation.copy(this.rocket.quaternion);
     this.audio.playCheckpointChime(current, total);
+    this.hud.showTip(`गेट ${current}/${total} पूरा! अगला चमकता गेट खोजें।`);
   }
 
   handleMissionSuccess({ mission, elapsedSeconds }) {
     this.state = GAME_STATE.VICTORY;
+    this.audio.stopEngine();
+    this.audio.stopBoost();
+    this.flightSpeed = 0;
+    this.rocket.update(0.016, 0, 0, false);
     this.audio.playFanfare();
     this.controls.hide();
+    if (mission.id === 'mission_01') this.placeMoonFlag();
+    if (mission.id === 'mission_04') this.takePhoto();
     this.hud.showVictoryModal(mission, elapsedSeconds);
   }
 
@@ -576,6 +676,18 @@ export class ExplorerGame {
       targetSpeed = 0.0;
     }
 
+    // Slow down near a surface or the next gate so new pilots can steer safely.
+    for (const entry of this.planetRegistry.values()) {
+      const center = entry.surfaceMesh.getWorldPosition(new THREE.Vector3());
+      const radius = entry.body?.radiusWorld || entry.surfaceMesh.getWorldScale(new THREE.Vector3()).x;
+      const clearance = this.rocket.position.distanceTo(center) - radius;
+      targetSpeed = Math.min(targetSpeed, Math.max(1.2, clearance * 1.5));
+    }
+    const nextGate = new THREE.Vector3();
+    if (this.missions.getActiveWaypointPosition(nextGate)) {
+      targetSpeed = Math.min(targetSpeed, Math.max(1.2, this.rocket.position.distanceTo(nextGate) * 1.5));
+    }
+
     // Smooth acceleration / gradual stopping damping:
     // Accelerating: damp 3.8
     // Gliding to a stop when lever is released: damp 2.2 (natural smooth glide to stop)
@@ -642,19 +754,26 @@ export class ExplorerGame {
 
     // Soft planetary atmospheric barrier: prevent clipping inside planets
     for (const [id, entry] of this.planetRegistry) {
-      if (id === 'sun') continue;
+
       const pPos = this.tempV1;
       this.missions.getPlanetWorldPos(id, pPos);
       const dist = this.rocket.position.distanceTo(pPos);
-      const baseR = entry.data.diameterKm ? (entry.data.diameterKm / 12742) ** 0.45 * 0.9 * 2.4 : 2.16;
+      const baseR = entry.body?.radiusWorld || entry.surfaceMesh.getWorldScale(new THREE.Vector3()).x;
       const minAltitude = baseR + 0.35;
-      if (dist < minAltitude && dist > 0.01) {
-        const pushDir = this.tempV2.subVectors(this.rocket.position, pPos).normalize();
-        this.rocket.position.copy(pPos).addScaledVector(pushDir, minAltitude);
-        const vDot = this.velocity.dot(pushDir);
-        if (vDot < 0) {
-          this.velocity.subScaledVector(pushDir, vDot);
-        }
+      if (dist < minAltitude) {
+        this.rocket.position.copy(this.safePosition);
+        this.rocket.quaternion.copy(this.safeRotation);
+        this.velocity.set(0, 0, 0);
+        this.flightSpeed = 0;
+        this.missions.previousRocketPos = this.safePosition.clone();
+        this.controls.input.thrust = 0;
+        this.controls.speedSlider.value = '0';
+        this.controls.input.boost = false;
+        this.controls.keys.clear();
+        this.isBoosting = false;
+        this.hud.showTip('सुरक्षित गेट पर वापस आ गए। SPEED बढ़ाकर फिर कोशिश करें।');
+        this.camCurrentPos.copy(this.safePosition).add(new THREE.Vector3(0, 1, -3).applyQuaternion(this.safeRotation));
+        break;
       }
     }
 
@@ -689,7 +808,7 @@ export class ExplorerGame {
       // First-Person Cockpit View (Looking out canopy with free-look pilot head rotation)
       const cockpitWorldPos = this.rocket.getCockpitWorldPosition(this.tempV1);
       this.camera.position.copy(cockpitWorldPos);
-      this.camera.quaternion.copy(this.rocket.quaternion).multiply(qFree);
+      this.camera.quaternion.copy(this.rocket.quaternion).multiply(qFree).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI));
     } else {
       // Third-Person 360° Orbit Chase Camera (proportional to 0.28 sleek rocket)
       const baseLocalOffset = new THREE.Vector3(0, 0.85, -3.2).applyQuaternion(qFree);
@@ -734,11 +853,11 @@ export class ExplorerGame {
     const isFree = this.activeMission?.id === 'free_flight';
 
     this.hud.updateTelemetry({
-      speed: this.flightSpeed * 10, // Simulated km/s
+      speed: this.flightSpeed, // Game world units per second
       boostPercent: this.boostEnergy,
       missionTitle: this.activeMission?.title || 'EXPLORATION',
       targetName: targetId,
-      targetDistance: distToPlanet * 100, // Visual scaling to km
+      targetDistance: distToPlanet, // Game world units
       waypointCurrent: progress.current + 1,
       waypointTotal: progress.total,
       isFreeFlight: isFree,
@@ -771,7 +890,7 @@ export class ExplorerGame {
     const clampedY = Math.max(padding, Math.min(window.innerHeight - padding, y));
 
     const distToWp = rocketPos.distanceTo(wpPos);
-    const distText = `${(distToWp * 10).toFixed(0)} KM`;
+    const distText = `${distToWp.toFixed(1)} u`;
 
     this.hud.updateNavArrow(clampedX, clampedY, distText, true);
   }

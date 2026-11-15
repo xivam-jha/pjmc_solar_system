@@ -38,6 +38,7 @@ const FLAME_FRAGMENT = /* glsl */ `
   uniform float uPower;
   uniform float uThrottle;
   uniform float uBoost;
+  uniform vec3 uTint;
   varying vec2 vUv;
   varying vec3 vNormal;
 
@@ -102,7 +103,7 @@ const FLAME_FRAGMENT = /* glsl */ `
       discard;
     }
 
-    gl_FragColor = vec4(col * (1.3 + power * 0.75 + boost * 1.8), alpha);
+    gl_FragColor = vec4(mix(col, uTint, 0.45) * (1.3 + power * 0.75 + boost * 1.8), alpha);
   }
 `;
 
@@ -657,6 +658,13 @@ export class Rocket {
     this.#buildMesh();
   }
 
+  setPaint(color) {
+    this.paintMaterial.color.set(color);
+    const tint = color === '#ecf2f8' ? '#00d4ff' : color;
+    this.engineLight.color.set(tint);
+    this.flameMaterial.uniforms.uTint.value.set(tint);
+  }
+
   #buildMesh() {
     // 1. Premium Metallic Silver Body Material
     const silverBodyMat = new THREE.MeshStandardMaterial({
@@ -664,6 +672,8 @@ export class Rocket {
       metalness: 0.88,
       roughness: 0.22,
     });
+
+    this.paintMaterial = silverBodyMat;
 
     const whiteMat = new THREE.MeshStandardMaterial({
       color: 0xf5f8fc,
@@ -808,6 +818,7 @@ export class Rocket {
     // 8. Engine Flame Shader Plumes
     this.flameMaterial = new THREE.ShaderMaterial({
       uniforms: {
+        uTint: { value: new THREE.Color(0x00d4ff) },
         uTime: { value: 0 },
         uPower: { value: 0 },
         uThrottle: { value: 0 },

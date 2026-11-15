@@ -2432,3 +2432,26 @@ body {
 }
 
 
+
+/* Student flight controls and mission journal. */
+.pjmc-controls-root .pjmc-lever-base { display: none; }
+.pjmc-controls-root .pjmc-lever-zone { width: 72px; height: 176px; display: grid; place-items: center; }
+.pjmc-lever-zone > label { display: grid; gap: 8px; justify-items: center; color: #d9f6ff; font-size: 12px; }
+.student-speed-slider { writing-mode: vertical-lr; direction: rtl; height: 132px; width: 44px; accent-color: #48d9ff; touch-action: none; }
+.student-flight-tip { position: fixed; top: 80px; left: 50%; transform: translateX(-50%); max-width: 75vw; padding: 8px 14px; border-radius: 12px; background: #071b30dc; color: white; text-align: center; pointer-events: none; z-index: 150; }
+.student-flight-tip:empty { display: none; }
+.student-pilot-name { display: flex; gap: 12px; align-items: center; padding: 12px 0; }
+.student-pilot-name input { min-width: 0; padding: 10px; border: 1px solid #48d9ff66; border-radius: 8px; color: white; background: #071b30; }
+.pjmc-mission-card[data-locked="true"] { opacity: .55; }
+.pjmc-modal button:disabled { opacity: .5; cursor: default; }
+#student-lesson { line-height: 1.7; text-align: left; }
+#student-lesson button { margin: 4px; padding: 10px 14px; }
+#student-lesson a { color: #74e0ff; }
+.student-diary { z-index: 200; }
+.student-photos { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin: 16px 0; }
+.student-photos figure { margin: 0; }
+.student-photos img { width: 100%; border-radius: 12px; }
+.student-paints { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.pjmc-modal-window { max-height: 88dvh; overflow-y: auto; }
+.pjmc-telemetry-bar .pjmc-ship-tag, .pjmc-telemetry-bar .pjmc-mission-badge { display: none; }
+@media (max-height: 500px) { .student-flight-tip { top: 52px; font-size: 12px; } .pjmc-controls-root .pjmc-lever-zone { height: 130px; } .student-speed-slider { height: 94px; } }

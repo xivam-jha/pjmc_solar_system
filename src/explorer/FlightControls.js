@@ -41,6 +41,7 @@ export class FlightControls {
       leverRole: 'throttle', // 'throttle' (default: Lever=Aage/Piche) or 'pitch' (Lever=Uper/Niche)
     };
     this.#loadSettings();
+    this.settings.leverRole = 'throttle';
 
     // Raw input states (-1 to +1, or boolean)
     this.input = {
@@ -159,6 +160,20 @@ export class FlightControls {
 
     this.leverBase.querySelector('.pjmc-lever-track').appendChild(this.leverHandle);
     this.leverZone.appendChild(this.leverBase);
+    this.speedSlider = document.createElement('input');
+    this.speedSlider.type = 'range';
+    this.speedSlider.min = '0';
+    this.speedSlider.max = '100';
+    this.speedSlider.value = '0';
+    this.speedSlider.setAttribute('aria-label', 'Flight speed');
+    this.speedSlider.className = 'student-speed-slider';
+    this.speedSlider.addEventListener('input', () => {
+      this.input.thrust = Number(this.speedSlider.value) / 100;
+    });
+    const speedLabel = document.createElement('label');
+    speedLabel.textContent = 'SPEED';
+    speedLabel.append(this.speedSlider);
+    this.leverZone.append(speedLabel);
 
     // -------------------------------------------------------------
     // 3. RIGHT THUMB — Action Button Cluster
@@ -206,7 +221,7 @@ export class FlightControls {
     // Clustered arrangement
     const actionCol = document.createElement('div');
     actionCol.className = 'pjmc-action-col';
-    actionCol.append(this.settingsBtn, this.pauseBtn, this.camBtn, this.boostBtn);
+    actionCol.append(this.boostBtn);
 
     this.actionsZone.append(actionCol, this.leverZone);
 
@@ -483,6 +498,8 @@ export class FlightControls {
     const handleLeverUp = (e) => {
       if (e && e.pointerId !== this.leverPointerId) return;
       this.leverPointerId = null;
+      this.leverBase.classList.remove('active');
+      if (this.settings.leverRole === 'throttle' && e?.type !== 'pointercancel') return;
 
       // Lever released: reset throttle/pitch to 0 so jet comes to a gradual stop ("dhire dhire ruk jae")
       if (this.settings.leverRole === 'throttle') {
@@ -599,6 +616,7 @@ export class FlightControls {
       const wasBoosting = this.keys.has('Space') || this.keys.has('ShiftLeft') || this.keys.has('ShiftRight');
       this.keys.add(e.code);
 
+      if (e.repeat) return;
       if (e.code === 'KeyC') {
         this.callbacks.onCameraToggle?.();
       } else if (e.code === 'Escape') {
@@ -683,6 +701,8 @@ export class FlightControls {
     });
 
     const leverRoleBtn = this.settingsModal.querySelector('#pjmc-toggle-lever-role');
+    leverRoleBtn.closest('.flight-setting-row')?.remove();
+    leverRoleBtn.remove();
     leverRoleBtn?.addEventListener('click', () => {
       this.settings.leverRole = this.settings.leverRole === 'throttle' ? 'pitch' : 'throttle';
       leverRoleBtn.textContent = this.settings.leverRole === 'pitch' ? 'ALTITUDE (UPER/NICHE)' : 'THROTTLE (AAGE/PICHE)';
@@ -740,7 +760,7 @@ export class FlightControls {
     if (this.keys.has('Space') || this.keys.has('ShiftLeft') || this.keys.has('ShiftRight')) keyBoost = true;
 
     // Blend touch and keyboard
-    const finalThrust = Math.abs(this.input.thrust) > 0.02 ? this.input.thrust : keyThrust;
+    const finalThrust = keyThrust !== 0 ? keyThrust : this.input.thrust;
     const finalYaw = Math.abs(this.input.yaw) > 0.02 ? this.input.yaw : keyYaw;
     const finalPitch = Math.abs(this.input.pitch) > 0.02 ? this.input.pitch : keyPitch;
     const finalBoost = this.input.boost || keyBoost;
@@ -791,6 +811,7 @@ export class FlightControls {
     this.input.pitch = 0;
     this.input.yaw = 0;
     this.input.thrust = 0;
+    this.speedSlider.value = '0';
     this.joystickPointerId = null;
     this.leverPointerId = null;
     this.root.style.display = 'none';

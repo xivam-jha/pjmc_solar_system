@@ -180,3 +180,13 @@ After replacing the example URL with your actual GitHub Pages URL, add a link or
 ```
 
 The GitHub Pages app opens as its own page/tab; InfinityFree only hosts the link unless you intentionally embed the app in an iframe.
+
+## Student Space Pilot
+
+Explore now has a Moon landing route, Mars rover search, Saturn flyby, Jupiter photo mission and Free Exploration. Complete each mission and answer its NASA-linked question to earn three stars and unlock the next route. Replaying does not duplicate rewards. Silver is available immediately, gold unlocks at three stars and violet at six. Paint also changes the engine tint.
+
+Use the left joystick to steer, the right speed slider to retain a selected speed, Boost for temporary acceleration, and Pause for camera, photos, journal, settings and exit. Desktop uses W/S, A/D, R/F, Space and C. The simulation clock pauses during Explore so launch sites and mission gates stay stable. Nearby surfaces and gates reduce speed, and collisions return to the last safe checkpoint. Displayed flight units are game units.
+
+Pilot name, badges, paint and the latest eight photos are stored on this browser. Storage failures show feedback. Clearing browser data removes this progress. The Moon landing and rover search are simplified educational encounters. Flight duration depends on the pilot.
+
+Run `npm run build` and `node --test tests/spacePilot.test.js` for build and gameplay regression checks.
