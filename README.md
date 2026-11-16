@@ -183,10 +183,10 @@ The GitHub Pages app opens as its own page/tab; InfinityFree only hosts the link
 
 ## Student Space Pilot
 
-Explore now has a Moon landing route, Mars rover search, Saturn flyby, Jupiter photo mission and Free Exploration. Complete each mission and answer its NASA-linked question to earn three stars and unlock the next route. Replaying does not duplicate rewards. Silver is available immediately, gold unlocks at three stars and violet at six. Paint also changes the engine tint.
+Explore has four sequential Gold routes, six independent challenges and Free Exploration. The compact glass mission chooser separates Missions and Challenges. Rescue capsules, repair a satellite, deliver fragile cargo, track a lost probe, scan asteroid samples or align three laser relays. See [the challenge roadmap](docs/challenges-roadmap.md) for objectives, timing, failure rules and scope.
 
-Use the left joystick to steer, the right speed slider to retain a selected speed, Boost for temporary acceleration, and Pause for camera, photos, journal, settings and exit. Desktop uses W/S, A/D, R/F, Space and C. The simulation clock pauses during Explore so launch sites and mission gates stay stable. Nearby surfaces and gates reduce speed, and collisions return to the last safe checkpoint. Displayed flight units are game units.
+Use the unchanged left joystick, Speed + and Brake. Desktop uses W/S, A/D, R/F, Space and C. Rescue, collection and repair activate automatically on a slow, steady approach; only signal hints and relay alignment add contextual buttons. Pause provides camera, photos, journal, settings and exit. Launch starts above the solar system. Distances and challenge staging are educational game abstractions.
 
-Pilot name, badges, paint and the latest eight photos are stored on this browser. Storage failures show feedback. Clearing browser data removes this progress. The Moon landing and rover search are simplified educational encounters. Flight duration depends on the pilot.
+Complete an objective and its NASA-linked learning question to earn three stars once: ten badges, thirty stars maximum. Existing progress remains. Dashboard students sync records through the trusted PHP parent bridge; direct GitHub visitors play as guests with local progress. Photos and paint stay in the browser. Hosting needs the updated explore-universe.php and universe-records.php package to accept all six new awards; existing installations need no SQL migration.
 
-Run `npm run build` and `node --test tests/spacePilot.test.js` for build and gameplay regression checks.
+Run `npm run build` and `node --test tests/*.test.js` for build and gameplay regression checks. Automated checks cover objective completion, failure, pause/retry, safe placement, collision detection, idempotent progress and authenticated synchronization. These are not a substitute for a physical-device WebGL and hosting integration check.

@@ -39,6 +39,7 @@ export class FlightHUD {
     this.buildVictoryModal();
     this.buildPortraitBanner();
     this.buildMeteorHUD();
+    this.buildChallengeHUD();
     this.tip = document.createElement('div');
     this.tip.className = 'student-flight-tip';
     this.tip.setAttribute('role', 'status');
@@ -75,8 +76,64 @@ export class FlightHUD {
       this.meteorMarker.style.top=`${Math.max(100,Math.min(window.innerHeight-100,(-screen.y*.5+.5)*window.innerHeight))}px`;
     }
   }
-  showMeteorFailure(){this.meteorFailure.style.display='flex';this.meteorMarker.hidden=true;this.meteorFailure.querySelector('.meteor-retry').focus();}
+  showMeteorFailure({ reason = 'Health खत्म हो गई। आपका collected Gold सुरक्षित है।', retry = 'Checkpoint से फिर कोशिश करें', title = 'Jet disabled' } = {}) {
+    this.meteorFailure.querySelector('h2').textContent = title;
+    this.meteorFailure.querySelector('p').textContent = reason;
+    this.meteorFailure.querySelector('.meteor-retry').textContent = retry;
+    this.meteorFailure.style.display = 'flex'; this.meteorMarker.hidden = true;
+    this.meteorFailure.querySelector('.meteor-retry').focus();
+  }
   hideMeteorFailure(){this.meteorFailure.style.display='none';this.meteorPanel.hidden=true;this.meteorMarker.hidden=true;this.root.classList.remove('meteor-impact');}
+
+  buildChallengeHUD() {
+    this.challengePanel = document.createElement('section');
+    this.challengePanel.className = 'challenge-panel'; this.challengePanel.hidden = true;
+    this.challengePanel.setAttribute('aria-label', 'Challenge objective');
+    this.challengePanel.innerHTML = `
+      <div class="challenge-eyebrow"><span>FLIGHT OBJECTIVE <b class="challenge-step"></b></span><span class="challenge-clock"></span></div>
+      <h3 class="challenge-title"></h3><p class="challenge-instruction" role="status"></p>
+      <div class="challenge-meter"><label><span></span><b></b></label><progress max="100"></progress></div>
+      <progress class="challenge-hold" max="100" value="0" aria-label="Objective work completed"></progress>
+      <button class="pjmc-btn-secondary challenge-hint" data-action="hint" type="button">Direction hint · 8s</button>
+      <div class="challenge-relay" hidden>
+        <div class="relay-dial" role="img" aria-label="Antenna direction"><i class="relay-goal"></i><i class="relay-needle"></i><span></span></div>
+        <div class="relay-work"><p class="relay-reading"></p><div class="relay-buttons">
+          <button type="button" data-action="left" aria-label="Turn antenna left 45 degrees">−45°</button>
+          <button type="button" data-action="right" aria-label="Turn antenna right 45 degrees">+45°</button>
+          <button type="button" data-action="link">Link ↗</button>
+        </div></div>
+      </div>`;
+    this.challengePanel.querySelectorAll('[data-action]').forEach(button => button.addEventListener('click', () => this.callbacks.onChallengeAction?.(button.dataset.action)));
+    this.root.append(this.challengePanel);
+    this.challengeUI = Object.fromEntries(['step', 'clock', 'title', 'instruction', 'meter', 'hold', 'hint', 'relay'].map(name => [name, this.challengePanel.querySelector(`.challenge-${name}`)]));
+  }
+
+  updateChallengeHUD(state) {
+    this.challengePanel.hidden = !state.visible;
+    this.root.classList.toggle('has-challenge', Boolean(state.visible));
+    if (!state.visible) return;
+    const ui = this.challengeUI;
+    ui.step.textContent = state.step; ui.title.textContent = state.title;
+    if (ui.instruction.textContent !== state.instruction) ui.instruction.textContent = state.instruction;
+    const seconds = Math.ceil(state.timeLeft || 0);
+    ui.clock.textContent = state.timeLeft === null ? '' : `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+    ui.meter.hidden = !state.showMeter;
+    ui.meter.querySelector('label span').textContent = state.meterLabel;
+    ui.meter.querySelector('b').textContent = `${state.meter}%`;
+    const meter = ui.meter.querySelector('progress'); meter.value = state.meter;
+    meter.setAttribute('aria-label', state.meterLabel);
+    ui.meter.classList.toggle('low', state.meterLabel !== 'SIGNAL' && state.meter < 35);
+    ui.hold.value = state.progress; ui.hold.hidden = state.progress <= 0;
+    ui.hint.hidden = !state.hint; ui.hint.disabled = state.hintCooldown > 0;
+    ui.hint.textContent = state.hintCooldown > 0 ? `Hint फिर ${state.hintCooldown}s में` : 'Direction hint · 8s';
+    ui.relay.hidden = !state.relay;
+    if (state.relay) {
+      ui.relay.querySelector('.relay-goal').style.transform = `rotate(${state.goalAngle}deg)`;
+      ui.relay.querySelector('.relay-needle').style.transform = `rotate(${state.angle}deg)`;
+      ui.relay.querySelector('.relay-reading').textContent = `आप: ${state.angle}° · Target: ${state.goalAngle}°`;
+      ui.relay.querySelector('.relay-dial').setAttribute('aria-label', `Antenna ${state.angle} degrees. Target ${state.goalAngle} degrees.`);
+    }
+  }
 
   buildTelemetryHUD() {
     this.telemetryEl = document.createElement('div');
@@ -195,14 +252,14 @@ export class FlightHUD {
 
     const cardsHtml = MISSIONS.map(
       (m) => `
-      <div class="pjmc-mission-card ${m.id === 'mission_01' ? 'active-card' : ''}" data-id="${m.id}">
+      <div class="pjmc-mission-card ${m.id === 'mission_01' ? 'active-card' : ''}" data-id="${m.id}" data-category="${m.category || 'missions'}">
         <span class="mission-planet planet-${m.target}" style="background-image:url('${ASSET_BASE}textures/${m.target}.jpg')" aria-hidden="true"></span>
         <div class="pjmc-card-header">
           <span class="pjmc-card-num">${m.num}</span>
           <span class="pjmc-card-diff diff-${m.difficulty.toLowerCase()}">${m.difficulty}</span>
         </div>
         <h3 class="pjmc-card-title">${m.title}</h3>
-        <p class="pjmc-card-desc">${m.waypoints.length ? m.waypoints.length + ' PJMC Gold' : 'Fly anywhere'}</p>
+        <p class="pjmc-card-desc">${m.summary || (m.waypoints.length ? m.waypoints.length + ' PJMC Gold' : 'Fly anywhere')}</p>
         <span class="mission-status"></span>
         <div class="pjmc-card-reward">
           <span class="pjmc-badge-icon">🎖</span> ${m.reward}
@@ -231,9 +288,14 @@ export class FlightHUD {
 
         <label class="student-pilot-name"><span>PILOT</span> <input id="student-pilot-name" maxlength="24" placeholder="Your name" /></label>
         <p id="student-progress-summary"></p>
-        <div class="pjmc-mission-grid">
+        <div class="mission-tabs" role="tablist" aria-label="Flight categories">
+          <button type="button" role="tab" id="tab-missions" data-tab="missions" aria-controls="mission-cards" aria-selected="true">Missions <span>4</span></button>
+          <button type="button" role="tab" id="tab-challenges" data-tab="challenges" aria-controls="mission-cards" aria-selected="false" tabindex="-1">Challenges <span>6</span></button>
+        </div>
+        <div class="pjmc-mission-grid" id="mission-cards" role="tabpanel" aria-labelledby="tab-missions">
           ${cardsHtml}
         </div>
+        <div class="mission-brief" aria-live="polite"><p></p><span></span></div>
 
         <div class="pjmc-modal-footer">
           <button type="button" class="pjmc-btn-secondary" id="pjmc-back-to-solar">
@@ -250,7 +312,8 @@ export class FlightHUD {
     this.root.appendChild(this.missionModalEl);
 
     // Wire clicks
-    let selectedMissionId = 'mission_01';
+    this.selectedMissionId = 'mission_01';
+    this.missionCategory = 'missions';
     const nameInput = this.missionModalEl.querySelector('#student-pilot-name');
     nameInput.value = this.progress.data.name;
     nameInput.readOnly = Boolean(this.progress.student);
@@ -264,10 +327,7 @@ export class FlightHUD {
     cards.forEach((card) => {
       card.addEventListener('click', () => {
         if (card.dataset.locked === 'true') return;
-        cards.forEach((c) => { c.classList.remove('active-card'); c.querySelector('button').setAttribute('aria-pressed','false'); });
-        card.classList.add('active-card');
-        card.querySelector('button').setAttribute('aria-pressed','true');
-        selectedMissionId = card.dataset.id;
+        this.selectMissionCard(card.dataset.id);
       });
     });
 
@@ -279,9 +339,52 @@ export class FlightHUD {
 
     const launchBtn = this.missionModalEl.querySelector('#pjmc-launch-btn');
     launchBtn.addEventListener('click', () => {
+      if (!this.progress.unlocked(this.selectedMissionId)) return;
       this.closeMissionModal();
-      this.callbacks.onSelectMission?.(selectedMissionId);
+      this.callbacks.onSelectMission?.(this.selectedMissionId);
     });
+    const tabs = this.missionModalEl.querySelectorAll('[data-tab]');
+    tabs.forEach((tab, index) => {
+      tab.addEventListener('click', () => this.selectMissionCategory(tab.dataset.tab));
+      tab.addEventListener('keydown', event => {
+        if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+        event.preventDefault();
+        const next = event.key === 'Home' ? 0 : event.key === 'End' ? 1 : 1 - index;
+        tabs[next].click(); tabs[next].focus();
+      });
+    });
+    this.selectMissionCategory('missions');
+  }
+
+  selectMissionCard(id) {
+    const mission = MISSIONS.find(m => m.id === id);
+    if (!mission || !this.progress.unlocked(id)) return;
+    this.selectedMissionId = id;
+    this.missionModalEl.querySelectorAll('.pjmc-mission-card').forEach(card => {
+      const selected = card.dataset.id === id;
+      card.classList.toggle('active-card', selected);
+      card.querySelector('button').setAttribute('aria-pressed', String(selected));
+    });
+    const brief = this.missionModalEl.querySelector('.mission-brief');
+    brief.querySelector('p').textContent = mission.category === 'challenges' ? mission.descHi : mission.id === 'free_flight' ? 'अपनी मर्जी से उड़ें। कोई timer या mission objective नहीं।' : `${mission.waypoints.length} PJMC Gold collect करें, meteor shower से बचें और learning question पूरा करें।`;
+    brief.querySelector('span').textContent = mission.id === 'free_flight' ? 'FREE EXPLORATION' : `${mission.reward} · 3 ★${mission.duration ? ' · ' + mission.duration : ''}`;
+    this.missionModalEl.querySelector('#pjmc-launch-btn').textContent = `Launch ${mission.num} ↗`;
+  }
+
+  selectMissionCategory(category) {
+    this.missionCategory = category;
+    this.missionModalEl.querySelectorAll('[data-tab]').forEach(tab => {
+      const selected = tab.dataset.tab === category;
+      tab.setAttribute('aria-selected', String(selected)); tab.tabIndex = selected ? 0 : -1;
+    });
+    this.missionModalEl.querySelectorAll('.pjmc-mission-card').forEach(card => { card.hidden = card.dataset.category !== category; });
+    const grid = this.missionModalEl.querySelector('.pjmc-mission-grid');
+    grid.setAttribute('aria-labelledby', `tab-${category}`); grid.scrollTop = 0;
+    const selected = MISSIONS.find(m => m.id === this.selectedMissionId);
+    if ((selected?.category || 'missions') !== category || !this.progress.unlocked(this.selectedMissionId)) {
+      this.selectedMissionId = MISSIONS.find(m => (m.category || 'missions') === category && this.progress.unlocked(m.id)).id;
+    }
+    this.selectMissionCard(this.selectedMissionId);
   }
 
   buildPauseModal() {
@@ -504,6 +607,7 @@ export class FlightHUD {
     this.root.classList.add('hidden');
     this.closeMissionModal();
     this.hideMeteorFailure();
+    this.updateChallengeHUD({ visible: false });
     this.hidePauseModal();
     this.hideVictoryModal();
     this.diaryModal.style.display = 'none';
@@ -511,9 +615,11 @@ export class FlightHUD {
 
   openMissionModal() {
     this.meteorPanel.hidden=true;this.meteorMarker.hidden=true;
-    this.missionModalEl.querySelector('#student-progress-summary').textContent = `${this.progress.stars} ★ / 12 • ${Object.keys(this.progress.data.badges).length}/4 missions complete`;
+    this.updateChallengeHUD({ visible: false });
+    const count = Object.keys(LESSONS).length;
+    this.missionModalEl.querySelector('#student-progress-summary').textContent = `${this.progress.stars} ★ / ${count * 3} • ${Object.keys(this.progress.data.badges).length}/${count} missions complete`;
     this.missionModalEl.querySelectorAll('.pjmc-mission-card').forEach((card, index) => {
-      const unlocked = this.progress.unlocked(index);
+      const unlocked = this.progress.unlocked(card.dataset.id);
       card.dataset.locked = String(!unlocked);
       const button = card.querySelector('button');
       button.disabled = !unlocked;
@@ -521,6 +627,7 @@ export class FlightHUD {
       button.setAttribute('aria-pressed', String(card.classList.contains('active-card')));
       card.querySelector('.mission-status').textContent = this.progress.data.badges[card.dataset.id] ? '✓ Completed' : unlocked ? 'Ready to fly' : '🔒 Locked';
     });
+    this.selectMissionCategory(this.missionCategory);
     this.show();
     this.missionModalEl.style.display = 'flex';
     if (window.parent !== window) window.parent.postMessage({type:'pjmc:overlay',open:true},'https://shivamonline.gt.tc');
@@ -608,6 +715,7 @@ export class FlightHUD {
     waypointCurrent = 1,
     waypointTotal = 5,
     isFreeFlight = false,
+    hideTarget = false,
   }) {
     this.speedValEl.textContent = Math.round(speed).toString();
     this.boostFillEl.style.width = `${Math.max(0, Math.min(100, boostPercent))}%`;
@@ -615,6 +723,8 @@ export class FlightHUD {
     this.targetValEl.textContent = targetName.toUpperCase();
 
     this.distValEl.textContent = `${targetDistance.toFixed(1)} u`;
+    this.targetValEl.closest('.pjmc-target-row').hidden = hideTarget;
+    this.distValEl.closest('.pjmc-dist-row').hidden = hideTarget;
 
     if (isFreeFlight) {
       this.wpRowEl.style.display = 'none';

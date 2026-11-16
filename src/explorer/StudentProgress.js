@@ -1,4 +1,6 @@
 import { getAuthenticatedStudent, requestStudentRecords } from './StudentAuth.js';
+import { CHALLENGE_LESSONS } from './ChallengeCatalog.js';
+import { MISSIONS } from './Missions.js';
 const STORAGE_KEY = 'pjmc_space_pilot_v1';
 export const LESSONS = {
   mission_01: {
@@ -21,6 +23,7 @@ export const LESSONS = {
     question: 'Great Red Spot क्या है?', answers: ['पहाड़', 'झील', 'विशाल तूफ़ान'], correct: 2,
     source: 'https://science.nasa.gov/jupiter/facts/',
   },
+  ...CHALLENGE_LESSONS,
 };
 
 export class StudentProgress {
@@ -84,7 +87,10 @@ export class StudentProgress {
     })().finally(() => { this.syncing = null; });
     return this.syncing;
   }
-  unlocked(index) { return index === 0 || index === 4 || Boolean(this.data.badges[`mission_0${index}`]); }
+  unlocked(idOrIndex) {
+    const mission = typeof idOrIndex === 'number' ? MISSIONS[idOrIndex] : MISSIONS.find(m => m.id === idOrIndex);
+    return Boolean(mission && (!mission.requires || this.data.badges[mission.requires]));
+  }
   addPhoto(image, title) {
     const previous = this.data.photos;
     this.data.photos = [...previous, { image, title, date: new Date().toISOString() }].slice(-8);

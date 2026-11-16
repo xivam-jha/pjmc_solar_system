@@ -36,6 +36,11 @@ test('online awards survive network failure, retry once and restore badges on an
     p.award('mission_02'); await p.syncOnline(); assert.equal(awards,1);
     local.clear(); const other = new StudentProgress(); await other.syncOnline();
     assert.equal(other.stars,6);assert.equal(other.unlocked(2),true);
+    other.award('challenge_06'); await other.syncOnline();
+    assert.equal(other.stars,9); assert.ok(server.has('challenge_06'));
+    other.award('challenge_06'); await other.syncOnline(); assert.equal(awards,2);
+    local.clear(); const third = new StudentProgress(); await third.syncOnline();
+    assert.equal(third.stars,9); assert.equal(third.data.badges.challenge_06,true);
     assert.equal(listeners.size,0);
   } finally {for(const key of ['window','location','localStorage']) delete globalThis[key];}
 });

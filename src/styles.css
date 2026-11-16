@@ -2587,3 +2587,42 @@ body {
 @media(max-width:600px){.meteor-health{top:80px;left:12px;width:200px;padding:9px 12px}.meteor-health-heading strong{font-size:14px}}
 @media(max-height:450px){.meteor-health{top:70px;width:175px;padding:6px 10px}.meteor-status{font-size:10px}}
 @media(prefers-reduced-motion:reduce){.pjmc-explorer-ui.meteor-impact{box-shadow:none}}
+
+/* Mission library: one compact category at a time, with a persistent launch action. */
+.mission-tabs{display:flex;gap:5px;padding:4px;border:1px solid #ffffff12;border-radius:12px;background:#080f1838;flex-shrink:0}
+.mission-tabs button{flex:1;min-height:36px;border:0;border-radius:8px;background:transparent;color:#aab8c8;font:600 12px system-ui;cursor:pointer}
+.mission-tabs button[aria-selected="true"]{background:#ffffff12;color:#f0dfb9;box-shadow:inset 0 1px 0 #fff2}
+.mission-tabs span{margin-left:6px;font-size:10px;opacity:.7}
+.pjmc-mission-card[hidden],.challenge-panel[hidden],.challenge-panel [hidden],.pjmc-target-row[hidden],.pjmc-dist-row[hidden]{display:none!important}
+.pjmc-mission-select-modal .pjmc-mission-card{min-height:96px;padding:11px;gap:4px}
+.pjmc-mission-select-modal .pjmc-mission-card[data-id="free_flight"]{min-height:64px}
+.mission-brief{flex-shrink:0;padding:10px 12px;border:1px solid #e6c68e22;border-radius:11px;background:#e6c68e07;min-height:50px}
+.mission-brief p{margin:0 0 5px;font:12px/1.5 system-ui;color:#e3e8ee}
+.mission-brief span{font:10px/1.4 system-ui;color:#d7c096}
+.pjmc-mission-select-modal .pjmc-modal-window{width:min(680px,calc(100% - 24px));gap:10px}
+.pjmc-mission-select-modal .pjmc-modal-footer{padding-top:6px;border-top:0}
+/* The objective panel adds contextual actions, leaving joystick and pedals intact. */
+.challenge-panel{position:absolute;top:82px;left:16px;width:min(330px,calc(100vw - 32px));padding:14px;border:1px solid var(--glass-border);border-radius:16px;background:var(--glass-panel);box-shadow:var(--glass-shadow);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);color:#eaf1f7;font:12px system-ui;pointer-events:auto;box-sizing:border-box}
+.challenge-eyebrow{display:flex;align-items:center;justify-content:space-between;color:#b4bfcd;font-size:9px;letter-spacing:.08em}
+.challenge-step{color:#e2c68d;margin-left:5px;font-weight:500}.challenge-clock{font-variant-numeric:tabular-nums;color:#eac58a;font-size:13px;letter-spacing:0}
+.challenge-title{margin:8px 0 5px;font:600 16px/1.3 system-ui;letter-spacing:-.025em;color:#f3eee3}
+.challenge-instruction{margin:0 0 8px;font:12px/1.5 system-ui;color:#bdcbd8}
+.challenge-meter label{display:flex;justify-content:space-between;font:9px system-ui;letter-spacing:.07em;color:#c3d4db}
+.challenge-meter b{color:#c6eddd;letter-spacing:0}.challenge-meter.low b{color:#f6ba9e}
+.challenge-panel progress{display:block;width:100%;height:5px;border:0;border-radius:8px;overflow:hidden;accent-color:#91cdbc;background:#ffffff16;margin:6px 0}
+.challenge-panel progress::-webkit-progress-bar{background:#ffffff16}.challenge-panel progress::-webkit-progress-value{background:#91cdbc}.challenge-panel .low progress::-webkit-progress-value{background:#e0a07e}
+.challenge-panel .challenge-hold{height:3px;accent-color:#e8cc92;margin-top:10px}.challenge-hold::-webkit-progress-value{background:#e8cc92!important}
+.challenge-hint{margin-top:5px;padding:9px 12px;font:11px system-ui;min-height:40px;cursor:pointer}
+.challenge-relay{display:flex;gap:12px;align-items:center;margin-top:10px;padding-top:10px;border-top:1px solid #ffffff18}
+.relay-dial{position:relative;width:72px;height:72px;border:1px solid #ffffff38;border-radius:50%;background:repeating-conic-gradient(from -1deg,#ffffff30 0deg 2deg,transparent 2deg 45deg);flex-shrink:0}
+.relay-dial:before{content:'';position:absolute;inset:5px;background:#152433;border-radius:50%}.relay-dial span{position:absolute;left:32px;top:32px;width:8px;height:8px;border-radius:50%;background:#ecdfc1;z-index:2}
+.relay-dial i{position:absolute;left:34px;bottom:36px;width:4px;height:28px;background:#92eadc;border-radius:3px;transform-origin:50% 100%;z-index:1}
+.relay-dial .relay-goal{width:8px;left:32px;height:32px;background:#edc58266;border:1px solid #edc582;box-sizing:border-box}
+.relay-work{min-width:0;flex:1}.relay-reading{margin:0 0 8px;color:#c6d1df;font:11px system-ui}
+.relay-buttons{display:flex;gap:5px}.relay-buttons button{min-height:42px;flex:1;padding:6px;border:1px solid #ffffff30;border-radius:8px;background:#ffffff0b;color:#e2eeec;font:600 11px system-ui;cursor:pointer}.relay-buttons button:last-child{color:#eed29d;border-color:#efd29a60}
+.has-challenge .pjmc-portrait-hint{display:none!important}.has-challenge .student-flight-tip{top:auto;bottom:calc(190px + env(safe-area-inset-bottom));font:11px/1.5 system-ui;max-width:280px}
+.challenge-panel button:focus-visible{outline:2px solid #efd29a;outline-offset:3px}.challenge-panel button:disabled{opacity:.55;cursor:default}
+@media(max-width:520px){.pjmc-mission-select-modal .pjmc-modal-window{padding:14px;gap:8px}.pjmc-mission-select-modal .pjmc-card-title{font-size:12px}.pjmc-mission-select-modal .pjmc-card-desc{font-size:10px}.mission-brief p{font-size:11px}.challenge-panel{left:12px;top:76px;width:min(310px,calc(100vw - 24px));padding:12px}}
+@media(max-height:700px){.pjmc-mission-select-modal .pjmc-modal-window{padding:12px;gap:6px}.pjmc-mission-select-modal .pjmc-modal-header{padding-bottom:6px}.pjmc-mission-select-modal .pjmc-mission-card{min-height:76px;padding:9px;gap:3px}.pjmc-mission-select-modal .pjmc-card-desc{display:none}.pjmc-mission-select-modal .pjmc-mission-briefing-label{display:none}.mission-brief{padding:7px 10px;min-height:0}.mission-brief p{font-size:11px}.mission-tabs button{min-height:32px}}
+@media(max-height:480px) and (orientation:landscape){.challenge-panel{top:65px;left:50%;transform:translateX(-50%);width:280px;padding:9px 12px}.challenge-title{font-size:13px;margin:4px 0}.challenge-instruction{font-size:10px;margin-bottom:5px}.challenge-relay{margin-top:5px;padding-top:5px}.relay-dial{width:56px;height:56px}.relay-dial i{left:26px;bottom:28px;height:21px}.relay-dial .relay-goal{left:24px;height:25px}.relay-dial span{left:24px;top:24px}.has-challenge .student-flight-tip{bottom:16px;max-width:230px}.pjmc-mission-select-modal .student-pilot-name{display:none}.mission-brief p{display:none}}
+@media(prefers-reduced-transparency:reduce){.challenge-panel{background:#142236;backdrop-filter:none}}

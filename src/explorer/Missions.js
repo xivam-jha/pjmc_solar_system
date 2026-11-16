@@ -13,6 +13,7 @@
  */
 
 import * as THREE from 'three';
+import { CHALLENGES } from './ChallengeCatalog.js';
 
 export const MISSIONS = [
   {
@@ -36,6 +37,7 @@ export const MISSIONS = [
   },
   {
     id: 'mission_02',
+    requires: 'mission_01',
     num: '02',
     title: 'Mars Rover Rescue',
     titleHi: 'मंगल अभियान',
@@ -56,6 +58,7 @@ export const MISSIONS = [
   },
   {
     id: 'mission_03',
+    requires: 'mission_02',
     num: '03',
     title: 'Saturn Rings',
     titleHi: 'शनि के छल्ले',
@@ -77,6 +80,7 @@ export const MISSIONS = [
   },
   {
     id: 'mission_04',
+    requires: 'mission_03',
     num: '04',
     title: 'Jupiter Photo Expedition',
     titleHi: 'बृहस्पति महायात्रा',
@@ -95,6 +99,7 @@ export const MISSIONS = [
       { radius: 6.5, angle: 5.2, y: -0.2, label: 'Solar Corridor Exit' },
     ],
   },
+  ...CHALLENGES,
   {
     id: 'free_flight',
     num: '∞',
