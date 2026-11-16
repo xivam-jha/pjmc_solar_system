@@ -13,9 +13,10 @@
  */
 
 import * as THREE from 'three';
-import { CHALLENGES } from './ChallengeCatalog.js';
+import { CHALLENGES, TRAINING_MISSION } from './ChallengeCatalog.js';
 
 export const MISSIONS = [
+  // Practice is appended below so the original mission indices remain stable.
   {
     id: 'mission_01',
     num: '01',
@@ -113,6 +114,7 @@ export const MISSIONS = [
     reward: 'Cosmic Explorer',
     waypoints: [],
   },
+  TRAINING_MISSION,
 ];
 
 export class MissionManager {

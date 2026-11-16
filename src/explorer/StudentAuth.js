@@ -1,6 +1,16 @@
 const DASHBOARD_ORIGIN = 'https://shivamonline.gt.tc';
 const BRIDGE_URL = DASHBOARD_ORIGIN + '/student/explore-universe.php';
 let authenticatedStudent = null;
+let dashboardNonce = null;
+
+export function isTrustedDashboardEvent(event, host = window) {
+  return Boolean(dashboardNonce && host.parent !== host && event.origin === DASHBOARD_ORIGIN &&
+    event.source === host.parent && event.data?.nonce === dashboardNonce);
+}
+
+export function announceFlightReady(host = window) {
+  if (dashboardNonce && host.parent !== host) host.parent.postMessage({ type: 'pjmc:flight-ready', nonce: dashboardNonce }, DASHBOARD_ORIGIN);
+}
 
 export function getAuthenticatedStudent() { return authenticatedStudent; }
 export function base64url(bytes) {
@@ -25,7 +35,7 @@ export function receiveDashboardProfile(host = window, timeoutMs = 15000) {
       if (event.origin !== DASHBOARD_ORIGIN || event.source !== host.parent ||
           event.data?.type !== 'pjmc:student' || event.data.nonce !== nonce) return;
       cleanup();
-      try { resolve(profileFromResponse(event.data)); } catch (error) { reject(error); }
+      try { const profile = profileFromResponse(event.data); dashboardNonce = nonce; resolve(profile); } catch (error) { reject(error); }
     };
     const timer = setTimeout(() => {
       cleanup();
@@ -39,6 +49,7 @@ export function receiveDashboardProfile(host = window, timeoutMs = 15000) {
 export async function initializeStudentAuth() {
   const params = new URLSearchParams(location.hash.slice(1));
   authenticatedStudent = null;
+  dashboardNonce = null;
   if (params.get('pjmc') === 'bridge') {
     // Keep this non-secret marker so iframe reload repeats the handshake.
     authenticatedStudent = await receiveDashboardProfile();

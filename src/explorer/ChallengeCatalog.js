@@ -4,7 +4,7 @@ export const CHALLENGES = [
     id: 'challenge_01', num: 'C1', kind: 'rescue', title: 'SOS Rescue', titleHi: 'बचाव अभियान',
     target: 'earth', difficulty: 'EASY', reward: 'Rescue Captain', duration: '3 min limit',
     summary: '3 capsules · safe return',
-    descHi: '3 capsules के पास BRAKE लगाकर रुकें, फिर rescue station पहुँचें। मलबे से बचें; समय 3 मिनट।',
+    descHi: 'किसी भी क्रम में 3 capsules के पास रुकें। उन्हें rescue station के docking ring में पहुँचाएँ। समय 3 मिनट।',
   },
   {
     id: 'challenge_02', num: 'C2', kind: 'repair', title: 'Satellite Repair', titleHi: 'सैटेलाइट सुधारें',
@@ -28,15 +28,21 @@ export const CHALLENGES = [
     id: 'challenge_05', num: 'C5', kind: 'sample', title: 'Asteroid Samples', titleHi: 'चट्टानों के नमूने',
     target: 'jupiter', difficulty: 'HARD', reward: 'Rock Detective', duration: 'No time limit',
     summary: 'Scan 3 marked rocks',
-    descHi: 'C, S और M label वाली 3 चट्टानों के पास रुककर sample scan करें। आसपास घूमते मलबे से hull बचाएँ।',
+    descHi: '3 चट्टानें scan करें। मिली जानकारी से C, S या M type चुनें। सही पहचान पर sample मिलेगा।',
   },
   {
     id: 'challenge_06', num: 'C6', kind: 'relay', title: 'Laser Link', titleHi: 'सिग्नल जोड़ें',
     target: 'earth', difficulty: 'PUZZLE', reward: 'Relay Architect', duration: 'No time limit',
     summary: 'Align 3 relay dishes',
-    descHi: 'हर relay के पास रुकें। Dial की दिशा gold target से मिलाकर Link दबाएँ; तीनों relays से Earth तक signal जोड़ें।',
+    descHi: 'हर relay के docking ring में रुकें। Mirror घुमाएँ; beam अगला relay छूकर हरी हो तो Link दबाएँ।',
   },
 ].map(m => ({ ...m, category: 'challenges', waypoints: [], desc: m.summary }));
+
+export const TRAINING_MISSION = {
+  id: 'training_flight', num: 'T', kind: 'training', category: 'training', target: 'earth',
+  title: 'Practice flight', titleHi: 'उड़ना सीखें', difficulty: 'PRACTICE', reward: '', waypoints: [],
+  descHi: 'Joystick, Speed +, Brake और collection सीखें। कोई समय सीमा या damage नहीं।',
+};
 
 export const CHALLENGE_LESSONS = {
   challenge_01: {

@@ -34,7 +34,7 @@ test('success waits for meteor survival; retry preserves collected mission progr
  const game={meteors,hud:{showTip(){},hideMeteorFailure(){}},state:GAME_STATE.FLYING};
  ExplorerGame.prototype.handleMissionSuccess.call(game,{mission,elapsedSeconds:12});assert.equal(game.pendingMissionSuccess.mission,mission);assert.equal(game.state,GAME_STATE.FLYING);
  game.state=GAME_STATE.WRECKED;meteors.phase='dead';
- Object.assign(game,{planetRegistry:new Map(),safePosition:new THREE.Vector3(1,20,1),safeRotation:new THREE.Quaternion(),rocket:{position:new THREE.Vector3(),quaternion:new THREE.Quaternion()},missions:{activeWaypointIndex:5},velocity:new THREE.Vector3(),controls:{keys:new Set(['w']),input:{accelerate:true,thrust:1}},camCurrentPos:new THREE.Vector3(),resumeFlight(){this.state=GAME_STATE.FLYING;}});
+ Object.assign(game,{pauseBlocks:new Set(),classicRetryCount:0,classicDamageTaken:0,resetFlightMotion(){this.requestedThrottle=0;this.controls.keys.clear();this.controls.input.thrust=0;},planetRegistry:new Map(),safePosition:new THREE.Vector3(1,20,1),safeRotation:new THREE.Quaternion(),rocket:{position:new THREE.Vector3(),quaternion:new THREE.Quaternion()},missions:{activeWaypointIndex:5},velocity:new THREE.Vector3(),controls:{keys:new Set(['w']),input:{accelerate:true,thrust:1}},camCurrentPos:new THREE.Vector3(),resumeFlight(){this.state=GAME_STATE.FLYING;}});
  ExplorerGame.prototype.retryMeteorChallenge.call(game);
  assert.equal(game.missions.activeWaypointIndex,5);assert.equal(game.pendingMissionSuccess.mission,mission);assert.equal(game.meteors.health,100);assert.equal(game.meteors.phase,'warning');assert.equal(game.requestedThrottle,0);assert.equal(game.state,GAME_STATE.FLYING);meteors.dispose();
 });

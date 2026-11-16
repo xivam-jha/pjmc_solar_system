@@ -12,6 +12,7 @@
  */
 
 import { LESSONS } from './StudentProgress.js';
+import { FLIGHT_SKINS } from './FlightRewards.js';
 import { MISSIONS } from './Missions.js';
 import { BRAND, getMonogramSvg } from '../config/brand.js';
 
@@ -40,6 +41,7 @@ export class FlightHUD {
     this.buildPortraitBanner();
     this.buildMeteorHUD();
     this.buildChallengeHUD();
+    this.buildTrainingComplete();
     this.tip = document.createElement('div');
     this.tip.className = 'student-flight-tip';
     this.tip.setAttribute('role', 'status');
@@ -96,16 +98,23 @@ export class FlightHUD {
       <progress class="challenge-hold" max="100" value="0" aria-label="Objective work completed"></progress>
       <button class="pjmc-btn-secondary challenge-hint" data-action="hint" type="button">Direction hint · 8s</button>
       <div class="challenge-relay" hidden>
-        <div class="relay-dial" role="img" aria-label="Antenna direction"><i class="relay-goal"></i><i class="relay-needle"></i><span></span></div>
+        <svg class="beam-map" viewBox="0 0 100 94" role="img" aria-label="Beam path from source through three mirrors to Earth link"><path d="M50 85V53" stroke="#b4dad9" fill="none"/>${[0,1,2].map(() => '<line stroke-width="1.8"/>').join('')}${['1','2','3','E'].map(label => `<g><circle r="4" fill="#e7cea0"/><text y="-7" text-anchor="middle">${label}</text></g>`).join('')}<text x="50" y="93" text-anchor="middle">SOURCE</text></svg>
         <div class="relay-work"><p class="relay-reading"></p><div class="relay-buttons">
-          <button type="button" data-action="left" aria-label="Turn antenna left 45 degrees">−45°</button>
-          <button type="button" data-action="right" aria-label="Turn antenna right 45 degrees">+45°</button>
+          <button type="button" data-action="left" aria-label="Turn mirror left 45 degrees">−45°</button>
+          <button type="button" data-action="right" aria-label="Turn mirror right 45 degrees">+45°</button>
           <button type="button" data-action="link">Link ↗</button>
         </div></div>
-      </div>`;
+      </div>
+      <div class="challenge-sample" hidden><p class="sample-fact"></p><div class="sample-buttons">
+        <button type="button" data-action="sample:C">C · Carbonaceous</button>
+        <button type="button" data-action="sample:S">S · Stony</button>
+        <button type="button" data-action="sample:M">M · Metallic</button>
+      </div></div>
+      <span class="challenge-docking"></span>
+      <button class="challenge-skip" data-action="skip-training" type="button" hidden>Skip practice →</button>`;
     this.challengePanel.querySelectorAll('[data-action]').forEach(button => button.addEventListener('click', () => this.callbacks.onChallengeAction?.(button.dataset.action)));
     this.root.append(this.challengePanel);
-    this.challengeUI = Object.fromEntries(['step', 'clock', 'title', 'instruction', 'meter', 'hold', 'hint', 'relay'].map(name => [name, this.challengePanel.querySelector(`.challenge-${name}`)]));
+    this.challengeUI = Object.fromEntries(['step', 'clock', 'title', 'instruction', 'meter', 'hold', 'hint', 'relay', 'sample', 'docking', 'skip'].map(name => [name, this.challengePanel.querySelector(`.challenge-${name}`)]));
   }
 
   updateChallengeHUD(state) {
@@ -114,6 +123,12 @@ export class FlightHUD {
     if (!state.visible) return;
     const ui = this.challengeUI;
     ui.step.textContent = state.step; ui.title.textContent = state.title;
+    ui.instruction.classList.toggle('warning', Boolean(state.warning));
+    ui.skip.hidden = !state.training;
+    ui.sample.hidden = !state.sample;
+    ui.sample.querySelector('.sample-fact').textContent = state.sampleFact || '';
+    ui.docking.textContent = state.docking ? (state.dockReady ? '● DOCKING POSITION SECURE' : '◌ DOCKING RING AHEAD') : state.rescued != null ? `${state.rescued}/3 CAPSULES ABOARD` : '';
+    ui.docking.hidden = !ui.docking.textContent;
     if (ui.instruction.textContent !== state.instruction) ui.instruction.textContent = state.instruction;
     const seconds = Math.ceil(state.timeLeft || 0);
     ui.clock.textContent = state.timeLeft === null ? '' : `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
@@ -128,10 +143,19 @@ export class FlightHUD {
     ui.hint.textContent = state.hintCooldown > 0 ? `Hint फिर ${state.hintCooldown}s में` : 'Direction hint · 8s';
     ui.relay.hidden = !state.relay;
     if (state.relay) {
-      ui.relay.querySelector('.relay-goal').style.transform = `rotate(${state.goalAngle}deg)`;
-      ui.relay.querySelector('.relay-needle').style.transform = `rotate(${state.angle}deg)`;
-      ui.relay.querySelector('.relay-reading').textContent = `आप: ${state.angle}° · Target: ${state.goalAngle}°`;
-      ui.relay.querySelector('.relay-dial').setAttribute('aria-label', `Antenna ${state.angle} degrees. Target ${state.goalAngle} degrees.`);
+      ui.relay.querySelector('.relay-reading').textContent = `Mirror ${state.angle}° · ${state.beamAligned ? 'Beam connected ✓' : 'Follow the reflected beam'}`;
+      const map = ui.relay.querySelector('.beam-map');
+      map.setAttribute('aria-label', `Mirror ${state.angle} degrees. ${state.beamAligned ? 'Beam connected' : 'Beam not connected'}. Top view of three relays and Earth link.`);
+      if (state.beamPlan) {
+        map.querySelectorAll('g').forEach((node, i) => node.setAttribute('transform', `translate(${state.beamPlan.nodes[i].x} ${state.beamPlan.nodes[i].y})`));
+        map.querySelectorAll('line').forEach((line, i) => {
+          const segment = state.beamPlan.lines[i];
+          for (const key of ['x1', 'x2', 'y1', 'y2']) line.setAttribute(key, segment[key]);
+          line.setAttribute('stroke', segment.aligned ? '#a0e7bd' : '#efb988');
+          line.style.display = segment.visible ? '' : 'none';
+        });
+      }
+      ui.relay.classList.toggle('aligned', state.beamAligned);
     }
   }
 
@@ -250,7 +274,7 @@ export class FlightHUD {
     this.missionModalEl.className = 'pjmc-modal pjmc-mission-select-modal';
     this.missionModalEl.style.display = 'none';
 
-    const cardsHtml = MISSIONS.map(
+    const cardsHtml = MISSIONS.filter(m => m.kind !== 'training').map(
       (m) => `
       <div class="pjmc-mission-card ${m.id === 'mission_01' ? 'active-card' : ''}" data-id="${m.id}" data-category="${m.category || 'missions'}">
         <span class="mission-planet planet-${m.target}" style="background-image:url('${ASSET_BASE}textures/${m.target}.jpg')" aria-hidden="true"></span>
@@ -287,7 +311,7 @@ export class FlightHUD {
         </div>
 
         <label class="student-pilot-name"><span>PILOT</span> <input id="student-pilot-name" maxlength="24" placeholder="Your name" /></label>
-        <p id="student-progress-summary"></p>
+        <div class="mission-meta"><p id="student-progress-summary"></p><button type="button" class="practice-button">Practice · ~30 sec ↗</button></div>
         <div class="mission-tabs" role="tablist" aria-label="Flight categories">
           <button type="button" role="tab" id="tab-missions" data-tab="missions" aria-controls="mission-cards" aria-selected="true">Missions <span>4</span></button>
           <button type="button" role="tab" id="tab-challenges" data-tab="challenges" aria-controls="mission-cards" aria-selected="false" tabindex="-1">Challenges <span>6</span></button>
@@ -311,6 +335,7 @@ export class FlightHUD {
 
     this.root.appendChild(this.missionModalEl);
 
+    this.missionModalEl.querySelector('.practice-button').onclick = () => this.callbacks.onPractice?.();
     // Wire clicks
     this.selectedMissionId = 'mission_01';
     this.missionCategory = 'missions';
@@ -368,6 +393,8 @@ export class FlightHUD {
     const brief = this.missionModalEl.querySelector('.mission-brief');
     brief.querySelector('p').textContent = mission.category === 'challenges' ? mission.descHi : mission.id === 'free_flight' ? 'अपनी मर्जी से उड़ें। कोई timer या mission objective नहीं।' : `${mission.waypoints.length} PJMC Gold collect करें, meteor shower से बचें और learning question पूरा करें।`;
     brief.querySelector('span').textContent = mission.id === 'free_flight' ? 'FREE EXPLORATION' : `${mission.reward} · 3 ★${mission.duration ? ' · ' + mission.duration : ''}`;
+    const best = this.progress.data.flights[mission.id]?.best;
+    if (best) brief.querySelector('span').textContent += ` · Best ${best.seconds}s · ${best.medal} (this device)`;
     this.missionModalEl.querySelector('#pjmc-launch-btn').textContent = `Launch ${mission.num} ↗`;
   }
 
@@ -505,6 +532,7 @@ export class FlightHUD {
           </div>
         </div>
 
+        <p class="flight-record" role="status"></p>
         <div id="student-lesson"></div>
         <div class="pjmc-modal-footer">
           <button type="button" class="pjmc-btn-secondary" id="pjmc-vic-free">
@@ -533,6 +561,25 @@ export class FlightHUD {
     });
   }
 
+  buildTrainingComplete() {
+    this.trainingModal = document.createElement('div');
+    this.trainingModal.className = 'pjmc-modal training-complete'; this.trainingModal.style.display = 'none';
+    this.trainingModal.innerHTML = `<div class="pjmc-modal-backdrop"></div><div class="pjmc-modal-window small" role="dialog" aria-modal="true" aria-label="Practice complete">
+      <span class="pjmc-sub-title">READY FOR YOUR FIRST FLIGHT</span><h2>You're ready, Pilot.</h2>
+      <p>✓ दिशा बदलना &nbsp; ✓ Speed बढ़ाना<br>✓ Brake लगाना &nbsp; ✓ Capsule collect करना</p>
+      <p>अब mission में यही controls इस्तेमाल करें। Practice से stars नहीं जुड़ते।</p>
+      <button class="pjmc-btn-primary" type="button">Choose a mission ↗</button></div>`;
+    this.trainingModal.querySelector('button').onclick = () => this.callbacks.onTrainingContinue?.();
+    this.root.append(this.trainingModal);
+  }
+
+  showTrainingComplete(hasNext) {
+    const button = this.trainingModal.querySelector('button');
+    button.textContent = hasNext ? 'Launch selected mission ↗' : 'Choose a mission ↗';
+    this.trainingModal.style.display = 'flex'; button.focus();
+  }
+  hideTrainingComplete() { this.trainingModal.style.display = 'none'; }
+
   showTip(message) {
     this.tip.textContent = message;
     clearTimeout(this.tipTimer);
@@ -543,7 +590,7 @@ export class FlightHUD {
     this.diaryModal = document.createElement('div');
     this.diaryModal.className = 'pjmc-modal student-diary';
     this.diaryModal.style.display = 'none';
-    this.diaryModal.innerHTML = `<div class="pjmc-modal-window"><h2>Space Diary</h2><p>इस ब्राउज़र में आपकी अंतिम 8 तस्वीरें सेव रहेंगी।</p><div class="student-badges"></div><div class="student-paints"></div><div class="student-photos"></div><button type="button" class="pjmc-btn-secondary">Close</button></div>`;
+    this.diaryModal.innerHTML = `<div class="pjmc-modal-window"><h2>Space Diary</h2><p>Medals, best time, jet रंग और अंतिम 8 तस्वीरें इस device पर सेव होते हैं।</p><p class="medal-guide">Gold: बिना damage या गलत जवाब। Silver: अधिकतम 40 damage और 2 गलत कोशिशें। Checkpoint retry पर Bronze; best time में retry नहीं गिना जाता।</p><div class="student-badges"></div><div class="student-paints"></div><div class="student-photos"></div><button type="button" class="pjmc-btn-secondary">Close</button></div>`;
     this.diaryModal.querySelector('button').addEventListener('click', () => { this.diaryModal.style.display = 'none'; });
     this.root.append(this.diaryModal);
   }
@@ -555,12 +602,24 @@ export class FlightHUD {
       const button = document.createElement('button'); button.className = 'pjmc-btn-secondary'; button.textContent = `${name} • ${stars} ★`;
       button.disabled = this.progress.stars < stars;
       button.addEventListener('click', () => {
-        this.progress.data.color = color;
+        this.progress.data.color = color; this.progress.data.skin = null;
         const saved = this.progress.save();
         this.callbacks.onColor?.(color);
         this.showTip(saved ? `${name} रंग चुना गया।` : 'रंग इस सत्र तक रहेगा।');
       }); paints.append(button);
     });
+    for (const skin of FLIGHT_SKINS) {
+      const button = document.createElement('button'); button.type = 'button';
+      button.className = 'pjmc-btn-secondary jet-skin'; button.style.setProperty('--skin', skin.base);
+      button.disabled = !this.progress.data.badges[skin.mission];
+      button.textContent = `${skin.name} · ${button.disabled ? 'Complete ' + MISSIONS.find(m => m.id === skin.mission).num : 'Unlocked'}`;
+      button.setAttribute('aria-pressed', String(this.progress.data.skin === skin.id));
+      button.onclick = () => {
+        if (!this.progress.selectSkin(skin.id)) return;
+        this.callbacks.onSkin?.(skin); this.openDiary(); this.showTip(`${skin.name} चुना गया।`);
+      };
+      paints.append(button);
+    }
     const photos = this.diaryModal.querySelector('.student-photos'); photos.replaceChildren();
     if (!this.progress.data.photos.length) photos.textContent = 'Pause → Take photo से पहली तस्वीर जोड़ें।';
     for (const photo of this.progress.data.photos) {
@@ -610,6 +669,7 @@ export class FlightHUD {
     this.updateChallengeHUD({ visible: false });
     this.hidePauseModal();
     this.hideVictoryModal();
+    this.hideTrainingComplete();
     this.diaryModal.style.display = 'none';
   }
 
@@ -649,7 +709,16 @@ export class FlightHUD {
     this.pauseModalEl.style.display = 'none';
   }
 
-  showVictoryModal(mission, elapsedSec) {
+  setPauseBlocked(blocked) {
+    const button = this.pauseModalEl.querySelector('#pjmc-pause-resume');
+    button.disabled = blocked;
+    button.textContent = blocked ? 'Close overlay to resume' : '▶ RESUME FLIGHT';
+  }
+
+  showVictoryModal(mission, elapsedSec, record) {
+    const result = this.victoryModalEl.querySelector('.flight-record');
+    result.hidden = !record;
+    if (record) result.textContent = `${record.medal} medal · ${record.seconds}s${record.personalBest ? ' · New personal best' : ''}${record.retries ? ' · Checkpoint retry — no best time' : ''} · ${record.saved ? 'Saved on this device' : 'Session only: storage unavailable'}`;
     const vicName = this.victoryModalEl.querySelector('#pjmc-vic-name');
     const vicTime = this.victoryModalEl.querySelector('#pjmc-vic-time');
 
@@ -747,6 +816,7 @@ export class FlightHUD {
   }
 
   destroy() {
+    clearTimeout(this.tipTimer);
     this.root.remove();
   }
 }

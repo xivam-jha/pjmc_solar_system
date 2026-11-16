@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { initializeStudentAuth, receiveDashboardProfile, getAuthenticatedStudent } from '../src/explorer/StudentAuth.js';
+import { initializeStudentAuth, receiveDashboardProfile, getAuthenticatedStudent, isTrustedDashboardEvent, announceFlightReady } from '../src/explorer/StudentAuth.js';
 import { StudentProgress } from '../src/explorer/StudentProgress.js';
 function fixture() {
   let listener, request;
@@ -22,6 +22,12 @@ test('bridge rejects untrusted origins, windows, nonces, malformed profiles and 
   assert.equal(f.listening(), true); f.send();
   assert.deepEqual(await pending, { id:'17', name:'Student Seventeen' });
   assert.equal(f.listening(), false);
+  const event = { origin: 'https://shivamonline.gt.tc', source: f.host.parent, data: { nonce: f.request().data.nonce } };
+  assert.equal(isTrustedDashboardEvent(event, f.host), true);
+  assert.equal(isTrustedDashboardEvent({ ...event, source: {} }, f.host), false);
+  assert.equal(isTrustedDashboardEvent({ ...event, origin: 'https://example.com' }, f.host), false);
+  assert.equal(isTrustedDashboardEvent({ ...event, data: { nonce: 'wrong' } }, f.host), false);
+  announceFlightReady(f.host); assert.equal(f.request().data.type, 'pjmc:flight-ready');
   const missing = fixture();
   await assert.rejects(receiveDashboardProfile(missing.host, 5), /पहचान नहीं मिली/);
   assert.equal(missing.listening(), false);

@@ -25,6 +25,7 @@ import { LaunchSequence } from './LaunchSequence.js';
 import { MissionManager, MISSIONS } from './Missions.js';
 import { StudentProgress } from './StudentProgress.js';
 import { FlightHUD } from './FlightHUD.js';
+import { announceFlightReady, isTrustedDashboardEvent } from './StudentAuth.js';
 
 export const GAME_STATE = {
   INACTIVE: 'INACTIVE',
@@ -47,6 +48,8 @@ export class ExplorerGame {
 
     this.state = GAME_STATE.INACTIVE;
     this.isCockpit = false;
+    this.pauseBlocks = new Set();
+    this.afterTrainingMission = null;
 
     // Build planet registry for quick world-coordinate lookups
     this.planetRegistry = new Map();
@@ -97,10 +100,14 @@ export class ExplorerGame {
       this.hud?.showTip('मलबे से टक्कर! थोड़ी दूरी बनाकर उड़ें।');
     };
 
+    this.challenges.onSignalPulse = frequency => this.audio.playBeep(frequency, .045);
+
     this.controls = new FlightControls({
       onBoostChange: (boosting) => this.handleBoostChange(boosting),
       onCameraToggle: () => this.toggleCameraMode(),
       onPauseToggle: () => this.togglePause(),
+      onSettingsOpen: () => this.setOverlayPause('settings', true),
+      onSettingsClose: () => this.setOverlayPause('settings', false),
     });
 
     this.hud = new FlightHUD({
@@ -108,6 +115,9 @@ export class ExplorerGame {
       onCameraToggle: () => this.toggleCameraMode(),
       onPhoto: () => this.takePhoto(),
       onColor: (color) => this.rocket.setPaint(color),
+      onSkin: (skin) => this.rocket.setLivery(skin),
+      onPractice: () => { this.afterTrainingMission = null; this.startLaunchForMission('training_flight'); },
+      onTrainingContinue: () => this.finishTrainingFlow(true),
       onResume: () => this.resumeFlight(),
       onRestart: () => this.restartMission(),
       onRetryMeteor: () => this.retryMeteorChallenge(),
@@ -117,6 +127,8 @@ export class ExplorerGame {
         else if (action === 'left') this.challenges.rotateRelay(-1);
         else if (action === 'right') this.challenges.rotateRelay(1);
         else if (action === 'link') this.challenges.linkRelay();
+        else if (action.startsWith('sample:')) this.challenges.classifySample(action.slice(7));
+        else if (action === 'skip-training' && this.activeMission?.kind === 'training') { this.finishTrainingFlow(false); return; }
         this.hud.updateChallengeHUD(this.challenges.view());
       },
       onSelectMission: (id) => this.startLaunchForMission(id),
@@ -181,6 +193,17 @@ export class ExplorerGame {
     this.targetFreeLookPitch = 0.0;
     this.isFreeLooking = false;
     this.#bindFreeLookEvents();
+    this.onDashboardOverlay = event => {
+      if (!isTrustedDashboardEvent(event) || event.data?.type !== 'pjmc:overlay-state' ||
+          event.data.reason !== 'ranking' || typeof event.data.open !== 'boolean') return;
+      this.setOverlayPause('ranking', event.data.open);
+    };
+    this.onVisibilityChange = () => { if (document.hidden) this.pauseFlight(); };
+    this.onWindowBlur = () => this.pauseFlight();
+    window.addEventListener('message', this.onDashboardOverlay);
+    window.addEventListener('blur', this.onWindowBlur);
+    document.addEventListener('visibilitychange', this.onVisibilityChange);
+    announceFlightReady();
   }
 
   #buildWarpParticles() {
@@ -328,10 +351,12 @@ export class ExplorerGame {
 
   openMenu() {
     this.audio.init(); // User gesture unlocks audio context
-    if (this.state === GAME_STATE.FLYING) {
+    if (this.state !== GAME_STATE.INACTIVE) {
       this.state = GAME_STATE.MENU;
       this.controls.hide();
       this.audio.stopEngine(); this.audio.stopBoost();
+      this.hud.hideTrainingComplete();
+      this.hud.hidePauseModal();
       this.hud.openMissionModal();
       return;
     }
@@ -349,6 +374,17 @@ export class ExplorerGame {
   startLaunchForMission(missionId) {
     const missionIndex = MISSIONS.findIndex(m => m.id === missionId);
     if (missionIndex < 0 || !this.progress.unlocked(missionIndex)) return;
+    if (this.pauseBlocks.has('ranking')) return;
+    if (missionId !== 'free_flight' && missionId !== 'training_flight' && !this.progress.data.trainingSeen) {
+      this.afterTrainingMission = missionId;
+      this.startLaunchForMission('training_flight');
+      return;
+    }
+    this.controls.closeSettingsModal();
+    this.hud.hideTrainingComplete();
+    this.hud.hidePauseModal();
+    this.classicRetryCount = 0;
+    this.classicDamageTaken = 0;
     this.boostEnergy = this.maxBoostEnergy;
     this.meteors.reset(missionIndex);
     this.pendingMissionSuccess = null;
@@ -357,6 +393,7 @@ export class ExplorerGame {
     this.challenges.clear();
     this.activeMission = this.missions.startMission(missionId);
     this.rocket.setPaint(this.progress.data.color);
+    if (this.progress.skin) this.rocket.setLivery(this.progress.skin);
     this.hud.closeMissionModal();
     this.createRover();
 
@@ -365,7 +402,7 @@ export class ExplorerGame {
     const target = this.missions.getPlanetWorldPos(this.activeMission.target, new THREE.Vector3());
     const radius = this.planetRegistry.get(this.activeMission.target)?.body?.radiusWorld || 2;
     target.y += radius + 4;
-    if (this.activeMission.category === 'challenges') target.copy(this.challenges.start(this.activeMission, start));
+    if (Boolean(this.activeMission.kind)) target.copy(this.challenges.start(this.activeMission, start));
     this.rocket.teleport(start, target);
     this.startSpaceFlight(start, this.rocket.quaternion.clone());
   }
@@ -428,47 +465,96 @@ export class ExplorerGame {
     this.safePosition.copy(this.rocket.position);
     this.safeRotation.copy(this.rocket.quaternion);
     this.safeSampleTimer = 0;
+    if (this.activeMission.kind) {
+      this.challenges.frame = { position: this.rocket.position.clone(), quaternion: this.rocket.quaternion.clone() };
+      this.challenges.saveCheckpoint();
+    }
     this.missions.prepareRoute(this.rocket.position, this.rocket.getForwardVector(new THREE.Vector3()));
     this.hud.show();
     this.hud.updateChallengeHUD(this.challenges.view());
-    this.hud.showTip(this.activeMission.category === 'challenges' ? 'पास पहुँचकर BRAKE लगाएँ • ऊपर अपना objective देखें' : 'Joystick से दिशा बदलें • SPEED + दबाकर उड़ें • BRAKE से रुकें');
+    this.hud.showTip(Boolean(this.activeMission.kind) ? 'पास पहुँचकर BRAKE लगाएँ • ऊपर अपना objective देखें' : 'Joystick से दिशा बदलें • SPEED + दबाकर उड़ें • BRAKE से रुकें');
     this.setCockpitMode(false);
     if (this.warpPoints) this.warpPoints.visible = true;
   }
 
   retryMeteorChallenge() {
-    if (this.state !== GAME_STATE.WRECKED) return;
-    if (this.activeMission?.category === 'challenges') { this.restartMission(); return; }
-    const level=this.meteors.level;
-    this.meteors.reset(level);this.meteors.begin();
-    this.rocket.position.copy(recoverOutsideBodies(this.safePosition,this.planetRegistry));
-    this.rocket.quaternion.copy(this.safeRotation);this.missions.previousRocketPos=this.rocket.position.clone();
-    this.flightSpeed=0;this.velocity.set(0,0,0);this.enginePower=0;this.boostPower=0;this.requestedThrottle=0;
-    this.controls.keys.clear();this.controls.input.accelerate=false;this.controls.input.thrust=0;this.controls.input.boost=false;
-    this.camCurrentPos.copy(this.rocket.position).add(new THREE.Vector3(0,.85,-3.2).applyQuaternion(this.rocket.quaternion));
-    this.hud.hideMeteorFailure();this.resumeFlight();
+    if (this.state !== GAME_STATE.WRECKED || this.pauseBlocks.size) return;
+    if (this.activeMission?.kind) {
+      const checkpoint = this.challenges.restoreCheckpoint();
+      if (!checkpoint) return;
+      this.rocket.position.copy(recoverOutsideBodies(checkpoint.position, this.planetRegistry));
+      this.rocket.quaternion.copy(checkpoint.quaternion);
+      this.challenges.resetMotion(this.rocket.position);
+    } else {
+      this.classicRetryCount++;
+      this.classicDamageTaken += this.meteors.damageTaken;
+      const level = this.meteors.level;
+      this.meteors.reset(level); this.meteors.begin();
+      this.rocket.position.copy(recoverOutsideBodies(this.safePosition, this.planetRegistry));
+      this.rocket.quaternion.copy(this.safeRotation);
+      this.missions.previousRocketPos = this.rocket.position.clone();
+    }
+    this.safePosition.copy(this.rocket.position); this.safeRotation.copy(this.rocket.quaternion);
+    this.resetFlightMotion();
+    this.camCurrentPos.copy(this.rocket.position).add(new THREE.Vector3(0, .85, -3.2).applyQuaternion(this.rocket.quaternion));
+    this.hud.hideMeteorFailure(); this.state = GAME_STATE.PAUSED; this.resumeFlight();
+  }
+
+  resetFlightMotion() {
+    this.flightSpeed = 0; this.velocity.set(0, 0, 0);
+    this.enginePower = 0; this.boostPower = 0; this.requestedThrottle = 0; this.isBoosting = false;
+    this.pitchRate = 0; this.yawRate = 0; this.rollRate = 0; this.visualBank = 0;
+    this.rocket.setVisualBank(0); this.controls.disable();
+    this.targetFreeLookYaw = 0; this.targetFreeLookPitch = 0; this.isFreeLooking = false;
   }
 
   resumeFlight() {
+    if (this.state !== GAME_STATE.PAUSED || this.pauseBlocks.size) return;
     this.state = GAME_STATE.FLYING;
     this.hud.hidePauseModal();
     this.controls.show();
     this.audio.playEngineThrottle(this.enginePower, this.isBoosting);
   }
 
+  pauseFlight() {
+    if (this.state !== GAME_STATE.FLYING) return;
+    this.state = GAME_STATE.PAUSED;
+    this.isBoosting = false; this.boostPower = 0;
+    this.isFreeLooking = false; this.freeLookPointerId = null;
+    this.hud.showPauseModal();
+    this.controls.hide();
+    this.audio.stopEngine(); this.audio.stopBoost();
+    this.rocket.update(.016, 0, 0, false);
+  }
+
+  setOverlayPause(reason, open) {
+    if (open) { this.pauseBlocks.add(reason); this.pauseFlight(); }
+    else this.pauseBlocks.delete(reason);
+    this.hud.setPauseBlocked(this.pauseBlocks.size > 0);
+  }
+
   togglePause() {
-    if (this.state === GAME_STATE.FLYING) {
-      this.state = GAME_STATE.PAUSED;
-      this.isBoosting = false;
-      this.boostPower = 0.0;
-      this.hud.showPauseModal();
-      this.controls.hide();
-      this.audio.stopEngine();
-      this.audio.stopBoost();
-      this.rocket.update(0.016, 0.0, 0.0, false);
-    } else if (this.state === GAME_STATE.PAUSED) {
-      this.resumeFlight();
-    }
+    if (this.controls.settingsModal.style.display === 'flex') { this.controls.closeSettingsModal(); return; }
+    if (this.hud.diaryModal.style.display === 'flex') { this.hud.diaryModal.style.display = 'none'; return; }
+    if (this.state === GAME_STATE.FLYING) this.pauseFlight();
+    else if (this.state === GAME_STATE.PAUSED) this.resumeFlight();
+  }
+
+  handleTrainingComplete() {
+    this.state = GAME_STATE.VICTORY;
+    this.progress.finishTraining(true);
+    this.resetFlightMotion(); this.controls.hide();
+    this.audio.stopEngine(); this.audio.stopBoost();
+    this.rocket.update(0, 0); this.hud.updateChallengeHUD({ visible: false });
+    this.hud.showTrainingComplete(Boolean(this.afterTrainingMission));
+  }
+
+  finishTrainingFlow(completed) {
+    this.progress.finishTraining(completed);
+    this.hud.hideTrainingComplete(); this.challenges.clear();
+    const next = this.afterTrainingMission; this.afterTrainingMission = null;
+    if (next) this.startLaunchForMission(next);
+    else this.openMenu();
   }
 
   restartMission() {
@@ -494,13 +580,14 @@ export class ExplorerGame {
     this.requestedThrottle = 0.0;
     this.audio.stopEngine();
     this.audio.stopBoost();
-    const curIdx = MISSIONS.findIndex((m) => m.id === this.activeMission.id);
-    const nextIdx = (curIdx + 1) % MISSIONS.length;
-    this.startLaunchForMission(MISSIONS[nextIdx].id);
+    const playable = MISSIONS.filter(m => m.kind !== 'training');
+    const curIdx = playable.findIndex(m => m.id === this.activeMission.id);
+    this.startLaunchForMission(playable[(curIdx + 1) % playable.length].id);
   }
 
   exitToSolarSystem() {
     this.state = GAME_STATE.INACTIVE;
+    this.afterTrainingMission = null;
     this.meteors.reset();
     this.challenges.clear();
     this.hud.updateChallengeHUD({ visible: false });
@@ -633,7 +720,8 @@ export class ExplorerGame {
   }
 
   handleMissionSuccess({ mission, elapsedSeconds }) {
-    if (mission.category !== 'challenges' && !this.meteors.finished) {
+    if (mission.kind === 'training') { this.handleTrainingComplete(); return; }
+    if (!mission.kind && !this.meteors.finished) {
       this.pendingMissionSuccess = { mission, elapsedSeconds };
       this.meteors.begin();
       this.hud.showTip('Gold पूरा! Meteor shower से बचकर mission पूरा करें।');
@@ -650,8 +738,12 @@ export class ExplorerGame {
     this.hud.updateChallengeHUD({ visible: false });
     if (mission.id === 'mission_01') this.placeMoonFlag();
     if (mission.id === 'mission_04') this.takePhoto();
-    this.hud.showVictoryModal(mission, elapsedSeconds);
-    if (mission.category !== 'challenges' && this.meteors.damageTaken === 0) this.hud.showTip('PERFECT FLIGHT • बिना damage के mission पूरा!');
+    const performance = mission.kind ? this.challenges.performance() : {
+      seconds: elapsedSeconds, damage: this.classicDamageTaken + this.meteors.damageTaken, retries: this.classicRetryCount,
+    };
+    const record = this.progress.recordFlight(mission.id, performance);
+    this.hud.showVictoryModal(mission, elapsedSeconds, record);
+    if (!mission.kind && performance.damage === 0 && !performance.retries) this.hud.showTip('PERFECT FLIGHT • बिना damage के mission पूरा!');
   }
 
   handleBoostChange(boosting) {
@@ -682,10 +774,11 @@ export class ExplorerGame {
 
     if (this.state === GAME_STATE.FLYING) {
       this.updateFlightPhysics(dt);
-      if (this.activeMission?.category === 'challenges') {
+      if (Boolean(this.activeMission?.kind)) {
         this.challenges.update(dt, {
           position: this.rocket.position, speed: this.flightSpeed,
           turnRate: Math.hypot(this.pitchRate, this.yawRate, this.rollRate),
+          quaternion: this.rocket.quaternion, input: this.controls.getInput(),
         });
         this.hud.updateChallengeHUD(this.challenges.view());
         if (this.challenges.phase === 'failed') {
@@ -693,7 +786,7 @@ export class ExplorerGame {
           this.flightSpeed = 0; this.velocity.set(0, 0, 0); this.requestedThrottle = 0;
           this.controls.hide(); this.controls.disable(); this.audio.stopEngine(); this.audio.stopBoost();
           this.rocket.update(0, 0);
-          this.hud.showMeteorFailure({ reason: this.challenges.failureReason, retry: 'Challenge फिर खेलें', title: 'Try another flight' });
+          this.hud.showMeteorFailure({ reason: this.challenges.failureReason, retry: 'Checkpoint से फिर कोशिश करें', title: 'Flight recovery' });
           return;
         }
         if (this.challenges.phase === 'complete') {
@@ -726,6 +819,7 @@ export class ExplorerGame {
 
   updateFlightPhysics(dt) {
     const input = this.controls.getInput();
+    const previousPosition = this.rocket.position.clone();
 
     // 1. Boost energy & thruster management
     const wantBoost = input.boost && this.boostEnergy > 3.0;
@@ -787,7 +881,7 @@ export class ExplorerGame {
       targetSpeed = Math.min(targetSpeed, Math.max(1.2, clearance * 1.5));
     }
     const nextGate = new THREE.Vector3();
-    const hasTarget = this.activeMission?.category === 'challenges'
+    const hasTarget = Boolean(this.activeMission?.kind)
       ? this.challenges.getNavigationTarget(nextGate, true) : this.missions.getActiveWaypointPosition(nextGate);
     if (hasTarget) {
       targetSpeed = Math.min(targetSpeed, Math.max(1.2, this.rocket.position.distanceTo(nextGate) * 1.5));
@@ -847,6 +941,10 @@ export class ExplorerGame {
       this.velocity.set(0, 0, 0);
     }
 
+    if (this.activeMission?.kind && this.challenges.resolveStructureCollision(this.rocket.position, previousPosition, this.flightSpeed)) {
+      this.resetFlightMotion(); this.controls.show();
+    }
+
     // 7. Update Space Warp Particles
     this.updateWarpParticles(dt);
 
@@ -882,7 +980,7 @@ export class ExplorerGame {
         this.enginePower = 0;
         recovered = true;
         this.meteors.previousRocket = this.rocket.position.clone();
-        if (this.activeMission?.category === 'challenges') {
+        if (Boolean(this.activeMission?.kind)) {
           this.challenges.hit(20); this.challenges.resetMotion(this.rocket.position);
           this.hud.showTip('Planet से टक्कर—safe position पर लौटे। ऊपर health जाँचें।');
         } else this.hud.showTip('आप सुरक्षित हैं। आपका Gold बचा है—दिशा बदलकर आगे बढ़ें।');
@@ -972,7 +1070,7 @@ export class ExplorerGame {
     // Mission progress
     const progress = this.missions.getMissionProgress();
     const isFree = this.activeMission?.id === 'free_flight';
-    const isChallenge = this.activeMission?.category === 'challenges';
+    const isChallenge = Boolean(this.activeMission?.kind);
 
     this.hud.updateTelemetry({
       speed: this.flightSpeed, // Game world units per second
@@ -1019,6 +1117,9 @@ export class ExplorerGame {
   }
 
   destroy() {
+    window.removeEventListener('message', this.onDashboardOverlay);
+    window.removeEventListener('blur', this.onWindowBlur);
+    document.removeEventListener('visibilitychange', this.onVisibilityChange);
     this.exitToSolarSystem();
     this.audio.dispose();
     this.controls.destroy();

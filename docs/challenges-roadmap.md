@@ -1,34 +1,37 @@
-# PJMC challenge roadmap
+# PJMC challenge gameplay
 
-The mission chooser has two categories: four sequential Gold exploration missions and six independently selectable challenges. Free flight stays in Missions. Selection shows a short Hindi briefing, reward and launch button. Existing flight controls remain: joystick, Speed + and Brake. No multiplayer service is required.
+The compact glass chooser has four sequential Gold missions, six independent challenges and Free Flight. A separate Practice button teaches steering, acceleration, braking and collection in about 30 seconds without a countdown or damage. First-time pilots see this practice before their selected mission and can skip it. The joystick, Speed + and Brake remain unchanged.
 
-| Card | Play loop | Challenge / recovery | Reward |
-| --- | --- | --- | --- |
-| SOS Rescue | Slowly recover three capsules, then unload at the rescue station | 180 seconds; moving debris reduces hull; retry starts a new rescue | Rescue Captain |
-| Satellite Repair | Recover three spare parts, approach the satellite, hold steady for six seconds | Moving away/turning loses repair progress; debris damages hull | Space Engineer |
-| Fragile Cargo | Follow two route beacons, then unload at Lunar Transfer Station | Fast turns above 5 game units/s strain cargo; collisions remove 20 integrity; zero fails | Careful Courier |
-| Lost Signal | Follow increasing signal strength and recover probe data | No distant objective arrow; optional eight-second hint with cooldown; no countdown | Signal Seeker |
-| Asteroid Samples | Scan marked C, S and M rocks one at a time | Three-second scan while slow and steady; moving debris damages hull | Rock Detective |
-| Laser Link | Approach each relay, align antenna in 45-degree steps, confirm Link | Contextual dial appears only near a relay while steady; incorrect angles can be retried freely | Relay Architect |
+| Card | Objective and feedback | Recovery and reward |
+| --- | --- | --- |
+| SOS Rescue | Recover any of three capsules in any order. Passengers visibly ride with the jet. Brake in the station docking ring to unload. | 180-second timer. Retry keeps rescued passengers and gives at least 60 seconds from the last checkpoint. Rescue Pearl livery. |
+| Satellite Repair | Collect three parts; they appear installed on the satellite. Hold steady for six seconds as bent panels straighten and the repair light pulses. | Leaving or turning loses partial repair, not completed pickups. Engineer Blue livery. |
+| Fragile Cargo | Pass two route beacons, then brake in a separate docking ring to unload. Fast turns above 5 game units/s strain cargo. The warning overrides route instructions. | Collisions damage cargo. Checkpoint restores route progress and at least 60 cargo integrity. Courier Gold livery. |
+| Lost Signal | Follow increasing signal strength, faster/higher beeps and a scan pulse. Stop near the probe to recover data. | Manual eight-second hint with cooldown. After 18 seconds without improvement, a temporary direction hint appears automatically. Signal Violet livery. |
+| Asteroid Samples | Scan each marked rock for 2.5 seconds. Read its composition and choose C, S or M; a scan alone does not finish the objective. | Incorrect classifications add a performance mistake and allow another attempt. Completed samples survive retry. Surveyor Copper livery. |
+| Laser Link | Rotate mirrors in 45-degree steps. The outgoing beam is calculated from the incident direction and mirror normal. A top-view diagram shows the actual beam path, not an answer angle. Confirm each connection. | Wrong links add a performance mistake. Completed links survive retry. Relay Emerald livery. |
 
-## Interaction and presentation
+## Flight assistance
 
-- Scans, pickup, repair and unloading are automatic within 3.4 world units, at speed <= 1.8 and angular speed < .45 rad/s. Cargo route beacons use swept passage detection.
-- Objectives are staged above the orbital plane, relative to the existing safe launch point. The Lunar Transfer Station is an overhead transfer challenge, not a simulated Moon landing. Distances, timing and visible laser guides are game abstractions.
-- Capsules, spare crates, satellites with solar arrays, rocky samples and stations have distinct meshes. Only the current object is highlighted. No per-object lights, external models, or texture downloads are needed.
-- Up to nine drifting rocks use shared irregular geometry and swept relative collision checks. Collisions grant 1.8 seconds of grace; docking areas remain clear of debris.
-- A compact glass panel shows the current objective, health/cargo/signal, work progress and rescue clock. Only Lost Signal and Laser Link add contextual buttons.
-- Pause/menu freezes simulation. Retry fully resets that challenge; exiting removes its scene resources. Existing Gold missions keep their meteor checkpoint recovery.
-- Every learning question completed grants a unique badge and three stars once. Ten awards total thirty stars. Replays do not inflate the leaderboard.
+- Slow, steady interactions require speed <= 1.8 and angular speed < .45 rad/s. Pickups work within 3.4 world units; solid structures have separate docking positions with a 1.35-unit interaction radius. Cargo beacons use swept passage detection.
+- Swept barriers prevent flying through solid stations, satellites, relays and marked rocks. Slow contact stops the jet; high-speed impacts damage it. The previous safe launch and planet recovery behavior remains.
+- Arenas are above the orbital plane. Lunar Transfer is an overhead station challenge, not a simulated Moon landing. Distances, visible laser paths and timing are educational game abstractions.
+- Up to nine moving rocks share irregular geometry. Hits grant 1.8 seconds of grace. Successful objectives save a position, orientation, completed targets and cargo checkpoint. Retry clears motion and adds three seconds of protection. Partial work resumes from the last completed objective.
+- Settings, leaderboard, browser blur and hidden tabs pause an active flight. Closing an overlay leaves the game paused until Resume or Esc. Esc also closes a nested settings/diary view first. Mission instructions stay visible on small landscape layouts.
+- Models and materials are shared within each arena and disposed on exit; no additional model or texture downloads are required.
 
-## Progress and hosting
+## Rewards and records
 
-The game keeps old badges and pending awards. The PHP records allowlist contains the ten mission IDs; only the original four require the previous mission. Account/session, CSRF, origin, nonce and idempotency protections remain.
+Each completed mission and correct learning answer awards three stars once: ten missions, thirty stars maximum. The six challenge badges each unlock one distinct hull/trim/engine livery. Original paint choices remain available.
 
-Upload both updated `student/explore-universe.php` and `student/universe-records.php` from the PHP package. Existing installations do not need a database migration: challenge IDs fit the current `VARCHAR(16)` mission key. Counts in the leaderboard are derived from the server's allowlist. Without the API update, new badges remain pending locally until the endpoint accepts them.
+A completed flight also saves its latest performance and fastest time on this device, separated by student account. Gold medal requires no damage or puzzle mistakes. Silver allows up to 40 damage and two mistakes. Other completions earn Bronze. A checkpoint retry earns Bronze and cannot set a best time; cumulative damage and mistakes are retained. Best times are personal practice records, not an online competition or anti-cheat claim.
 
-## Verification
+Stars/badges continue to sync through the trusted PHP parent. Photos, selected paint, training state and personal flight records stay in the browser. Existing progress is preserved.
 
-Run `node --test tests/*.test.js` and `npm run build`. Tests cover all six objective rules, failures, pause/retry, safe placement, swept collision detection, classic mission regression, idempotent awards and account-isolated online synchronization. PHP syntax and UI DOM checks are separate local checks; actual hosting execution and physical mobile performance need verification after upload.
+## Hosting and validation
 
-Not included: real-time multiplayer, invitations, a daily challenge service or server-authoritative flight validation.
+Use the updated `student/explore-universe.php` for the authenticated leaderboard pause bridge. Existing installations with the ten-mission records API do not need to change their database. The package also includes `universe-records.php` for installations upgrading from the four-mission API. No new SQL import or dashboard replacement is required for an existing installation.
+
+Run `node --test tests/*.test.js` and `npm run build`. Coverage includes all six completion rules, any-order rescue, visible repair, docking, reflection geometry, classification, signal help, practice, warning priority, checkpoint persistence, medals, liveries, pause, original meteor recovery and authenticated account isolation. Additional DOM/controller checks exercise all six launches, Escape/settings/blur pause, recovery, mission tabs, quizzes and parent message validation. PHP files pass a PHP 7.4 syntax parser.
+
+Actual mobile WebGL rendering and execution on the PHP/MySQL host still require a device/hosting check. Multiplayer, invitations and server-authoritative flight validation remain outside this update.

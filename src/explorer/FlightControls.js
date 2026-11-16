@@ -287,14 +287,14 @@ export class FlightControls {
             <span><strong>W / S:</strong> Aage (Forward) / Piche (Brake)</span>
             <span><strong>A / D:</strong> Left / Right Turn</span>
             <span><strong>R / F:</strong> Uper (Up) / Niche (Down)</span>
-            <span><strong>SPACE:</strong> Turbo Boost</span>
+            <span><strong>SPACE:</strong> Brake</span>
             <span><strong>C:</strong> Camera Mode</span>
             <span><strong>ESC:</strong> Pause</span>
           </div>
         </div>
 
         <div class="flight-settings-actions">
-          <button type="button" class="pjmc-btn-primary" id="pjmc-set-done">SAVE & RESUME</button>
+          <button type="button" class="pjmc-btn-primary" id="pjmc-set-done">SAVE SETTINGS</button>
         </div>
       </div>
     `;
@@ -592,8 +592,13 @@ export class FlightControls {
     // 4. Desktop Keyboard Bindings
     // -------------------------------------------------------------
     window.addEventListener('keydown', (e) => {
-      if (!this.enabled) return;
       if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
+      // Pause remains available when flight inputs have been disabled by the pause menu.
+      if (e.code === 'Escape') {
+        if (!e.repeat) this.callbacks.onPauseToggle?.();
+        e.preventDefault(); return;
+      }
+      if (!this.enabled) return;
 
       if (e.code === 'Space') e.preventDefault();
       this.keys.add(e.code);
@@ -601,8 +606,6 @@ export class FlightControls {
       if (e.repeat) return;
       if (e.code === 'KeyC') {
         this.callbacks.onCameraToggle?.();
-      } else if (e.code === 'Escape') {
-        this.callbacks.onPauseToggle?.();
       }
     });
 
@@ -696,13 +699,16 @@ export class FlightControls {
   }
 
   openSettingsModal() {
+    this.callbacks.onSettingsOpen?.();
     this.settingsModal.style.display = 'flex';
     this.settingsModal.classList.remove('hidden');
   }
 
   closeSettingsModal() {
+    const wasOpen = this.settingsModal.style.display === 'flex';
     this.settingsModal.style.display = 'none';
     this.settingsModal.classList.add('hidden');
+    if (wasOpen) this.callbacks.onSettingsClose?.();
   }
 
   /**

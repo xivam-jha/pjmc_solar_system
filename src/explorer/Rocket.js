@@ -147,11 +147,21 @@ export class Rocket {
   }
 
   setPaint(color) {
+    this.accentMaterial.color.set(0xf2c76e); this.accentMaterial.emissive.set(0xc18b36);
+    this.engineMaterial.color.set(0x53dce8);
     this.paintMaterial.color.set(color);
     this.paintMaterial.emissive.set(color);
     const tint = color === '#ecf2f8' ? '#00d4ff' : color;
     this.engineLight.color.set(tint);
     this.flameMaterial.uniforms.uTint.value.set(tint);
+  }
+
+  setLivery(skin) {
+    if (!skin) return;
+    this.setPaint(skin.base);
+    this.accentMaterial.color.set(skin.accent); this.accentMaterial.emissive.set(skin.accent);
+    this.engineMaterial.color.set(skin.engine); this.engineLight.color.set(skin.engine);
+    this.flameMaterial.uniforms.uTint.value.set(skin.engine);
   }
 
   #buildMesh() {
@@ -160,7 +170,7 @@ export class Rocket {
     const graphite = new THREE.MeshStandardMaterial({color:0x455365,metalness:.3,roughness:.46,emissive:0x34485d,emissiveIntensity:.3});
     const glass = new THREE.MeshPhysicalMaterial({color:0x326986,metalness:.15,roughness:.12,clearcoat:1,transparent:true,opacity:.72,depthWrite:false});
     const cyan = new THREE.MeshBasicMaterial({color:0x53dce8,toneMapped:false});
-    this.paintMaterial = pearl;
+    this.paintMaterial = pearl; this.accentMaterial = gold; this.engineMaterial = cyan;
     const add = (name,geometry,material,x=0,y=0,z=0) => {
       const mesh=new THREE.Mesh(geometry,material);mesh.name=name;mesh.position.set(x,y,z);this.model.add(mesh);return mesh;
     };

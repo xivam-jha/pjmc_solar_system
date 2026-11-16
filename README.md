@@ -1,6 +1,6 @@
 # Solar System Explorer
 
-**Live demo: <https://alexnixon1228-dev.github.io/solar-system/>**
+**Live demo: <https://xivam-jha.github.io/pjmc_solar_system/>**
 
 An interactive, browser-based 3D visualization of the solar system in the spirit of
 NASA's *Eyes on the Solar System* — built with [three.js](https://threejs.org/) and Vite.
@@ -185,8 +185,8 @@ The GitHub Pages app opens as its own page/tab; InfinityFree only hosts the link
 
 Explore has four sequential Gold routes, six independent challenges and Free Exploration. The compact glass mission chooser separates Missions and Challenges. Rescue capsules, repair a satellite, deliver fragile cargo, track a lost probe, scan asteroid samples or align three laser relays. See [the challenge roadmap](docs/challenges-roadmap.md) for objectives, timing, failure rules and scope.
 
-Use the unchanged left joystick, Speed + and Brake. Desktop uses W/S, A/D, R/F, Space and C. Rescue, collection and repair activate automatically on a slow, steady approach; only signal hints and relay alignment add contextual buttons. Pause provides camera, photos, journal, settings and exit. Launch starts above the solar system. Distances and challenge staging are educational game abstractions.
+Use the unchanged left joystick, Speed + and Brake. Desktop uses W/S, A/D, R/F, Space and C. Rescue, collection and repair activate automatically on a slow, steady approach; signal hints, sample identification and mirror alignment add contextual buttons. Pause provides camera, photos, journal, settings and exit. Launch starts above the solar system. Distances and challenge staging are educational game abstractions.
 
-Complete an objective and its NASA-linked learning question to earn three stars once: ten badges, thirty stars maximum. Existing progress remains. Dashboard students sync records through the trusted PHP parent bridge; direct GitHub visitors play as guests with local progress. Photos and paint stay in the browser. Hosting needs the updated explore-universe.php and universe-records.php package to accept all six new awards; existing installations need no SQL migration.
+Complete an objective and its NASA-linked learning question to earn three stars once: ten badges, thirty stars maximum. Existing progress remains. Dashboard students sync records through the trusted PHP parent bridge; direct GitHub visitors play as guests with local progress. A skippable practice flight teaches controls before the first mission. Completed objectives survive checkpoint retry. Each challenge unlocks its own jet livery, and personal best times and performance medals are saved on this device. Photos and paint also stay in the browser. Settings and leaderboard overlays pause flight; close them and press Resume to continue. Hosting needs the updated explore-universe.php and universe-records.php package to accept all six new awards; existing installations need no SQL migration.
 
 Run `npm run build` and `node --test tests/*.test.js` for build and gameplay regression checks. Automated checks cover objective completion, failure, pause/retry, safe placement, collision detection, idempotent progress and authenticated synchronization. These are not a substitute for a physical-device WebGL and hosting integration check.

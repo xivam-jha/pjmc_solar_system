@@ -1,6 +1,7 @@
 import { getAuthenticatedStudent, requestStudentRecords } from './StudentAuth.js';
 import { CHALLENGE_LESSONS } from './ChallengeCatalog.js';
 import { MISSIONS } from './Missions.js';
+import { FLIGHT_SKINS, cleanFlightRecord } from './FlightRewards.js';
 const STORAGE_KEY = 'pjmc_space_pilot_v1';
 export const LESSONS = {
   mission_01: {
@@ -30,7 +31,7 @@ export class StudentProgress {
   constructor() {
     this.student = getAuthenticatedStudent();
     this.storageKey = this.student ? `${STORAGE_KEY}:student:${this.student.id}` : STORAGE_KEY;
-    this.data = { name: 'Pilot', badges: {}, pending: {}, photos: [], color: '#ecf2f8' };
+    this.data = { name: 'Pilot', badges: {}, pending: {}, photos: [], color: '#ecf2f8', skin: null, trainingSeen: false, trainingDone: false, flights: {} };
     try {
       const saved = JSON.parse(localStorage.getItem(this.storageKey));
       if (saved && typeof saved === 'object') {
@@ -39,6 +40,14 @@ export class StudentProgress {
         this.data.pending = Object.fromEntries(Object.keys(LESSONS).filter(id => saved.pending?.[id]).map(id => [id, true]));
         this.data.photos = Array.isArray(saved.photos) ? saved.photos.filter(p => typeof p?.image === 'string' && p.image.startsWith('data:image/jpeg;base64,') && typeof p.title === 'string').slice(-8) : [];
         if (['#ecf2f8', '#f4b942', '#ad8cff'].includes(saved.color)) this.data.color = saved.color;
+        this.data.trainingSeen = saved.trainingSeen === true;
+        this.data.trainingDone = saved.trainingDone === true;
+        if (FLIGHT_SKINS.some(s => s.id === saved.skin && this.data.badges[s.mission])) this.data.skin = saved.skin;
+        for (const id of Object.keys(LESSONS)) {
+          const last = cleanFlightRecord(saved.flights?.[id]?.last);
+          const best = cleanFlightRecord(saved.flights?.[id]?.best);
+          if (last || best) this.data.flights[id] = { last, best: best?.retries === 0 ? best : null };
+        }
       }
     } catch { /* A fresh profile also works when storage is unavailable. */ }
     if (this.student) {
@@ -47,6 +56,26 @@ export class StudentProgress {
     }
   }
   get stars() { return Object.keys(this.data.badges).length * 3; }
+  get skin() { return FLIGHT_SKINS.find(s => s.id === this.data.skin && this.data.badges[s.mission]) || null; }
+  selectSkin(id) {
+    const skin = FLIGHT_SKINS.find(s => s.id === id);
+    if (!skin || !this.data.badges[skin.mission]) return false;
+    this.data.skin = id; this.save(); return true;
+  }
+  recordFlight(id, value) {
+    const last = cleanFlightRecord(value);
+    if (!LESSONS[id] || !last) return null;
+    const previous = this.data.flights[id]?.best || null;
+    const personalBest = last.retries === 0 && (!previous || last.seconds < previous.seconds);
+    this.data.flights[id] = { last, best: personalBest ? last : previous };
+    const saved = this.save();
+    return { ...last, personalBest, saved };
+  }
+  finishTraining(completed = true) {
+    this.data.trainingSeen = true;
+    this.data.trainingDone ||= completed;
+    this.save();
+  }
   save() {
     try { localStorage.setItem(this.storageKey, JSON.stringify(this.data)); return true; }
     catch { return false; }
